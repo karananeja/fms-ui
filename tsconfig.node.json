@@ -9,6 +9,7 @@
     "mock-server",
     "shared",
     "e2e",
+    "src/**/*.node.test.ts",
     "vite.config.ts",
     "vitest.config.ts",
     "playwright.config.ts"

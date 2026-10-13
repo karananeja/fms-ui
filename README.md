@@ -27,6 +27,8 @@ Vite proxies `/api` and `/ws` to the mock server, so cookies stay same-origin.
 | Variable | Default | Purpose |
 |---|---|---|
 | `VITE_MAP_STYLE_URL` | `https://tiles.openfreemap.org/styles/dark` | MapLibre style URL (dev: OpenFreeMap, no key) |
+| `VITE_DEV_LOGIN_EMAIL` | `superadmin@fms.local` | Dev-only auto sign-in when `/api/auth/me` is `401` (until F02); never in production builds |
+| `VITE_DEV_LOGIN_PASSWORD` | `Admin@123` | Password for the dev auto sign-in |
 | `MOCK_PORT` | `4000` | Mock server port, also the Vite proxy target |
 | `MOCK_SEED` | `42` | Seed for the deterministic generator |
 | `MOCK_VEHICLES` | `100000` | Synthetic vehicles (max `1000000`) |
@@ -54,6 +56,15 @@ Dev-only endpoints (not registered when `NODE_ENV=production`):
 - `POST /api/dev/clock` `{ "offsetMs": 1860000 }`: shifts the mock clock (expiry, non-comm); `0` resets it.
 - `GET /api/dev/stats`: vehicles, sockets, subscriptions, CPU and memory of the mock.
 
+### Live data pipeline (F04)
+
+On load the app checks the session (`/api/auth/me`; in dev it signs in automatically with
+`VITE_DEV_LOGIN_*`) and starts a Web Worker (`src/features/live-tracking/worker/`) that owns the
+`/ws/live` socket and the whole fleet state. The main thread only gets coalesced pushes (≤ 4 Hz) via
+`LiveTrackingStore` (`src/features/live-tracking/store/`). `/live-tracking` shows a temporary
+diagnostics panel (connection, vehicle count, rows/s, state size, clock offset, vehicle picker).
+In dev, `window.__fmsLive` exposes `{pushCount, firstDataAt, snapshotCompleteAt}`.
+
 ## Scripts
 
 | Script | What it does |
@@ -67,7 +78,7 @@ Dev-only endpoints (not registered when `NODE_ENV=production`):
 | `pnpm format` | Prettier |
 | `pnpm typecheck` | `tsc -b` |
 | `pnpm test` | Vitest, single run (never watch) |
-| `pnpm e2e` | Playwright (Chromium); starts `pnpm dev` itself |
+| `pnpm e2e` | Playwright (Chromium); starts `pnpm dev` itself. `*.perf.spec.ts` run last in the `perf` project |
 | `pnpm check` | typecheck + lint + test |
 
 ## Folder map

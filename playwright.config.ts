@@ -12,7 +12,16 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: { baseURL, trace: 'retain-on-failure' },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /\.perf\.spec\.ts$/ },
+    // Perf budgets run alone, after everything else, so other tests don't skew them.
+    {
+      name: 'perf',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /\.perf\.spec\.ts$/,
+      dependencies: ['chromium'],
+    },
+  ],
   webServer: {
     command: 'pnpm dev',
     url: baseURL,
