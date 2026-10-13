@@ -86,3 +86,6 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 **User:** "continue" — interpreted as F05 UAT acceptance + approval of D-036…D-040 (stated back to user).
 
 **Assistant:** D-036…D-040 Accepted; F05 merged into `main` (--no-ff). Writing F06 + F07 specs on `main`.
+- Wrote `features/f06-live-map/spec.md` (worker supercluster + live bbox scan, transferable frames, DOM donut clusters, SDF points, auto-fit once, city jump, quick locate, offline test style; fps verified manually at UAT) and `features/f07-vehicle-details/spec.md` (URL-synced selection, pure view model tested against the sample payloads = reference screenshot values, gauges, 374-PID grid, mobile bottom sheet).
+
+**Status:** Awaiting F06 + F07 spec sign-off.
