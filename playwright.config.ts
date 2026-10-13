@@ -18,17 +18,18 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   reporter: [['list'], ['html', { open: 'never' }]],
-  use: { baseURL, trace: 'retain-on-failure', launchOptions },
+  // Reduced motion: no clicks on sliding sheets; the app honours it (src/index.css).
+  use: { baseURL, trace: 'retain-on-failure', launchOptions, reducedMotion: 'reduce' },
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], launchOptions },
+      use: { ...devices['Desktop Chrome'], launchOptions, reducedMotion: 'reduce' },
       testIgnore: /\.(perf|clock)\.spec\.ts$/,
     },
     // Perf budgets run alone, after everything else, so other tests don't skew them.
     {
       name: 'perf',
-      use: { ...devices['Desktop Chrome'], launchOptions },
+      use: { ...devices['Desktop Chrome'], launchOptions, reducedMotion: 'reduce' },
       testMatch: /\.perf\.spec\.ts$/,
       dependencies: ['chromium'],
       workers: 1,
@@ -36,7 +37,7 @@ export default defineConfig({
     // Specs that shift the shared mock clock run last, alone.
     {
       name: 'clock',
-      use: { ...devices['Desktop Chrome'], launchOptions },
+      use: { ...devices['Desktop Chrome'], launchOptions, reducedMotion: 'reduce' },
       testMatch: /\.clock\.spec\.ts$/,
       dependencies: ['perf'],
       workers: 1,

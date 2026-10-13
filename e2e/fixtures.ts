@@ -38,6 +38,7 @@ export interface FmsMap {
   vehicleCount: number;
   moving: boolean;
   selectedVehicleId: string | null;
+  trailLength: number | null;
   highlight(): [number, number] | null;
   points(limit?: number): { id: string; lng: number; lat: number; x: number; y: number }[];
 }
@@ -59,6 +60,7 @@ export const mapState = (page: Page) =>
           vehicleCount: m.vehicleCount,
           moving: m.moving,
           selectedVehicleId: m.selectedVehicleId,
+          trailLength: m.trailLength,
           highlight: m.highlight(),
         }
       : null;

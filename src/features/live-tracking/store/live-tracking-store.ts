@@ -1,7 +1,8 @@
-import type { Me } from '@shared/contract/index.ts';
+import type { Me, Permission } from '@shared/contract/index.ts';
 import { VEHICLE_STATUSES, type VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import { proxy, releaseProxy, wrap, type Remote } from 'comlink';
 import type { IndiaCity } from '../config/india-cities.ts';
+import { detailsConfig } from '../config/details-config.ts';
 import { mapConfig } from '../config/map-config.ts';
 import { isValidPosition } from '../worker/position.ts';
 import type {
@@ -13,6 +14,7 @@ import type {
   MapFrame,
   MapViewport,
   SelectedVehicle,
+  VehicleSummary,
 } from '../worker/worker-api.ts';
 
 export type LngLat = [number, number];
@@ -21,7 +23,8 @@ export type LngLat = [number, number];
 export type MapCommand =
   | { type: 'fit'; bounds: Bbox; padding: number; maxZoom?: number }
   | { type: 'fly'; center: LngLat; zoom: number; duration: number }
-  | { type: 'ease'; center: LngLat; zoom: number };
+  | { type: 'ease'; center: LngLat; zoom: number }
+  | { type: 'resize' };
 
 export interface Notice {
   id: number;
@@ -36,10 +39,16 @@ export interface LiveTrackingState {
   total: number;
   selectedVehicleId: string | null;
   selected: SelectedVehicle | null;
+  /** Slim fleet record of the selected vehicle, fetched on selection (header before payloads). */
+  selectedSummary: VehicleSummary | null;
+  /** The signed-in user's permissions (from bootstrap `me`). */
+  permissions: readonly Permission[];
   /** Clusters/points for the current map viewport (null until the map asks). */
   mapFrame: MapFrame | null;
   /** Transient message for a toast. */
   notice: Notice | null;
+  /** Selected vehicle's recent path, oldest first (F07-R12); null when nothing is selected. */
+  trail: LngLat[] | null;
 }
 
 /** Main-thread counters for e2e budgets (`performance.now()` ms; 0 = not yet). */
@@ -51,6 +60,19 @@ export interface LiveTrackingMetrics {
 
 export interface LiveTrackingStoreDeps {
   createWorkerApi: () => Remote<LiveTrackingWorkerApi>;
+  /** `[lng, lat]` points of the last `minutes` (oldest first). Defaults to the REST endpoint. */
+  fetchTrail?: (vehicleId: string, minutes: number) => Promise<LngLat[]>;
+}
+
+/** `GET /api/vehicles/:id/trail` (F07-R12); failures leave the trail to live positions only. */
+export async function fetchTrail(vehicleId: string, minutes: number): Promise<LngLat[]> {
+  const res = await fetch(
+    `/api/vehicles/${encodeURIComponent(vehicleId)}/trail?minutes=${minutes}`,
+    { credentials: 'include' },
+  );
+  if (!res.ok) return [];
+  const body = (await res.json()) as { points: [number, number, number][] };
+  return body.points.map(([lng, lat]) => [lng, lat]);
 }
 
 const emptyStats: LiveStats = {
@@ -81,9 +103,15 @@ const initialState: LiveTrackingState = {
   total: 0,
   selectedVehicleId: null,
   selected: null,
+  selectedSummary: null,
+  permissions: [],
   mapFrame: null,
   notice: null,
+  trail: null,
 };
+
+export const hasPermission = (state: LiveTrackingState, permission: Permission): boolean =>
+  state.permissions.includes(permission);
 
 /** Live position of the selected vehicle: its payload, else its point in the current frame. */
 export function selectedPosition(state: LiveTrackingState): LngLat | null {
@@ -112,6 +140,9 @@ export class LiveTrackingStore {
   start(me: Me): void {
     if (this.api) return;
     this.api = this.deps.createWorkerApi();
+    const permissions = me.permissions ?? [];
+    if (permissions.join() !== this.state.permissions.join())
+      this.set({ ...this.state, permissions });
     void this.api.init(
       me,
       proxy((push: LivePush) => this.receive(push)),
@@ -147,14 +178,38 @@ export class LiveTrackingStore {
 
   async selectVehicle(vehicleId: string | null): Promise<void> {
     if (vehicleId === this.state.selectedVehicleId) return;
-    this.set({ ...this.state, selectedVehicleId: vehicleId, selected: null });
-    const found = (await this.api?.selectVehicle(vehicleId)) ?? false;
-    if (vehicleId !== null && !found && this.state.selectedVehicleId === vehicleId) {
+    this.set({
+      ...this.state,
+      selectedVehicleId: vehicleId,
+      selected: null,
+      selectedSummary: null,
+      trail: vehicleId ? [] : null,
+    });
+    const api = this.api;
+    const found = (await api?.selectVehicle(vehicleId)) ?? false;
+    if (vehicleId === null || this.state.selectedVehicleId !== vehicleId) return;
+    if (!found) {
       this.set({
         ...this.state,
         selected: { vehicleId, found: false, status: null, combinfo: null, lafparsed: null },
       });
+      return;
     }
+    void this.loadTrail(vehicleId);
+    const summary = await api!.getVehicleSummary(vehicleId);
+    if (summary && this.state.selectedVehicleId === vehicleId) {
+      this.set({ ...this.state, selectedSummary: summary });
+    }
+  }
+
+  private async loadTrail(vehicleId: string): Promise<void> {
+    const load = this.deps.fetchTrail ?? fetchTrail;
+    const points = await load(vehicleId, detailsConfig.trailMinutes).catch(() => []);
+    if (this.state.selectedVehicleId !== vehicleId || !this.state.trail) return;
+    // Live positions that arrived meanwhile stay after the fetched history.
+    const last = points.at(-1);
+    const live = this.state.trail.filter((p) => !last || p[0] !== last[0] || p[1] !== last[1]);
+    this.set({ ...this.state, trail: [...points, ...live] });
   }
 
   /** The map's settled viewport (`null` when the map unmounts). */
@@ -201,6 +256,23 @@ export class LiveTrackingStore {
   async zoomToCluster(clusterId: number, center: LngLat, zoom: number): Promise<void> {
     const z = (await this.api?.getClusterExpansionZoom(clusterId)) ?? zoom + 2;
     this.command({ type: 'ease', center, zoom: Math.max(z, zoom + 1) });
+  }
+
+  /**
+   * Map click: a vehicle opens its details only with `vehicle.details.view` (F07-R13; otherwise
+   * the hover tooltip is all there is); empty map clears the selection (F07-R16).
+   */
+  clickMap(vehicleId: string | null): void {
+    if (vehicleId) {
+      if (hasPermission(this.state, 'vehicle.details.view')) void this.selectVehicle(vehicleId);
+    } else if (this.state.selectedVehicleId) {
+      void this.selectVehicle(null);
+    }
+  }
+
+  /** Asks the map to re-measure its container (layout around it changed). */
+  resizeMap(): void {
+    this.command({ type: 'resize' });
   }
 
   notify(message: string): void {
@@ -250,6 +322,7 @@ export class LiveTrackingStore {
     };
     if (push.selected !== undefined && push.selected?.vehicleId === this.state.selectedVehicleId) {
       next.selected = push.selected;
+      next.trail = appendTrail(this.state.trail, push.selected);
     }
     if (this.isNewFrame(push.mapFrame)) next.mapFrame = push.mapFrame;
     this.set(next);
@@ -261,6 +334,15 @@ export class LiveTrackingStore {
     this.state = state;
     for (const l of this.listeners) l();
   }
+}
+
+/** Appends the selected vehicle's live position when it moved (same array otherwise). */
+function appendTrail(trail: LngLat[] | null, selected: SelectedVehicle | null): LngLat[] | null {
+  const c = selected?.combinfo;
+  if (!trail || !c || !isValidPosition(c.latitude, c.longitude)) return trail;
+  const last = trail.at(-1);
+  if (last && last[0] === c.longitude && last[1] === c.latitude) return trail;
+  return [...trail, [c.longitude, c.latitude]];
 }
 
 const createWorkerApi = () =>

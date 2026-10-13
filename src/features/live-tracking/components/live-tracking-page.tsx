@@ -2,10 +2,13 @@ import { useSearch } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { liveTrackingStore, type LiveTrackingState } from '../store/live-tracking-store';
 import { useLiveTracking } from '../store/use-live-tracking';
+import { useSelectionUrlSync } from '../hooks/use-selection-url-sync';
 import { DebugOverlay } from './debug-overlay';
+import { HeadingCompass } from './heading-compass';
 import { LiveMap } from './live-map';
 import { LivePill } from './live-pill';
 import { MapToolbar } from './map-toolbar';
+import { VehicleDetailsPanel } from './vehicle-details-panel';
 
 const NOTICE_MS = 3000;
 const selectNotice = (s: LiveTrackingState) => s.notice;
@@ -31,14 +34,15 @@ function MapNotice() {
   );
 }
 
-/** `/live-tracking`: full-bleed live map with its toolbar (F06). */
+/** `/live-tracking`: full-bleed live map with its toolbar (F06) and the details panel (F07). */
 export function LiveTrackingPage() {
+  useSelectionUrlSync();
   const debug = useSearch({
     strict: false,
     select: (s) => String((s as { debug?: unknown }).debug) === '1',
   });
   return (
-    <div className="relative h-full overflow-hidden">
+    <div className="live-tracking relative h-full overflow-hidden">
       <h1 className="sr-only">Live tracking</h1>
       <LiveMap />
       <div className="fms-vignette pointer-events-none absolute inset-0" aria-hidden />
@@ -50,6 +54,8 @@ export function LiveTrackingPage() {
       </div>
       <MapToolbar />
       {debug && <DebugOverlay />}
+      <VehicleDetailsPanel />
+      <HeadingCompass />
       <MapNotice />
     </div>
   );

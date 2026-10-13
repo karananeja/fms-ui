@@ -6,6 +6,8 @@ import { STATUS_META } from '@/features/live-tracking/config/status-meta';
 
 const src = join(import.meta.dirname, '../..');
 const THEME = 'shared/styles/theme.css';
+/** Derives alpha variants of theme tokens at runtime; holds no colour values itself. */
+const ALLOWED = new Set([THEME, 'shared/lib/color-alpha.ts']);
 const rawColour = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|hwb)\(/i;
 
 const files = readdirSync(src, { recursive: true, encoding: 'utf8' })
@@ -23,7 +25,7 @@ describe('DS1-T1: colours come from theme.css only', () => {
     expect(rawColour.test('rgb(0 0 0 / 0.4)')).toBe(true);
   });
 
-  it.each(files.filter((f) => f !== THEME))('%s has no raw colour literals', (file) => {
+  it.each(files.filter((f) => !ALLOWED.has(f)))('%s has no raw colour literals', (file) => {
     const hits = readFileSync(join(src, file), 'utf8')
       .split('\n')
       .filter((line) => rawColour.test(line));

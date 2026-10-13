@@ -13,6 +13,7 @@ import { accessRoutes } from './routes/access-routes.ts';
 import { authRoutes } from './routes/auth-routes.ts';
 import { devRoutes } from './routes/dev-routes.ts';
 import { shareRoutes } from './routes/share-routes.ts';
+import { vehicleRoutes } from './routes/vehicle-routes.ts';
 import { Accounts } from './store/accounts.ts';
 import { ShareLinks } from './store/share-links.ts';
 
@@ -71,6 +72,7 @@ export function buildServer({ logLevel = 'warn', ...overrides }: BuildOptions = 
   app.register(authRoutes, { prefix: '/api/auth' });
   app.register(accessRoutes, { prefix: '/api' });
   app.register(shareRoutes, { prefix: '/api' });
+  app.register(vehicleRoutes, { prefix: '/api' });
   if (config.dev) app.register(devRoutes, { prefix: '/api/dev' });
 
   app.register(async (scope) => {

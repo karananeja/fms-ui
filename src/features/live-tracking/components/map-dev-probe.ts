@@ -49,6 +49,10 @@ export function exposeMapProbe(
     get selectedVehicleId() {
       return store.getSnapshot().selectedVehicleId;
     },
+    /** Points in the selected vehicle's trail (F07), or null. */
+    get trailLength() {
+      return store.getSnapshot().trail?.length ?? null;
+    },
     highlight: () => highlight(),
     /** Points of the current frame in client (page) coordinates. */
     points: (limit = 20) => {

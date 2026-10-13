@@ -111,6 +111,14 @@ describe('F06-T2: rebuild throttle and live close-ups', () => {
     expect(index.builds).toBe(2);
   });
 
+  it('force skips the throttle (first complete snapshot), but not an unchanged version', () => {
+    const { state } = fleet(500);
+    const index = new MapIndex(state, { clusterRebuildMs: 2000 });
+    index.update(1, 0);
+    expect(index.update(2, 100, true)).toBe(true);
+    expect(index.update(2, 200, true)).toBe(false);
+  });
+
   it('a position update shows up in a zoom-15 frame without a rebuild', () => {
     const { state } = fleet(500);
     const index = new MapIndex(state);

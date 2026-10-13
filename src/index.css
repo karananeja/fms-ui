@@ -179,3 +179,19 @@ div.maplibregl-map {
     animation: none;
   }
 }
+
+/* Keep the zoom buttons clear of the compact details card (F07). */
+@media (min-width: 1024px) {
+  .live-tracking:has([data-details-panel='compact']) .maplibregl-ctrl-bottom-right {
+    right: 444px;
+  }
+}
+
+/* Honour reduced motion for slide-in sheets (also keeps e2e clicks off moving targets). */
+@media (prefers-reduced-motion: reduce) {
+  [data-slot='sheet-overlay'],
+  [data-slot='sheet-content'] {
+    animation: none !important;
+    transition: none !important;
+  }
+}

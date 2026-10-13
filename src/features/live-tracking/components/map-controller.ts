@@ -24,6 +24,8 @@ import {
 import { mapView } from '../store/map-view.ts';
 import type { MapClusters, MapFrame, MapPoints, MapViewport } from '../worker/worker-api.ts';
 import { clusterLabel, clusterMarkerSvg } from './cluster-marker.ts';
+import { attachSelectedCallout } from './selected-callout.ts';
+import { attachTrailLayer } from './trail-layer.ts';
 
 setWorkerUrl(workerUrl);
 
@@ -253,15 +255,17 @@ export class MapController {
         'icon-halo-width': 1.8,
       },
     });
+    // F07: selected-vehicle trail (under the selection ring) and callout.
+    this.unsubscribe.push(
+      attachTrailLayer(map, this.store, 'selected-halo'),
+      attachSelectedCallout(map, this.store),
+    );
     map.on('mousemove', 'vehicles', (e) => this.hover(e));
     map.on('mouseleave', 'vehicles', () => {
       map.getCanvas().style.cursor = '';
       this.popup.remove();
     });
-    map.on('click', 'vehicles', (e) => {
-      const id = e.features?.[0]?.properties.id as string | undefined;
-      if (id) void this.store.selectVehicle(id);
-    });
+    map.on('click', (e) => this.click(e.point));
     this.loaded = true;
     this.frame = null;
     this.apply3d(true);
@@ -305,6 +309,12 @@ export class MapController {
     else map.easeTo({ pitch });
   }
 
+  /** MapLibre fires no click after a drag; cluster markers stop their clicks reaching the map. */
+  private click(point: { x: number; y: number }): void {
+    const f = this.map.queryRenderedFeatures([point.x, point.y], { layers: ['vehicles'] })[0];
+    this.store.clickMap((f?.properties.id as string | undefined) ?? null);
+  }
+
   private viewport(): MapViewport {
     const b = this.map.getBounds();
     const clamp = (v: number) => Math.max(-180, Math.min(180, v));
@@ -330,6 +340,8 @@ export class MapController {
         ...tilt,
         ...(maxZoom === undefined ? {} : { maxZoom }),
       });
+    } else if (cmd.type === 'resize') {
+      this.map.resize();
     } else if (cmd.type === 'fly') {
       this.map.flyTo({ center: cmd.center, zoom: cmd.zoom, duration: cmd.duration, ...tilt });
     } else {
