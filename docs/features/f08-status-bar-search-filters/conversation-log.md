@@ -29,3 +29,6 @@ Agent implemented a worker-side draft (filter engine, search index, map-index fi
 
 ## 2026-10-14 — Recovery, milestone 3: LivePush test fixtures
 The baseline made `filteredCounts`, `filteredTotal`, `selectedMatches` required on `LivePush` but left three test fixtures without them (`tsc -b` failed). Added unfiltered values (counts = status counts, total = total, `selectedMatches: true`) to `live-tracking-store.test.ts`, `use-selection-url-sync.test.tsx`, `vehicle-details-panel.test.tsx`. `tsc -b` clean; the three files 32/32.
+
+## 2026-10-14 — Recovery complete; final verification
+`pnpm check` after `163128e`: `tsc -b` pass, `eslint .` pass, `vitest run` 342/342 (32 files). Test report added. Next (needs approval): remaining F08-T1/T2 cases, F08-T3 perf (cold + warm search, filter apply at 1 lakh), F08-T4, then UI R7…R13.
