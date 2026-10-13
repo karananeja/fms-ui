@@ -22,7 +22,7 @@ Format: one entry per decision; never edit past entries — supersede them.
 | D-016 | 2026-10-13 | Admin screens (fleet tree, users, invites, roles) in scope | User answer | Accepted | — |
 | D-017 | 2026-10-13 | Parameters grid shows raw values, no units | User answer | Accepted | — |
 | D-018 | 2026-10-13 | Password policy: ≥8 chars, ≥1 letter, ≥1 number | User answer | Accepted | — |
-| D-019 | 2026-10-13 | Fonts self-hosted via Fontsource: `@fontsource/doto` (700) for `--font-display`, `@fontsource-variable/inter` for `--font-sans` | No runtime dependency on Google Fonts CDN; works offline and in e2e | Proposed | — |
-| D-020 | 2026-10-13 | Dev map style default `https://tiles.openfreemap.org/styles/dark` (`VITE_MAP_STYLE_URL`) | OpenFreeMap dark style, no API key (per D-006) | Proposed | — |
-| D-021 | 2026-10-13 | TypeScript pinned to 6.0.x (not 7.x) | typescript-eslint 8.x peer range is `<6.1.0`; TS 7 (native port) not yet supported | Proposed | — |
-| D-022 | 2026-10-13 | shadcn/ui aliases: ui → `src/shared/ui`, utils → `src/shared/lib/utils.ts`; primitives use the `radix-ui` umbrella package. Page titles come from TanStack Router `staticData.title`; top-bar actions via a `<PageActions>` portal | Keeps primitives under `src/shared` per architecture §3; one source for page titles | Proposed | — |
+| D-019 | 2026-10-13 | Fonts self-hosted via Fontsource: `@fontsource/doto` (700) for `--font-display`, `@fontsource-variable/inter` for `--font-sans` | No runtime dependency on Google Fonts CDN; works offline and in e2e | Accepted | — |
+| D-020 | 2026-10-13 | Dev map style default `https://tiles.openfreemap.org/styles/dark` (`VITE_MAP_STYLE_URL`) | OpenFreeMap dark style, no API key (per D-006) | Accepted | — |
+| D-021 | 2026-10-13 | TypeScript pinned to 6.0.x (not 7.x) | typescript-eslint 8.x peer range is `<6.1.0`; TS 7 (native port) not yet supported | Accepted | — |
+| D-022 | 2026-10-13 | shadcn/ui aliases: ui → `src/shared/ui`, utils → `src/shared/lib/utils.ts`; primitives use the `radix-ui` umbrella package. Page titles come from TanStack Router `staticData.title`; top-bar actions via a `<PageActions>` portal | Keeps primitives under `src/shared` per architecture §3; one source for page titles | Accepted | — |
