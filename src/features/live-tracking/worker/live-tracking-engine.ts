@@ -9,6 +9,7 @@ import {
 } from '../config/status-rules-config.ts';
 import { parseStatusRulesConfig } from '../config/status-rules-schema.ts';
 import { FleetState } from './fleet-state.ts';
+import { FilterEngine } from './filter-engine.ts';
 import { frameBuffers, MapIndex } from './map-index.ts';
 import { SelectedHistory } from './selected-history.ts';
 import { detailsConfig } from '../config/details-config.ts';
@@ -59,6 +60,8 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   readonly state: FleetState;
   readonly status: StatusTracker;
   readonly client: WsClient;
+  /** F08/F09 contract: consumers call `filters.matches(i)` only. */
+  readonly filters: FilterEngine;
   readonly map: MapIndex;
   pushCount = 0;
   private readonly clock: Clock;
@@ -103,6 +106,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
       pendingMax: this.config.pendingLafMax,
     });
     this.status = new StatusTracker(this.state, this.rules);
+    this.filters = new FilterEngine(this.state);
     this.map = new MapIndex(this.state, deps.map);
     this.client = new WsClient({
       url: deps.url,
