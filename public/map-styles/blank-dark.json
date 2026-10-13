@@ -1,0 +1,8 @@
+{
+  "version": 8,
+  "name": "Blank dark (offline, tests)",
+  "sources": {},
+  "layers": [
+    { "id": "background", "type": "background", "paint": { "background-color": "#0b0d12" } }
+  ]
+}

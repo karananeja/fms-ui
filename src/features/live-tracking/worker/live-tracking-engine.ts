@@ -1,6 +1,7 @@
 import type { Combinfo, Lafparsed, Me, ServerMessage } from '@shared/contract/index.ts';
 import type { VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import { liveTrackingConfig, type LiveTrackingConfig } from '../config/live-tracking-config.ts';
+import type { MapConfig } from '../config/map-config.ts';
 import {
   statusLafPids,
   statusRulesConfig,
@@ -8,12 +9,16 @@ import {
 } from '../config/status-rules-config.ts';
 import { parseStatusRulesConfig } from '../config/status-rules-schema.ts';
 import { FleetState } from './fleet-state.ts';
+import { frameBuffers, MapIndex } from './map-index.ts';
 import { StatusTracker } from './status-deriver.ts';
 import type {
+  Bbox,
   ConnectionState,
   LivePush,
   LiveStats,
   LiveTrackingWorkerApi,
+  MapFrame,
+  MapViewport,
   SelectedVehicle,
   VehicleSummary,
 } from './worker-api.ts';
@@ -32,6 +37,9 @@ export interface EngineDeps {
   statusRules?: StatusRulesConfig;
   /** Called after `dispose()` (the worker entry closes itself here). */
   onDispose?: () => void;
+  map?: Partial<MapConfig>;
+  /** Marks buffers for transfer (Comlink `transfer` in the worker; identity elsewhere). */
+  transfer?: <T>(value: T, buffers: ArrayBuffer[]) => T;
 }
 
 interface Selection {
@@ -49,6 +57,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   readonly state: FleetState;
   readonly status: StatusTracker;
   readonly client: WsClient;
+  readonly map: MapIndex;
   pushCount = 0;
   private readonly clock: Clock;
   private me: Me | null = null;
@@ -64,6 +73,11 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   private pendingTimer: unknown = null;
   private sweepTimer: unknown = null;
   private sweepMs = 0;
+  private rebuildTimer: unknown = null;
+  private viewport: MapViewport | null = null;
+  /** Bumped when a sweep changed any status (the state version covers rows). */
+  private statusEpoch = 0;
+  private frameOf = { data: -1, builds: -1 };
   private selectedStatus: VehicleStatus | null = null;
   private rows = 0;
   private msgs = 0;
@@ -84,6 +98,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
       pendingMax: this.config.pendingLafMax,
     });
     this.status = new StatusTracker(this.state, this.rules);
+    this.map = new MapIndex(this.state, deps.map);
     this.client = new WsClient({
       url: deps.url,
       createSocket: deps.createSocket,
@@ -132,6 +147,21 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     return i < 0 ? null : { ...this.state.summary(i), status: this.status.statusOf(i)! };
   }
 
+  setViewport(viewport: MapViewport | null): MapFrame | null {
+    this.viewport = viewport;
+    if (!viewport) return null;
+    const frame = this.computeFrame();
+    return this.transfer(frame, frameBuffers(frame));
+  }
+
+  getClusterExpansionZoom(clusterId: number): number | null {
+    return this.map.expansionZoom(clusterId);
+  }
+
+  getBounds(): Bbox | null {
+    return this.map.bounds();
+  }
+
   get connection(): ConnectionState {
     return this.client.state;
   }
@@ -147,11 +177,18 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
       stateBytes: this.state.bytes,
       serverOffsetMs: this.client.serverOffsetMs,
       sweepMs: this.sweepMs,
+      clusterBuildMs: this.map.buildMs,
     };
   }
 
   dispose(): void {
-    for (const t of [this.pushTimer, this.statsTimer, this.pendingTimer, this.sweepTimer])
+    for (const t of [
+      this.pushTimer,
+      this.statsTimer,
+      this.pendingTimer,
+      this.sweepTimer,
+      this.rebuildTimer,
+    ])
       this.clock.clearTimeout(t);
     this.onPush = null;
     this.client.dispose();
@@ -272,8 +309,45 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
       this.selectedStatus = status;
       push.selected = s && toSelected(s, status);
     }
+    const frame = this.viewport && this.frameIfChanged();
+    if (frame) push.mapFrame = frame;
     this.pushCount++;
-    this.onPush(push);
+    this.onPush(frame ? this.transfer(push, frameBuffers(frame)) : push);
+  }
+
+  // ---- map ----
+
+  private get dataVersion(): number {
+    return this.state.version + this.statusEpoch;
+  }
+
+  private transfer<T>(value: T, buffers: ArrayBuffer[]): T {
+    return this.deps.transfer ? this.deps.transfer(value, buffers) : value;
+  }
+
+  /** Rebuilds the index when due; schedules a later rebuild when throttled. */
+  private updateIndex(): void {
+    const now = this.clock.now();
+    this.map.update(this.dataVersion, now);
+    const wait = this.map.rebuildWait(this.dataVersion, now);
+    if (wait !== null && this.rebuildTimer === null) {
+      this.rebuildTimer = this.clock.setTimeout(() => {
+        this.rebuildTimer = null;
+        this.markDirty();
+      }, wait);
+    }
+  }
+
+  private computeFrame(): MapFrame {
+    this.updateIndex();
+    this.frameOf = { data: this.dataVersion, builds: this.map.builds };
+    return this.map.frame(this.viewport!);
+  }
+
+  private frameIfChanged(): MapFrame | null {
+    this.updateIndex();
+    const { data, builds } = this.frameOf;
+    return data === this.dataVersion && builds === this.map.builds ? null : this.computeFrame();
   }
 
   private tickStats(): void {
@@ -294,7 +368,10 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     const t0 = performance.now();
     const changed = this.status.sweep(this.now());
     this.sweepMs = performance.now() - t0;
-    if (changed) this.markDirty();
+    if (changed) {
+      this.statusEpoch++;
+      this.markDirty();
+    }
     this.sweepTimer = this.clock.setTimeout(() => this.tickSweep(), this.rules.sweepIntervalMs);
   }
 }

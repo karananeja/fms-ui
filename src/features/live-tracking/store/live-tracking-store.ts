@@ -1,13 +1,32 @@
 import type { Me } from '@shared/contract/index.ts';
 import { VEHICLE_STATUSES, type VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import { proxy, releaseProxy, wrap, type Remote } from 'comlink';
+import type { IndiaCity } from '../config/india-cities.ts';
+import { mapConfig } from '../config/map-config.ts';
+import { isValidPosition } from '../worker/position.ts';
 import type {
+  Bbox,
   ConnectionState,
   LivePush,
   LiveStats,
   LiveTrackingWorkerApi,
+  MapFrame,
+  MapViewport,
   SelectedVehicle,
 } from '../worker/worker-api.ts';
+
+export type LngLat = [number, number];
+
+/** Camera moves the store decides on and `map-controller` executes. */
+export type MapCommand =
+  | { type: 'fit'; bounds: Bbox; padding: number; maxZoom?: number }
+  | { type: 'fly'; center: LngLat; zoom: number; duration: number }
+  | { type: 'ease'; center: LngLat; zoom: number };
+
+export interface Notice {
+  id: number;
+  message: string;
+}
 
 export interface LiveTrackingState {
   connection: ConnectionState;
@@ -17,6 +36,10 @@ export interface LiveTrackingState {
   total: number;
   selectedVehicleId: string | null;
   selected: SelectedVehicle | null;
+  /** Clusters/points for the current map viewport (null until the map asks). */
+  mapFrame: MapFrame | null;
+  /** Transient message for a toast. */
+  notice: Notice | null;
 }
 
 /** Main-thread counters for e2e budgets (`performance.now()` ms; 0 = not yet). */
@@ -40,6 +63,7 @@ const emptyStats: LiveStats = {
   stateBytes: 0,
   serverOffsetMs: 0,
   sweepMs: 0,
+  clusterBuildMs: 0,
 };
 
 const emptyCounts = Object.fromEntries(VEHICLE_STATUSES.map((s) => [s, 0])) as Record<
@@ -57,7 +81,20 @@ const initialState: LiveTrackingState = {
   total: 0,
   selectedVehicleId: null,
   selected: null,
+  mapFrame: null,
+  notice: null,
 };
+
+/** Live position of the selected vehicle: its payload, else its point in the current frame. */
+export function selectedPosition(state: LiveTrackingState): LngLat | null {
+  const id = state.selectedVehicleId;
+  if (!id) return null;
+  const c = state.selected?.combinfo;
+  if (c && isValidPosition(c.latitude, c.longitude)) return [c.longitude, c.latitude];
+  const p = state.mapFrame?.points;
+  const k = p ? p.ids.indexOf(id) : -1;
+  return k < 0 ? null : [p!.lng[k]!, p!.lat[k]!];
+}
 
 /** Main-thread facade over the live-tracking worker. Holds UI state and small worker results only. */
 export class LiveTrackingStore {
@@ -65,6 +102,10 @@ export class LiveTrackingStore {
   private state = initialState;
   private api: Remote<LiveTrackingWorkerApi> | null = null;
   private readonly listeners = new Set<() => void>();
+  private readonly commandListeners = new Set<(cmd: MapCommand) => void>();
+  private viewport: MapViewport | null = null;
+  private autoFit = false;
+  private noticeSeq = 0;
 
   constructor(private readonly deps: LiveTrackingStoreDeps) {}
 
@@ -83,8 +124,19 @@ export class LiveTrackingStore {
     this.api = null;
     void api.dispose();
     api[releaseProxy]();
+    this.autoFit = false;
     this.set(initialState);
   }
+
+  /** True once the one automatic zoom-to-fit (first completed snapshot) has been issued. */
+  get autoFitDone(): boolean {
+    return this.autoFit;
+  }
+
+  onMapCommand = (listener: (cmd: MapCommand) => void): (() => void) => {
+    this.commandListeners.add(listener);
+    return () => this.commandListeners.delete(listener);
+  };
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -103,6 +155,81 @@ export class LiveTrackingStore {
         selected: { vehicleId, found: false, status: null, combinfo: null, lafparsed: null },
       });
     }
+  }
+
+  /** The map's settled viewport (`null` when the map unmounts). */
+  async setViewport(viewport: MapViewport | null): Promise<void> {
+    this.viewport = viewport;
+    if (!viewport) this.set({ ...this.state, mapFrame: null });
+    const frame = await this.api?.setViewport(viewport);
+    if (frame) this.acceptFrame(frame);
+    this.maybeAutoFit();
+  }
+
+  /** Selects the vehicle and flies to its current position once (no follow). */
+  async locateVehicle(vehicleId: string): Promise<void> {
+    void this.selectVehicle(vehicleId);
+    const v = await this.api?.getVehicleSummary(vehicleId);
+    if (!v || !isValidPosition(v.lat, v.lng)) return this.notify('No location available');
+    this.command({
+      type: 'fly',
+      center: [v.lng, v.lat],
+      zoom: mapConfig.locateZoom,
+      duration: mapConfig.locateDurationMs,
+    });
+  }
+
+  /** Fits all vehicles with a position (a single point is flown to). False when there are none. */
+  async fitToVehicles(): Promise<boolean> {
+    const bounds = (await this.api?.getBounds()) ?? null;
+    if (!bounds) return false;
+    const [w, s, e, n] = bounds;
+    this.command(
+      w === e && s === n
+        ? { type: 'fly', center: [w, s], zoom: mapConfig.singlePointZoom, duration: 1000 }
+        : { type: 'fit', bounds, padding: mapConfig.fitPadding, maxZoom: mapConfig.fitMaxZoom },
+    );
+    return true;
+  }
+
+  /** Pans to a city; does not filter (C14). */
+  jumpToCity(city: IndiaCity): void {
+    this.command({ type: 'fit', bounds: city.bbox, padding: 0 });
+  }
+
+  /** Zooms into a cluster, centred on it. */
+  async zoomToCluster(clusterId: number, center: LngLat, zoom: number): Promise<void> {
+    const z = (await this.api?.getClusterExpansionZoom(clusterId)) ?? zoom + 2;
+    this.command({ type: 'ease', center, zoom: Math.max(z, zoom + 1) });
+  }
+
+  notify(message: string): void {
+    this.set({ ...this.state, notice: { id: ++this.noticeSeq, message } });
+  }
+
+  dismissNotice(id: number): void {
+    if (this.state.notice?.id === id) this.set({ ...this.state, notice: null });
+  }
+
+  private command(cmd: MapCommand): void {
+    for (const l of this.commandListeners) l(cmd);
+  }
+
+  /** F06-R16: once, on the first completed snapshot, as soon as the map has a viewport. */
+  private maybeAutoFit(): void {
+    if (this.autoFit || !this.viewport || !this.state.stats.snapshotComplete) return;
+    this.autoFit = true;
+    void this.fitToVehicles();
+  }
+
+  /** Frames from pushes and `setViewport` replies may interleave; the newest wins. */
+  private isNewFrame(frame: MapFrame | null | undefined): frame is MapFrame {
+    const current = this.state.mapFrame;
+    return !!frame && !!this.viewport && (!current || frame.version > current.version);
+  }
+
+  private acceptFrame(frame: MapFrame): void {
+    if (this.isNewFrame(frame)) this.set({ ...this.state, mapFrame: frame });
   }
 
   private receive(push: LivePush): void {
@@ -124,7 +251,9 @@ export class LiveTrackingStore {
     if (push.selected !== undefined && push.selected?.vehicleId === this.state.selectedVehicleId) {
       next.selected = push.selected;
     }
+    if (this.isNewFrame(push.mapFrame)) next.mapFrame = push.mapFrame;
     this.set(next);
+    this.maybeAutoFit();
   }
 
   private set(state: LiveTrackingState): void {
