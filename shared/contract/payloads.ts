@@ -100,7 +100,10 @@ export const SHARE_GROUP_KEYS = {
   device: { combinfo: ['deviceid', 'carbattery', 'devbattery', 'rxdbm'], parsedcandata: [] },
 } as const satisfies Record<
   string,
-  { combinfo: readonly (keyof Combinfo)[]; parsedcandata: readonly (typeof PARSED_CAN_KEYS)[number][] }
+  {
+    combinfo: readonly (keyof Combinfo)[];
+    parsedcandata: readonly (typeof PARSED_CAN_KEYS)[number][];
+  }
 >;
 
 /** Payloads as a share socket may receive them (hidden groups removed). */
@@ -108,3 +111,5 @@ export const redactedCombinfoSchema = combinfoSchema
   .partial({ speed: true, deviceid: true, carbattery: true, devbattery: true, rxdbm: true })
   .extend({ parsedcandata: parsedCanSchema.partial() });
 export const redactedLafparsedSchema = lafparsedSchema.partial({ deviceid: true });
+export type RedactedCombinfo = z.infer<typeof redactedCombinfoSchema>;
+export type RedactedLafparsed = z.infer<typeof redactedLafparsedSchema>;
