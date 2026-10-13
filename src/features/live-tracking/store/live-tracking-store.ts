@@ -123,7 +123,8 @@ export class LiveTrackingStore {
     if (this.api) return;
     this.api = this.deps.createWorkerApi();
     const permissions = me.permissions ?? [];
-    if (permissions.join() !== this.state.permissions.join()) this.set({ ...this.state, permissions });
+    if (permissions.join() !== this.state.permissions.join())
+      this.set({ ...this.state, permissions });
     void this.api.init(
       me,
       proxy((push: LivePush) => this.receive(push)),
@@ -159,7 +160,12 @@ export class LiveTrackingStore {
 
   async selectVehicle(vehicleId: string | null): Promise<void> {
     if (vehicleId === this.state.selectedVehicleId) return;
-    this.set({ ...this.state, selectedVehicleId: vehicleId, selected: null, selectedSummary: null });
+    this.set({
+      ...this.state,
+      selectedVehicleId: vehicleId,
+      selected: null,
+      selectedSummary: null,
+    });
     const api = this.api;
     const found = (await api?.selectVehicle(vehicleId)) ?? false;
     if (vehicleId === null || this.state.selectedVehicleId !== vehicleId) return;

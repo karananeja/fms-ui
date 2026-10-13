@@ -25,7 +25,13 @@ describe('F07-T2: view model from the caninfo.md / lafparsed.md samples', () => 
   const view = vehicleDetailsModel({
     vehicleId: combinfo.vehicleid,
     summary: null,
-    selected: { vehicleId: combinfo.vehicleid, found: true, status: 'pullout', combinfo, lafparsed },
+    selected: {
+      vehicleId: combinfo.vehicleid,
+      found: true,
+      status: 'pullout',
+      combinfo,
+      lafparsed,
+    },
     now,
   });
 

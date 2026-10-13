@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, Outlet, useMatches } from '@tanstack/react-router';
 import { Menu } from 'lucide-react';
 import { Button } from '@/shared/ui/button';
+import { Toaster } from '@/shared/ui/sonner';
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/shared/ui/sheet';
 import { navItems } from './nav-items';
 import { PageActionsSlotContext } from './page-actions-context';
@@ -82,6 +83,7 @@ export function AppLayout() {
           </PageActionsSlotContext>
         </main>
       </div>
+      <Toaster position="bottom-center" />
     </div>
   );
 }

@@ -68,8 +68,14 @@ export interface VehicleDetailsView {
 }
 
 const int = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
-const oneDp = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-const twoDp = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const oneDp = new Intl.NumberFormat('en-IN', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+const twoDp = new Intl.NumberFormat('en-IN', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 const raw = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: detailsConfig.paramMaxFractionDigits,
 });
@@ -214,3 +220,11 @@ export function vehicleDetailsModel({
     parameters: l && parameterCells(l),
   };
 }
+
+/** CSS colour token per tone. */
+export const TONE_COLOR: Record<Tone, string> = {
+  ok: 'var(--ok)',
+  warn: 'var(--warn)',
+  bad: 'var(--st-stopped)',
+  none: 'var(--text-muted)',
+};

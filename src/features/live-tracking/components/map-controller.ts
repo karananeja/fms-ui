@@ -16,6 +16,7 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { mapConfig } from '../config/map-config.ts';
 import { STATUS_META } from '../config/status-meta.ts';
 import {
+  hasPermission,
   selectedPosition,
   type LiveTrackingState,
   type LiveTrackingStore,
@@ -218,14 +219,27 @@ export class MapController {
       map.getCanvas().style.cursor = '';
       this.popup.remove();
     });
-    map.on('click', 'vehicles', (e) => {
-      const id = e.features?.[0]?.properties.id as string | undefined;
-      if (id) void this.store.selectVehicle(id);
-    });
+    map.on('click', (e) => this.click(e.point));
     this.loaded = true;
     this.frame = null;
     this.render(this.store.getSnapshot());
     this.sendViewport();
+  }
+
+  /**
+   * A vehicle opens its details (with `vehicle.details.view`; otherwise the hover tooltip is all
+   * there is). Empty map deselects (F07-R16); MapLibre fires no click after a drag, and cluster
+   * markers stop their clicks from reaching the map.
+   */
+  private click(point: { x: number; y: number }): void {
+    const f = this.map.queryRenderedFeatures([point.x, point.y], { layers: ['vehicles'] })[0];
+    const id = f?.properties.id as string | undefined;
+    const state = this.store.getSnapshot();
+    if (id) {
+      if (hasPermission(state, 'vehicle.details.view')) void this.store.selectVehicle(id);
+    } else if (state.selectedVehicleId) {
+      void this.store.selectVehicle(null);
+    }
   }
 
   private viewport(): MapViewport {

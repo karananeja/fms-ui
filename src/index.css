@@ -135,3 +135,9 @@
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+/* Keep the zoom buttons clear of the compact details card (F07). */
+@media (min-width: 1024px) {
+  .live-tracking:has([data-details-panel='compact']) .maplibregl-ctrl-bottom-right {
+    right: 444px;
+  }
+}
