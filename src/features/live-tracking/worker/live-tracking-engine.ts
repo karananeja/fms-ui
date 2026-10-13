@@ -425,8 +425,9 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     }
   }
 
-  private computeFrame(): MapFrame {
-    this.updateIndex();
+  /** `update` false: the index was just updated (a D-072 cache swap must not rebuild in the same task). */
+  private computeFrame(update = true): MapFrame {
+    if (update) this.updateIndex();
     this.frameOf = {
       data: this.dataVersion,
       generation: this.map.generation,
@@ -442,7 +443,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
       generation === this.map.generation &&
       filter === this.filters.version
       ? null
-      : this.computeFrame();
+      : this.computeFrame(false);
   }
 
   private tickStats(): void {
