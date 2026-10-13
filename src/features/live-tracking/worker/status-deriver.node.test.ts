@@ -18,10 +18,10 @@ async function waitUntil(check: () => boolean, timeoutMs: number, what: string) 
   }
 }
 
-/** D-030 personas + duty cycle, as asserted by F01-T4 (percent of the fleet). */
+/** D-030 mix (percent of the fleet); the spec shares sum to 96 %, so D-030 puts "stopped" near 34 %. */
 const TARGET_MIX = {
   running: 35,
-  stopped: 30,
+  stopped: 34,
   charging: 8,
   'non-comm': 8,
   'no-gps': 5,
