@@ -2,9 +2,7 @@ import { z } from 'zod';
 import { epochMsSchema } from './common.ts';
 import { redactedCombinfoSchema, redactedLafparsedSchema } from './payloads.ts';
 
-export const WS_PATH = '/ws/live';
-export const WS_CLOSE = { unauthenticated: 4401, forbidden: 4403, gone: 4410 } as const;
-export const HEARTBEAT_MS = 15_000;
+export * from './ws-protocol.ts';
 
 export const topicSchema = z.enum(['combinfo', 'lafparsed']);
 export type Topic = z.infer<typeof topicSchema>;
@@ -30,42 +28,6 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('ping') }),
 ]);
 export type ClientMessage = z.infer<typeof clientMessageSchema>;
-
-/** Fleet-scope `combinfo` columns. Deltas carry `vehicleId` + live fields only. */
-export const COMBINFO_META_FIELDS = [
-  'vehicleId',
-  'deviceId',
-  'regno',
-  'vin',
-  'fleetId',
-  'assetType',
-  'fuelType',
-  'make',
-  'model',
-  'variant',
-] as const;
-export const COMBINFO_LIVE_FIELDS = [
-  'lat',
-  'lng',
-  'speed',
-  'heading',
-  'ignstatus',
-  'carbattery',
-  'devbattery',
-  'fixquality',
-  'utctime',
-  'gpstime',
-  'canutctime',
-  'soc',
-  'dte',
-  'odometer',
-  'immobilization_status',
-] as const;
-export const COMBINFO_SNAPSHOT_FIELDS = [...COMBINFO_META_FIELDS, ...COMBINFO_LIVE_FIELDS];
-export const COMBINFO_DELTA_FIELDS = ['vehicleId', ...COMBINFO_LIVE_FIELDS];
-/** Sent when a vehicle leaves the subscription's scope (`fleetId` is `null`). */
-export const COMBINFO_LEAVE_FIELDS = ['vehicleId', 'fleetId'];
-export const LAFPARSED_BASE_FIELDS = ['deviceId', 'canutctime'] as const;
 
 const str = z.string();
 const num = z.number();
