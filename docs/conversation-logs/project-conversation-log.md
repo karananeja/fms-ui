@@ -141,3 +141,6 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 **User:** "continue" — interpreted as DS1 + F07 UAT acceptance and approval of D-056…D-063 (stated back to user).
 
 **Assistant:** Accepted decisions; merged `integration/ds1-f07` into `main` (--no-ff); removed worktrees and merged branches. Writing F08 + F09 specs (designed to run in parallel).
+- Wrote F08 spec (worker filter engine + search index, status pills, fleet pulse, filter panel, chips) and F09 spec (worker table query, CSV export, vehicle tray), with a shared filter contract so both can run in parallel.
+
+**Status:** Awaiting F08 + F09 spec sign-off.
