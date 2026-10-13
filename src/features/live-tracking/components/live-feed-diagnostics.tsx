@@ -55,7 +55,9 @@ function FeedStats() {
       <Stat label="Messages / s">{fmt.format(s.msgsPerSec)}</Stat>
       <Stat label="Last message">{s.lastMessageAt ? formatIst(s.lastMessageAt) : '—'}</Stat>
       <Stat label="Reconnects">{s.reconnects}</Stat>
-      <Stat label="Worker state">{mb(s.stateBytes)}</Stat>
+      <Stat label="Worker state">
+        <span data-testid="live-state-size">{mb(s.stateBytes)}</span>
+      </Stat>
       <Stat label="Server clock offset">{offset(s.serverOffsetMs)}</Stat>
     </dl>
   );

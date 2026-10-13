@@ -49,7 +49,8 @@ test('/ws/live works through the Vite proxy with the session cookie', async ({ p
 });
 
 test('/ws/live without a session closes with 4401 through the proxy', async ({ page }) => {
-  await page.goto('/');
+  // A same-origin page that does not boot the app (which signs in automatically in dev).
+  await page.goto('/api/health');
   const code = await page.evaluate(
     (url) =>
       new Promise<number>((resolve) => {
