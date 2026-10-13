@@ -2,6 +2,7 @@
 import type { Me } from '@shared/contract/index.ts';
 import { COMBINFO_DELTA_FIELDS, COMBINFO_SNAPSHOT_FIELDS } from '@shared/contract/ws-protocol.ts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { statusRulesConfig, type StatusRulesConfig } from '../config/status-rules-config.ts';
 import {
   LiveTrackingEngine,
   SUB_FLEET_COMBINFO,
@@ -193,5 +194,98 @@ describe('F04 engine', () => {
     t.last().message(snapshot(SUB_FLEET_COMBINFO, [snapshotRow(1)]));
     expect(t.engine.getVehicleSummary('v1')).toMatchObject({ regno: 'KA01AB0001', soc: 80 });
     expect(t.engine.getVehicleSummary('nope')).toBeNull();
+  });
+});
+
+describe('F05 engine status integration', () => {
+  const MIN = 60_000;
+  function statusSetup(deps: Partial<ConstructorParameters<typeof LiveTrackingEngine>[0]> = {}) {
+    vi.setSystemTime(BASE_T);
+    const s = fakeSockets();
+    const pushes: LivePush[] = [];
+    const e = new LiveTrackingEngine({
+      url: 'ws://test/ws/live',
+      createSocket: s.create,
+      random: () => 1,
+      config: { heartbeatTimeoutMs: 3_600_000 },
+      ...deps,
+    });
+    e.init(me, (push) => pushes.push(push));
+    s.last().open();
+    return { ...s, engine: e, pushes, lastPush: () => pushes.at(-1)! };
+  }
+
+  it('F05-T3: the 1 Hz sweep moves silent vehicles to no-gps, then non-comm; pushes follow', () => {
+    const t = statusSetup();
+    engine = t.engine;
+    t.last().message(
+      snapshot(SUB_FLEET_COMBINFO, [snapshotRow(1, { speed: 0 }), snapshotRow(2), snapshotRow(3)]),
+    );
+    vi.advanceTimersByTime(1000);
+    expect(t.lastPush()).toMatchObject({ total: 3, statusCounts: { stopped: 1, running: 2 } });
+    vi.advanceTimersByTime(10 * MIN + 1000); // + 1 sweep tick and the coalesced push
+    expect(t.lastPush().statusCounts).toMatchObject({ 'no-gps': 3, stopped: 0, running: 0 });
+    vi.advanceTimersByTime(20 * MIN);
+    expect(t.lastPush().statusCounts).toMatchObject({ 'non-comm': 3, 'no-gps': 0 });
+    expect(t.lastPush().stats.sweepMs).toBeGreaterThanOrEqual(0);
+    const n = t.pushes.length;
+    vi.advanceTimersByTime(5000);
+    expect(t.pushes.length).toBe(n);
+  });
+
+  it('uses server time from the heartbeat, not the local clock', () => {
+    const t = statusSetup();
+    engine = t.engine;
+    t.last().message(snapshot(SUB_FLEET_COMBINFO, [snapshotRow(1)]));
+    vi.advanceTimersByTime(1000);
+    expect(t.lastPush().statusCounts.running).toBe(1);
+    t.last().message({ type: 'heartbeat', ts: BASE_T + 31 * MIN });
+    vi.advanceTimersByTime(2000);
+    expect(t.lastPush().statusCounts['non-comm']).toBe(1);
+  });
+
+  it('F05-R4: summary and selection carry the status; a status change re-pushes the selection', () => {
+    const t = statusSetup();
+    engine = t.engine;
+    t.last().message(snapshot(SUB_FLEET_COMBINFO, [snapshotRow(1), snapshotRow(2)]));
+    expect(t.engine.getVehicleSummary('v1')?.status).toBe('running');
+    t.engine.selectVehicle('v1');
+    vi.advanceTimersByTime(1000);
+    expect(t.lastPush().selected).toMatchObject({ vehicleId: 'v1', status: 'running' });
+    t.last().message({
+      type: 'delta',
+      id: SUB_FLEET_COMBINFO,
+      seq: 2,
+      fields: COMBINFO_DELTA_FIELDS,
+      rows: [deltaRow(1, { immobilization_status: 1, utctime: BASE_T + 1 })],
+    });
+    vi.advanceTimersByTime(1000);
+    expect(t.lastPush().selected).toMatchObject({ vehicleId: 'v1', status: 'immobilized' });
+    expect(t.lastPush().statusCounts).toMatchObject({ immobilized: 1, running: 1 });
+    t.last().message({
+      type: 'delta',
+      id: SUB_FLEET_COMBINFO,
+      seq: 3,
+      fields: COMBINFO_DELTA_FIELDS,
+      rows: [deltaRow(2, { speed: 0, utctime: BASE_T + 1 })],
+    });
+    vi.advanceTimersByTime(1000);
+    expect(t.lastPush().selected).toBeUndefined();
+  });
+
+  it('F05-T2: fleet lafparsed PIDs follow the status rules; invalid rules fail at start', () => {
+    const rules = structuredClone(statusRulesConfig) as StatusRulesConfig;
+    rules.charging = { anyOf: [{ pid: 'bms_charging_state', equals: 1 }] };
+    const t = statusSetup({ statusRules: rules });
+    engine = t.engine;
+    expect(t.last().sent[1]).toMatchObject({ topic: 'lafparsed', pids: ['bms_charging_state'] });
+    expect(
+      () =>
+        new LiveTrackingEngine({
+          url: 'ws://x',
+          createSocket: t.create,
+          statusRules: { ...rules, sweepIntervalMs: -1 },
+        }),
+    ).toThrow(/sweepIntervalMs/);
   });
 });

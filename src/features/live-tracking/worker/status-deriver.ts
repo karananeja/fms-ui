@@ -5,6 +5,7 @@ import {
 } from '@shared/domain/vehicle-status.ts';
 import { statusRulesConfig, type StatusRulesConfig } from '../config/status-rules-config.ts';
 import type { FleetState, FleetStateHooks } from './fleet-state.ts';
+import type { VehicleSummary } from './worker-api.ts';
 
 /** Status code stored in the `status` column: index in `VEHICLE_STATUSES` + 1 (0 = none yet). */
 export const STATUS_CODE = Object.fromEntries(VEHICLE_STATUSES.map((s, k) => [s, k + 1])) as Record<
@@ -99,21 +100,19 @@ export function compileStatusRules(
 }
 
 /** One vehicle's fields; lafparsed PIDs may sit under `pids`. Missing / null / non-number = no data. */
-export interface StatusInput {
-  [field: string]: unknown;
-  pids?: Record<string, number | null>;
-}
+export type StatusInput = Record<string, unknown> & { pids?: Record<string, number | null> };
 
 const num = (v: unknown) => (typeof v === 'number' ? v : NaN);
 
 /** Pure single-vehicle evaluation (same rules as the sweep). */
 export function deriveStatus(
-  v: StatusInput,
+  v: StatusInput | VehicleSummary,
   now: number,
   cfg: StatusRulesConfig = statusRulesConfig,
 ): VehicleStatus {
+  const fields = v as StatusInput;
   const evaluate = compileStatusRules(cfg, (f) =>
-    f === 'displayStatus' ? [encodeStatus(v.displayStatus)] : [num(v[f] ?? v.pids?.[f])],
+    f === 'displayStatus' ? [encodeStatus(fields[f])] : [num(fields[f] ?? v.pids?.[f])],
   );
   return statusOfCode(evaluate(0, now))!;
 }
