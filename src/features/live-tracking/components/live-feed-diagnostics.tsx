@@ -68,7 +68,9 @@ function FeedStats() {
           {offset(s.serverOffsetMs)}
         </span>
       </Stat>
-      <Stat label="Status sweep">{s.sweepMs.toFixed(1)} ms</Stat>
+      <Stat label="Status sweep">
+        <span data-testid="live-sweep-ms">{s.sweepMs.toFixed(1)} ms</span>
+      </Stat>
     </dl>
   );
 }
