@@ -222,7 +222,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     this.filters.set(filter);
     // D-072: only a change outside `statuses` needs the index rebuilt (or swapped) at once.
     if (this.filters.baseVersion !== base) this.rebuildNow = true;
-    this.markDirty();
+    this.pushNow();
   }
 
   setFleets(fleets: FleetNode[]): void {
@@ -367,6 +367,19 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     if (this.pushTimer !== null || !this.onPush) return;
     const wait = Math.max(0, this.lastPushAt + 1000 / this.config.pushHz - this.clock.now());
     this.pushTimer = this.clock.setTimeout(() => this.flush(), wait);
+  }
+
+  /**
+   * D-073: a user filter change pushes at once instead of waiting for the next 4 Hz slot; the
+   * push restarts the 250 ms window, so data-driven pushes stay coalesced after it.
+   */
+  private pushNow(): void {
+    if (this.pushTimer !== null) {
+      this.clock.clearTimeout(this.pushTimer);
+      this.pushTimer = null;
+    }
+    this.dirty = true;
+    this.flush();
   }
 
   private flush(): void {

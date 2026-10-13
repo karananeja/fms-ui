@@ -1,6 +1,6 @@
 // @vitest-environment node
 import type { Me } from '@shared/contract/index.ts';
-import { COMBINFO_SNAPSHOT_FIELDS } from '@shared/contract/ws-protocol.ts';
+import { COMBINFO_DELTA_FIELDS, COMBINFO_SNAPSHOT_FIELDS } from '@shared/contract/ws-protocol.ts';
 import { VEHICLE_STATUSES, type VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { statusLafPids, statusRulesConfig } from '../config/status-rules-config.ts';
@@ -9,7 +9,7 @@ import { FleetState } from './fleet-state.ts';
 import { LiveTrackingEngine, SUB_FLEET_COMBINFO } from './live-tracking-engine.ts';
 import { MapIndex } from './map-index.ts';
 import { StatusTracker } from './status-deriver.ts';
-import { BASE_T, fakeSockets, snapshotRow } from './testing/fake-socket.ts';
+import { BASE_T, deltaRow, fakeSockets, snapshotRow } from './testing/fake-socket.ts';
 import type { Bbox, LivePush, MapFrame } from './worker-api.ts';
 
 const INDIA: Bbox = [68.1, 6.5, 97.4, 35.7];
@@ -99,7 +99,7 @@ describe('F08: engine filter plumbing', () => {
       fields: COMBINFO_SNAPSHOT_FIELDS,
       rows: rows(200),
     });
-    return { e, pushes };
+    return { e, pushes, s };
   }
 
   it('a filter change rebuilds at once (no throttle) and the next push carries filtered counts', () => {
@@ -161,6 +161,54 @@ describe('F08: engine filter plumbing', () => {
     expect(e.map.cacheHits).toBe(1);
     expect(e.map.builds).toBe(builds + 2); // the fresh rebuild ran right after the swap
     expect(sum(lastFrame().clusters.count) + lastFrame().points.ids.length).toBe(180);
+    e.dispose();
+  });
+
+  it('D-073: a filter change pushes at once and restarts the push window; data alone stays at 4 Hz', () => {
+    const { e, pushes, s } = engine();
+    e.setViewport({ bbox: INDIA, zoom: 5 });
+    vi.advanceTimersByTime(1000);
+    let seq = 1;
+    const data = () =>
+      s.last().message({
+        type: 'delta',
+        id: SUB_FLEET_COMBINFO,
+        seq: ++seq,
+        fields: COMBINFO_DELTA_FIELDS,
+        rows: [deltaRow(3, { utctime: BASE_T + seq, speed: seq % 50 })],
+      });
+    const n0 = pushes.length;
+
+    // Data change: coalesced into the next slot, not pushed synchronously.
+    data();
+    expect(pushes.length).toBe(n0);
+    vi.advanceTimersByTime(250);
+    expect(pushes.length).toBe(n0 + 1);
+
+    // 100 ms into the window: the filter change pushes immediately, with its frame.
+    vi.advanceTimersByTime(100);
+    data(); // pending data rides along in the filter push
+    e.setFilter({ fleetIds: ['f1'] });
+    expect(pushes.length).toBe(n0 + 2);
+    expect(pushes.at(-1)!.filteredTotal).toBe(100);
+    expect(pushes.at(-1)!.mapFrame).toBeTruthy();
+    vi.advanceTimersByTime(150); // the cancelled slot does not push again
+    expect(pushes.length).toBe(n0 + 2);
+
+    // The window restarted at the filter push: data waits a full 250 ms from it.
+    data();
+    vi.advanceTimersByTime(99);
+    expect(pushes.length).toBe(n0 + 2);
+    vi.advanceTimersByTime(1);
+    expect(pushes.length).toBe(n0 + 3);
+
+    // Data alone never exceeds 4 Hz.
+    const t0 = pushes.length;
+    for (let k = 0; k < 100; k++) {
+      data();
+      vi.advanceTimersByTime(10);
+    }
+    expect(pushes.length - t0).toBeLessThanOrEqual(4);
     e.dispose();
   });
 
