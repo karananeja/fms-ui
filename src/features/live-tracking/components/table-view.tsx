@@ -151,6 +151,8 @@ export function TableView({
     getScrollElement: () => scroller.current,
     estimateSize: () => ROW_H,
     overscan: 8,
+    // Until the scroller is measured (and in jsdom): a typical viewport.
+    initialRect: { width: 1200, height: 800 },
   });
   const items = virtualizer.getVirtualItems();
   const first = items[0]?.index ?? 0;
