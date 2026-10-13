@@ -1,4 +1,5 @@
 import { VEHICLE_STATUSES } from '@shared/domain/vehicle-status';
+import { ChevronDown } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { formatIst } from '@/shared/lib/format-date';
 import { cn } from '@/shared/lib/utils';
@@ -24,6 +25,7 @@ const selectSelected = (s: LiveTrackingState) => s.selected;
 const selectSelectedId = (s: LiveTrackingState) => s.selectedVehicleId;
 const selectCounts = (s: LiveTrackingState) => s.statusCounts;
 const selectTotal = (s: LiveTrackingState) => s.total;
+const selectFrame = (s: LiveTrackingState) => s.mapFrame;
 
 const fmt = new Intl.NumberFormat('en-IN');
 const mb = (bytes: number) => `${(bytes / 1048576).toFixed(1)} MB`;
@@ -51,7 +53,7 @@ function ConnectionBadge() {
 function FeedStats() {
   const s = useLiveTracking(selectStats);
   return (
-    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       <Stat label="Vehicles">
         <span data-testid="live-vehicle-count">{fmt.format(s.vehicleCount)}</span>
       </Stat>
@@ -71,7 +73,20 @@ function FeedStats() {
       <Stat label="Status sweep">
         <span data-testid="live-sweep-ms">{s.sweepMs.toFixed(1)} ms</span>
       </Stat>
+      <Stat label="Cluster rebuild">
+        <span data-testid="live-cluster-build-ms">{s.clusterBuildMs.toFixed(0)} ms</span>
+      </Stat>
+      <MapFrameStat />
     </dl>
+  );
+}
+
+function MapFrameStat() {
+  const f = useLiveTracking(selectFrame);
+  return (
+    <Stat label="Map frame">
+      {f ? `#${f.version} · ${f.clusters.id.length} cl · ${f.points.ids.length} pt` : '—'}
+    </Stat>
   );
 }
 
@@ -79,10 +94,7 @@ function StatusCounts() {
   const counts = useLiveTracking(selectCounts);
   const total = useLiveTracking(selectTotal);
   return (
-    <ul
-      className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5"
-      aria-label="Vehicle status"
-    >
+    <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Vehicle status">
       {VEHICLE_STATUSES.map((status) => {
         const { label, color } = STATUS_META[status];
         return (
@@ -119,7 +131,7 @@ function SelectedVehicle() {
   if (!c) return <p className="text-sm text-text-muted">Waiting for {selectedId}…</p>;
   const pidCount = selected.lafparsed ? Object.keys(selected.lafparsed.candata).length : 0;
   return (
-    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-6" data-testid="live-selected">
+    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-testid="live-selected">
       <Stat label="Status">
         <span data-testid="live-selected-status">
           {selected.status ? <StatusPill status={selected.status} /> : '—'}
@@ -172,22 +184,66 @@ function VehiclePicker() {
   );
 }
 
-/** Temporary live-feed panel for UAT (replaced by F06–F08). */
-export function LiveFeedDiagnostics() {
+function LocateVehicle() {
+  const [value, setValue] = useState('');
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (value.trim()) void liveTrackingStore.locateVehicle(value.trim());
+  };
   return (
-    <section className="flex flex-col gap-4 p-4 sm:p-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Live tracking</h1>
-        <ConnectionBadge />
+    <form onSubmit={submit} className="flex flex-wrap items-center gap-2">
+      <label htmlFor="live-locate-vehicle" className="text-sm text-text-muted">
+        Locate vehicle ID
+      </label>
+      <input
+        id="live-locate-vehicle"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="vehicleId"
+        className="h-9 min-w-0 flex-1 rounded-md border bg-surface-2 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-64"
+      />
+      <Button type="submit" size="sm">
+        Locate
+      </Button>
+    </form>
+  );
+}
+
+/** F04/F05 live-feed diagnostics over the map, shown with `?debug=1` (UAT aid). */
+export function DebugOverlay() {
+  const [open, setOpen] = useState(true);
+  return (
+    <section
+      aria-label="Diagnostics"
+      className="absolute top-2 left-2 z-10 flex max-h-[calc(100%-1rem)] w-[min(30rem,calc(100%-1rem))] flex-col rounded-[var(--radius-card)] border bg-surface-1/95 shadow-lg backdrop-blur"
+    >
+      <div className="flex items-center justify-between gap-4 px-4 py-2">
+        <h2 className="text-sm font-medium tracking-wider text-text-muted uppercase">
+          Diagnostics
+        </h2>
+        <div className="flex items-center gap-2">
+          <ConnectionBadge />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-expanded={open}
+            aria-label={open ? 'Collapse diagnostics' : 'Expand diagnostics'}
+            onClick={() => setOpen(!open)}
+          >
+            <ChevronDown className={cn('transition-transform', open || '-rotate-90')} />
+          </Button>
+        </div>
       </div>
-      <div className="flex flex-col gap-4 rounded-[var(--radius-card)] border bg-surface-1 p-4">
-        <h2 className="text-sm font-medium tracking-wider text-text-muted uppercase">Live feed</h2>
-        <FeedStats />
-        <h2 className="text-sm font-medium tracking-wider text-text-muted uppercase">Status</h2>
-        <StatusCounts />
-        <VehiclePicker />
-        <SelectedVehicle />
-      </div>
+      {open && (
+        <div className="flex flex-col gap-4 overflow-auto px-4 pb-4">
+          <FeedStats />
+          <h3 className="text-sm font-medium tracking-wider text-text-muted uppercase">Status</h3>
+          <StatusCounts />
+          <VehiclePicker />
+          <LocateVehicle />
+          <SelectedVehicle />
+        </div>
+      )}
     </section>
   );
 }

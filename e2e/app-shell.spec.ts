@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.ts';
 
 test('redirects / to /live-tracking with nav and title visible', async ({ page }) => {
   await page.goto('/');

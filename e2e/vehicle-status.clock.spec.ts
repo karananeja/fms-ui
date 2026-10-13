@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './fixtures.ts';
 
 const VEHICLES = 100_000;
 const OFFSET_MS = 31 * 60_000;
@@ -40,7 +41,7 @@ test('F05-T8: status counts sum to 1 lakh and the worker follows the server cloc
   page,
   request,
 }) => {
-  await page.goto('/live-tracking');
+  await page.goto('/live-tracking?debug=1');
   await expect(page.getByTestId('live-connection')).toHaveText('Live', { timeout: 10_000 });
   await expect(page.getByTestId('status-total')).toHaveText(
     new Intl.NumberFormat('en-IN').format(VEHICLES),
