@@ -18,66 +18,24 @@ export const statusOfCode = (code: number): VehicleStatus | null =>
 export const encodeStatus = (v: unknown): number => (isVehicleStatus(v) ? STATUS_CODE[v] : 0);
 
 type Col = ArrayLike<number>;
-type Test = (i: number, now: number) => boolean;
 /** Returns the status code of vehicle `i` at `now`. */
 export type Evaluate = (i: number, now: number) => number;
 
-const RULES: Record<VehicleStatus, (cfg: StatusRulesConfig, col: (f: string) => Col) => Test> = {
-  'gps-never': (_, col) => {
-    const lat = col('lat');
-    const lng = col('lng');
-    return (i) => {
-      const a = lat[i]!;
-      const b = lng[i]!;
-      return (a === 0 && b === 0) || a !== a || b !== b;
-    };
-  },
-  'non-comm': (cfg, col) => {
-    const t = col('utctime');
-    const ms = cfg.thresholds.nonCommMs;
-    return (i, now) => now - t[i]! > ms;
-  },
-  pullout: (cfg, col) => {
-    const v = col('carbattery');
-    const volts = cfg.thresholds.pulloutVolts;
-    return (i) => v[i]! < volts;
-  },
-  immobilized: (cfg, col) => {
-    const v = col(cfg.immobilized.field);
-    const eq = cfg.immobilized.equals;
-    return (i) => v[i] === eq;
-  },
-  charging: (cfg, col) => {
-    const tests = cfg.charging.anyOf.map((c): ((i: number) => boolean) => {
-      const v = col(c.pid);
-      if ('equals' in c) return (i) => v[i] === c.equals;
-      const ne = c.notEquals;
-      return (i) => {
-        const x = v[i]!;
-        return x === x && x !== ne;
-      };
-    });
-    const n = tests.length;
-    return (i) => {
-      for (let k = 0; k < n; k++) if (tests[k]!(i)) return true;
-      return false;
-    };
-  },
-  'no-gps': (cfg, col) => {
-    const t = col('gpstime');
-    const ms = cfg.thresholds.noGpsMs;
-    return (i, now) => now - t[i]! > ms;
-  },
-  running: (cfg, col) => {
-    const ign = col('ignstatus');
-    const speed = col('speed');
-    const kmh = cfg.thresholds.runningSpeedKmh;
-    return (i) => ign[i] === 1 && speed[i]! > kmh;
-  },
-  stopped: () => () => true,
-};
+const {
+  running: RUNNING,
+  stopped: STOPPED,
+  immobilized: IMMOBILIZED,
+  'non-comm': NON_COMM,
+  charging: CHARGING,
+  pullout: PULLOUT,
+  'no-gps': NO_GPS,
+  'gps-never': GPS_NEVER,
+} = STATUS_CODE;
 
-/** Compiles the rules (in `cfg.priority` order, first match wins) against column lookups. */
+/**
+ * Compiles the rules (in `cfg.priority` order, first match wins) against column lookups.
+ * One switch over status codes keeps the hot sweep loop monomorphic.
+ */
 export function compileStatusRules(
   cfg: StatusRulesConfig,
   resolve: (field: string) => Col | undefined,
@@ -87,15 +45,60 @@ export function compileStatusRules(
     if (!c) throw new Error(`Status rules reference unknown field "${f}"`);
     return c;
   };
-  const tests = cfg.priority.map((s) => RULES[s](cfg, col));
-  const codes = cfg.priority.map((s) => STATUS_CODE[s]);
+  const [lat, lng, utc, gps, battery, ign, speed] = [
+    'lat',
+    'lng',
+    'utctime',
+    'gpstime',
+    'carbattery',
+    'ignstatus',
+    'speed',
+  ].map(col) as [Col, Col, Col, Col, Col, Col, Col];
+  const immo = col(cfg.immobilized.field);
+  const immoEq = cfg.immobilized.equals;
+  const { nonCommMs, noGpsMs, pulloutVolts, runningSpeedKmh } = cfg.thresholds;
+  const charge = cfg.charging.anyOf.map((c) => col(c.pid));
+  const chargeValue = cfg.charging.anyOf.map((c) => ('equals' in c ? c.equals : c.notEquals));
+  const chargeNot = cfg.charging.anyOf.map((c) => !('equals' in c));
+  const nCharge = charge.length;
+  const order = Uint8Array.from(cfg.priority, (s) => STATUS_CODE[s]);
+  const nOrder = order.length;
   const server = cfg.preferServerStatus ? resolve('displayStatus') : undefined;
-  const n = tests.length;
-  const stopped = STATUS_CODE.stopped;
+
+  const charging = (i: number) => {
+    for (let k = 0; k < nCharge; k++) {
+      const x = charge[k]![i]!;
+      if (chargeNot[k] ? x === x && x !== chargeValue[k] : x === chargeValue[k]) return true;
+    }
+    return false;
+  };
+  const matches = (code: number, i: number, now: number): boolean => {
+    switch (code) {
+      case GPS_NEVER: {
+        const a = lat[i]!;
+        const b = lng[i]!;
+        return (a === 0 && b === 0) || a !== a || b !== b;
+      }
+      case NON_COMM:
+        return now - utc[i]! > nonCommMs;
+      case PULLOUT:
+        return battery[i]! < pulloutVolts;
+      case IMMOBILIZED:
+        return immo[i] === immoEq;
+      case CHARGING:
+        return charging(i);
+      case NO_GPS:
+        return now - gps[i]! > noGpsMs;
+      case RUNNING:
+        return ign[i] === 1 && speed[i]! > runningSpeedKmh;
+      default:
+        return true;
+    }
+  };
   return (i, now) => {
     if (server && server[i]! > 0) return server[i]!;
-    for (let r = 0; r < n; r++) if (tests[r]!(i, now)) return codes[r]!;
-    return stopped;
+    for (let r = 0; r < nOrder; r++) if (matches(order[r]!, i, now)) return order[r]!;
+    return STOPPED;
   };
 }
 
