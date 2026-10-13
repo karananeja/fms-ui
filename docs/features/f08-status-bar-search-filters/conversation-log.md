@@ -26,3 +26,6 @@ Agent implemented a worker-side draft (filter engine, search index, map-index fi
 **Test:** new `filter-engine.test.ts` (start of F08-T1): fleet + SOC + regno filter set before inserting 7 rows into a capacity-2 state (grows 2 → 4 → 8); expects `v0, v2, v4, v6`, then a post-growth SOC update drops `v6`. Before the fix: received `['v0']` only. After: passes; worker tests 125/125.
 
 **Note:** the per-call lookups add a few property reads per row to the 1 lakh mask pass; measured in F08-T3 (perf), not yet run.
+
+## 2026-10-14 — Recovery, milestone 3: LivePush test fixtures
+The baseline made `filteredCounts`, `filteredTotal`, `selectedMatches` required on `LivePush` but left three test fixtures without them (`tsc -b` failed). Added unfiltered values (counts = status counts, total = total, `selectedMatches: true`) to `live-tracking-store.test.ts`, `use-selection-url-sync.test.tsx`, `vehicle-details-panel.test.tsx`. `tsc -b` clean; the three files 32/32.

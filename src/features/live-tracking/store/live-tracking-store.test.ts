@@ -74,6 +74,9 @@ function fakeWorker() {
       version: 1,
       statusCounts: counts(),
       total: 0,
+      filteredCounts: counts(),
+      filteredTotal: 0,
+      selectedMatches: true,
       ...over,
       stats: { ...store.getSnapshot().stats, vehicleCount: 10, ...stats },
     });
