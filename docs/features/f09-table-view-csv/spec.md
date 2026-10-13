@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Awaiting sign-off** |
+| Status | **Signed off: 2026-10-13 (user)** |
 | Intent | `intent.md` (signed off 2026-10-13, plus the mockup v2 design note for the vehicle tray) |
 | Visual source of truth | `docs/design/design-direction.html` v2 for the vehicle tray, glass panels and type. The table follows the same tokens. |
 | Branch / delivery | `feature/f09-table-csv`, **in parallel with F08** from the shared filter-contract commit (F08 spec §5) |

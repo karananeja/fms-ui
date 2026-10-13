@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Awaiting sign-off** |
+| Status | **Signed off: 2026-10-13 (user)** |
 | Intent | `intent.md` (signed off 2026-10-13, plus the mockup v2 design note) |
 | Visual source of truth | `docs/design/design-direction.html` v2: search box and status pills (top), Fleet pulse card (top left) |
 | Branch / delivery | `feature/f08-search-filters`, **in parallel with F09** from a shared filter-contract commit (§5, D-055) |
