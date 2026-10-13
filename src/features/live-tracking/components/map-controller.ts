@@ -16,7 +16,6 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { mapConfig } from '../config/map-config.ts';
 import { STATUS_META } from '../config/status-meta.ts';
 import {
-  hasPermission,
   selectedPosition,
   type LiveTrackingState,
   type LiveTrackingStore,
@@ -226,20 +225,10 @@ export class MapController {
     this.sendViewport();
   }
 
-  /**
-   * A vehicle opens its details (with `vehicle.details.view`; otherwise the hover tooltip is all
-   * there is). Empty map deselects (F07-R16); MapLibre fires no click after a drag, and cluster
-   * markers stop their clicks from reaching the map.
-   */
+  /** MapLibre fires no click after a drag; cluster markers stop their clicks reaching the map. */
   private click(point: { x: number; y: number }): void {
     const f = this.map.queryRenderedFeatures([point.x, point.y], { layers: ['vehicles'] })[0];
-    const id = f?.properties.id as string | undefined;
-    const state = this.store.getSnapshot();
-    if (id) {
-      if (hasPermission(state, 'vehicle.details.view')) void this.store.selectVehicle(id);
-    } else if (state.selectedVehicleId) {
-      void this.store.selectVehicle(null);
-    }
+    this.store.clickMap((f?.properties.id as string | undefined) ?? null);
   }
 
   private viewport(): MapViewport {
@@ -260,6 +249,8 @@ export class MapController {
       const [w, s, e, n] = cmd.bounds;
       const { padding, maxZoom } = cmd;
       this.map.fitBounds([w, s, e, n], maxZoom === undefined ? { padding } : { padding, maxZoom });
+    } else if (cmd.type === 'resize') {
+      this.map.resize();
     } else if (cmd.type === 'fly') {
       this.map.flyTo({ center: cmd.center, zoom: cmd.zoom, duration: cmd.duration });
     } else {

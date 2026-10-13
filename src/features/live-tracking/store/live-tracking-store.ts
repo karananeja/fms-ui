@@ -22,7 +22,8 @@ export type LngLat = [number, number];
 export type MapCommand =
   | { type: 'fit'; bounds: Bbox; padding: number; maxZoom?: number }
   | { type: 'fly'; center: LngLat; zoom: number; duration: number }
-  | { type: 'ease'; center: LngLat; zoom: number };
+  | { type: 'ease'; center: LngLat; zoom: number }
+  | { type: 'resize' };
 
 export interface Notice {
   id: number;
@@ -226,6 +227,23 @@ export class LiveTrackingStore {
   async zoomToCluster(clusterId: number, center: LngLat, zoom: number): Promise<void> {
     const z = (await this.api?.getClusterExpansionZoom(clusterId)) ?? zoom + 2;
     this.command({ type: 'ease', center, zoom: Math.max(z, zoom + 1) });
+  }
+
+  /**
+   * Map click: a vehicle opens its details only with `vehicle.details.view` (F07-R13; otherwise
+   * the hover tooltip is all there is); empty map clears the selection (F07-R16).
+   */
+  clickMap(vehicleId: string | null): void {
+    if (vehicleId) {
+      if (hasPermission(this.state, 'vehicle.details.view')) void this.selectVehicle(vehicleId);
+    } else if (this.state.selectedVehicleId) {
+      void this.selectVehicle(null);
+    }
+  }
+
+  /** Asks the map to re-measure its container (layout around it changed). */
+  resizeMap(): void {
+    this.command({ type: 'resize' });
   }
 
   notify(message: string): void {

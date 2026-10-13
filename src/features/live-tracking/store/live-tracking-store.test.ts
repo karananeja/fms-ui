@@ -337,3 +337,31 @@ describe('F07: permissions and the selected summary', () => {
     });
   });
 });
+
+describe('F07: map click and resize', () => {
+  it('R13/R16: vehicle click selects only with vehicle.details.view; empty click deselects', async () => {
+    const { store, api } = fakeWorker();
+    store.start({ ...me, permissions: ['live.view'] });
+    store.clickMap('v1');
+    expect(store.getSnapshot().selectedVehicleId).toBeNull();
+    expect(api.selectVehicle).not.toHaveBeenCalled();
+
+    const ok = fakeWorker();
+    ok.store.start({ ...me, permissions: ['live.view', 'vehicle.details.view'] });
+    ok.store.clickMap('v1');
+    expect(ok.store.getSnapshot().selectedVehicleId).toBe('v1');
+    ok.store.clickMap(null);
+    expect(ok.store.getSnapshot().selectedVehicleId).toBeNull();
+    ok.api.selectVehicle.mockClear();
+    ok.store.clickMap(null);
+    expect(ok.api.selectVehicle).not.toHaveBeenCalled();
+  });
+
+  it('resizeMap emits a resize command', () => {
+    const { store } = fakeWorker();
+    const cmds: MapCommand[] = [];
+    store.onMapCommand((c) => cmds.push(c));
+    store.resizeMap();
+    expect(cmds).toEqual([{ type: 'resize' }]);
+  });
+});
