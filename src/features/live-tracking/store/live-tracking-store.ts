@@ -2,6 +2,7 @@ import type { Me, Permission } from '@shared/contract/index.ts';
 import { VEHICLE_STATUSES, type VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import { proxy, releaseProxy, wrap, type Remote } from 'comlink';
 import type { IndiaCity } from '../config/india-cities.ts';
+import { detailsConfig } from '../config/details-config.ts';
 import { mapConfig } from '../config/map-config.ts';
 import { isValidPosition } from '../worker/position.ts';
 import type {
@@ -46,6 +47,8 @@ export interface LiveTrackingState {
   mapFrame: MapFrame | null;
   /** Transient message for a toast. */
   notice: Notice | null;
+  /** Selected vehicle's recent path, oldest first (F07-R12); null when nothing is selected. */
+  trail: LngLat[] | null;
 }
 
 /** Main-thread counters for e2e budgets (`performance.now()` ms; 0 = not yet). */
@@ -57,6 +60,19 @@ export interface LiveTrackingMetrics {
 
 export interface LiveTrackingStoreDeps {
   createWorkerApi: () => Remote<LiveTrackingWorkerApi>;
+  /** `[lng, lat]` points of the last `minutes` (oldest first). Defaults to the REST endpoint. */
+  fetchTrail?: (vehicleId: string, minutes: number) => Promise<LngLat[]>;
+}
+
+/** `GET /api/vehicles/:id/trail` (F07-R12); failures leave the trail to live positions only. */
+export async function fetchTrail(vehicleId: string, minutes: number): Promise<LngLat[]> {
+  const res = await fetch(
+    `/api/vehicles/${encodeURIComponent(vehicleId)}/trail?minutes=${minutes}`,
+    { credentials: 'include' },
+  );
+  if (!res.ok) return [];
+  const body = (await res.json()) as { points: [number, number, number][] };
+  return body.points.map(([lng, lat]) => [lng, lat]);
 }
 
 const emptyStats: LiveStats = {
@@ -91,6 +107,7 @@ const initialState: LiveTrackingState = {
   permissions: [],
   mapFrame: null,
   notice: null,
+  trail: null,
 };
 
 export const hasPermission = (state: LiveTrackingState, permission: Permission): boolean =>
@@ -166,6 +183,7 @@ export class LiveTrackingStore {
       selectedVehicleId: vehicleId,
       selected: null,
       selectedSummary: null,
+      trail: vehicleId ? [] : null,
     });
     const api = this.api;
     const found = (await api?.selectVehicle(vehicleId)) ?? false;
@@ -177,10 +195,21 @@ export class LiveTrackingStore {
       });
       return;
     }
+    void this.loadTrail(vehicleId);
     const summary = await api!.getVehicleSummary(vehicleId);
     if (summary && this.state.selectedVehicleId === vehicleId) {
       this.set({ ...this.state, selectedSummary: summary });
     }
+  }
+
+  private async loadTrail(vehicleId: string): Promise<void> {
+    const load = this.deps.fetchTrail ?? fetchTrail;
+    const points = await load(vehicleId, detailsConfig.trailMinutes).catch(() => []);
+    if (this.state.selectedVehicleId !== vehicleId || !this.state.trail) return;
+    // Live positions that arrived meanwhile stay after the fetched history.
+    const last = points.at(-1);
+    const live = this.state.trail.filter((p) => !last || p[0] !== last[0] || p[1] !== last[1]);
+    this.set({ ...this.state, trail: [...points, ...live] });
   }
 
   /** The map's settled viewport (`null` when the map unmounts). */
@@ -293,6 +322,7 @@ export class LiveTrackingStore {
     };
     if (push.selected !== undefined && push.selected?.vehicleId === this.state.selectedVehicleId) {
       next.selected = push.selected;
+      next.trail = appendTrail(this.state.trail, push.selected);
     }
     if (this.isNewFrame(push.mapFrame)) next.mapFrame = push.mapFrame;
     this.set(next);
@@ -304,6 +334,15 @@ export class LiveTrackingStore {
     this.state = state;
     for (const l of this.listeners) l();
   }
+}
+
+/** Appends the selected vehicle's live position when it moved (same array otherwise). */
+function appendTrail(trail: LngLat[] | null, selected: SelectedVehicle | null): LngLat[] | null {
+  const c = selected?.combinfo;
+  if (!trail || !c || !isValidPosition(c.latitude, c.longitude)) return trail;
+  const last = trail.at(-1);
+  if (last && last[0] === c.longitude && last[1] === c.latitude) return trail;
+  return [...trail, [c.longitude, c.latitude]];
 }
 
 const createWorkerApi = () =>

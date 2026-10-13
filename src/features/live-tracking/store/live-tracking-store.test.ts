@@ -1,4 +1,4 @@
-import type { Me } from '@shared/contract/index.ts';
+import type { Combinfo, Me } from '@shared/contract/index.ts';
 import { act, renderHook } from '@testing-library/react';
 import { releaseProxy, type Remote } from 'comlink';
 import { describe, expect, it, vi } from 'vitest';
@@ -16,6 +16,7 @@ import {
   hasPermission,
   selectedPosition,
   type LiveTrackingState,
+  type LngLat,
   type MapCommand,
 } from './live-tracking-store.ts';
 import { useLiveTracking } from './use-live-tracking.ts';
@@ -62,7 +63,11 @@ function fakeWorker() {
     [releaseProxy]: vi.fn(),
   };
   const createWorkerApi = vi.fn(() => api as unknown as Remote<LiveTrackingWorkerApi>);
-  const store = new LiveTrackingStore({ createWorkerApi });
+  const fetchTrail = vi.fn(async (): Promise<LngLat[]> => [
+    [77, 12],
+    [77.1, 12.1],
+  ]);
+  const store = new LiveTrackingStore({ createWorkerApi, fetchTrail });
   const push = (over: Partial<LivePush> = {}, stats: Partial<LivePush['stats']> = {}) =>
     onPush!({
       connection: 'live',
@@ -72,7 +77,7 @@ function fakeWorker() {
       ...over,
       stats: { ...store.getSnapshot().stats, vehicleCount: 10, ...stats },
     });
-  return { api, createWorkerApi, store, push };
+  return { api, createWorkerApi, store, push, fetchTrail };
 }
 
 describe('F04-T7: LiveTrackingStore', () => {
@@ -363,5 +368,26 @@ describe('F07: map click and resize', () => {
     store.onMapCommand((c) => cmds.push(c));
     store.resizeMap();
     expect(cmds).toEqual([{ type: 'resize' }]);
+  });
+});
+
+describe('F07-R12: selected-vehicle trail', () => {
+  it('fetches on select, appends live positions once, clears on deselect', async () => {
+    const { store, push, fetchTrail } = fakeWorker();
+    store.start({ fleetIds: ['f0'], permissions: [] } as unknown as Me);
+    await store.selectVehicle('v1');
+    expect(fetchTrail).toHaveBeenCalledWith('v1', 60);
+    await vi.waitFor(() => expect(store.getSnapshot().trail).toHaveLength(2));
+    const combinfo = { latitude: 12.2, longitude: 77.2 } as Combinfo;
+    const selected = { vehicleId: 'v1', found: true, status: null, combinfo, lafparsed: null };
+    push({ selected });
+    push({ selected: { ...selected } });
+    expect(store.getSnapshot().trail).toEqual([
+      [77, 12],
+      [77.1, 12.1],
+      [77.2, 12.2],
+    ]);
+    await store.selectVehicle(null);
+    expect(store.getSnapshot().trail).toBeNull();
   });
 });

@@ -50,6 +50,7 @@ function setup(permissions: Permission[] = ALL, found = true) {
   };
   const store = new LiveTrackingStore({
     createWorkerApi: () => api as unknown as Remote<LiveTrackingWorkerApi>,
+    fetchTrail: async () => [],
   });
   store.start({ fleetIds: ['f0'], permissions } as unknown as Me);
   const push = (selected: SelectedVehicle) =>
@@ -63,8 +64,8 @@ function setup(permissions: Permission[] = ALL, found = true) {
         selected,
       }),
     );
-  const payloads = (l: Lafparsed = lafparsed) =>
-    push({ vehicleId: ID, found: true, status: 'pullout', combinfo, lafparsed: l });
+  const payloads = (l: Lafparsed = lafparsed, history?: SelectedVehicle['history']) =>
+    push({ vehicleId: ID, found: true, status: 'pullout', combinfo, lafparsed: l, history });
   return { api, store, push, payloads };
 }
 
@@ -85,81 +86,114 @@ const panel = () => screen.getByRole('region', { name: 'Vehicle details' });
 beforeEach(() => mockDesktop());
 afterEach(() => vi.unstubAllGlobals());
 
-describe('F07-T4: vehicle details panel', () => {
-  it('shows the header from the summary at once, skeletons until payloads, then fixture values', async () => {
+const tab = (name: RegExp) => screen.getByRole('tab', { name });
+const sample = (t: number, soc: number) => ({ t, soc, speed: 0, lat: null, lng: null });
+
+describe('F07-T5: vehicle details panel', () => {
+  it('hero from the summary at once, skeletons until payloads, then fixture values', async () => {
     const { store, payloads } = setup();
     render(<VehicleDetailsPanel store={store} />);
     expect(screen.queryByRole('region')).toBeNull();
     await act(() => store.selectVehicle(ID));
     expect(screen.getByTestId('details-regno')).toHaveTextContent('P6DED30BPDC002607');
-    expect(panel()).toHaveTextContent('BGauss · C12 · i Max');
-    expect(screen.getByRole('status', { name: 'Loading energy' })).toBeInTheDocument();
+    expect(panel()).toHaveTextContent('BGAUSS · C12 · I MAX');
+    expect(screen.getByRole('status', { name: 'Loading overview' })).toBeInTheDocument();
     expect(panel()).toHaveFocus();
 
     payloads();
     const p = panel();
-    expect(screen.queryByRole('status', { name: 'Loading energy' })).toBeNull();
-    expect(screen.getByTestId('details-gps-time')).toHaveTextContent('08 Sep 26 | 09:33:42');
-    expect(screen.getByTestId('details-can-time')).toHaveTextContent('08 Sep 26 | 09:33:49');
+    expect(screen.queryByRole('status', { name: 'Loading overview' })).toBeNull();
+    expect(screen.getByTestId('details-gps-rel')).toHaveAttribute(
+      'data-abs',
+      '08 Sep 26 | 09:33:42',
+    );
+    expect(screen.getByTestId('details-latest')).toHaveTextContent('08 SEP 26 | 09:33:49');
     expect(within(p).getByTestId('details-status').querySelector('[data-status]')).toHaveAttribute(
       'data-status',
       'pullout',
     );
-    expect(screen.getByTestId('details-soc')).toHaveTextContent('49%');
-    expect(screen.getByTestId('details-soc')).toHaveAttribute('data-tone', 'warn');
-    expect(screen.getByTestId('details-dte')).toHaveTextContent('56');
-    expect(screen.getByTestId('details-soh')).toHaveTextContent('100.0');
-    expect(screen.getByTestId('details-odo')).toHaveTextContent('1,077');
-    expect(screen.getByTestId('details-device-id')).toHaveTextContent('158828DB0439AE67');
-    expect(screen.getByTestId('details-aux')).toHaveTextContent('0.07');
-    expect(screen.getByTestId('details-internal')).toHaveTextContent('3.60');
-    expect(screen.getByTestId('details-signal')).toHaveTextContent('-70');
-    expect(screen.getByTestId('details-location')).toHaveTextContent('28.70419, 80.56578');
+    expect(within(screen.getByTestId('ring-battery')).getByTestId('ring-value')).toHaveTextContent(
+      '49%',
+    );
+    expect(within(screen.getByTestId('ring-range')).getByTestId('ring-value')).toHaveTextContent(
+      '56',
+    );
+    expect(within(screen.getByTestId('ring-health')).getByTestId('ring-value')).toHaveTextContent(
+      '100.0',
+    );
+    expect(screen.getByTestId('badge-signal').querySelector('[data-bars]')).toHaveAttribute(
+      'data-bars',
+      '3',
+    );
+    expect(screen.getByTestId('badge-gps')).toHaveTextContent('NONE');
+    expect(screen.getByTestId('kv-odo')).toHaveTextContent('1,077 KM');
+    expect(screen.getByTestId('session-collecting')).toBeInTheDocument();
     expect(p).not.toHaveTextContent(/Reports|Analytics|Share live location/);
   });
 
-  it('expand switches to gauges + grid; collapse returns to the compact card', async () => {
+  it('all four tabs: overview chart, parameters, device, events', async () => {
     const user = userEvent.setup();
     const { store, payloads } = setup();
     render(<VehicleDetailsPanel store={store} />);
     await act(() => store.selectVehicle(ID));
-    payloads();
-    expect(panel()).toHaveAttribute('data-details-panel', 'compact');
-    expect(screen.queryByRole('img', { name: 'Speed gauge' })).toBeNull();
-
-    await user.click(screen.getByRole('button', { name: 'Expand view' }));
-    expect(panel()).toHaveAttribute('data-details-panel', 'expanded');
-    expect(screen.getByRole('img', { name: 'Speed gauge' })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Motor gauge' })).toBeInTheDocument();
+    const t = combinfo.utctime;
+    payloads(lafparsed, {
+      samples: [sample(t, 52), sample(t + 60_000, 49)],
+      events: [{ t, kind: 'status', status: 'pullout', from: 'stopped', soc: 49, lat: 1, lng: 2 }],
+    });
     expect(
-      within(screen.getByRole('list', { name: 'Parameters' })).getAllByRole('listitem'),
-    ).toHaveLength(374);
-    expect(screen.getByTestId('details-odo-strip')).toHaveTextContent('0001077');
+      screen.getByRole('img', { name: /State of charge this session, now 49%/ }),
+    ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Collapse view' }));
-    expect(panel()).toHaveAttribute('data-details-panel', 'compact');
-    expect(screen.queryByRole('img', { name: 'Speed gauge' })).toBeNull();
+    await user.click(tab(/Device/));
+    expect(screen.getByTestId('device-id')).toHaveTextContent('158828DB0439AE67');
+    expect(screen.getByTestId('device-aux')).toHaveTextContent('0.07 V');
+    expect(screen.getByTestId('device-internal')).toHaveTextContent('3.60 V');
+    expect(screen.getByTestId('cell-strip').querySelectorAll('rect')).toHaveLength(20);
+    expect(screen.getByTestId('cell-strip').querySelectorAll('[data-lowest]')).toHaveLength(1);
+
+    await user.click(tab(/Events/));
+    expect(screen.getByTestId('events-timeline')).toHaveTextContent('Battery pulled out');
+
+    await user.click(tab(/Parameters/));
+    expect(screen.getAllByRole('row')).toHaveLength(374);
   });
 
-  it('parameter search narrows the count (label or key)', async () => {
+  it('events empty state', async () => {
+    const user = userEvent.setup();
+    const { store, payloads } = setup();
+    render(<VehicleDetailsPanel store={store} />);
+    await act(() => store.selectVehicle(ID));
+    payloads(lafparsed, { samples: [], events: [] });
+    await user.click(tab(/Events/));
+    expect(screen.getByTestId('events-empty')).toHaveTextContent(
+      'No events since you opened this vehicle',
+    );
+  });
+
+  it('parameters: search (label or key), chips and the tab count', async () => {
     const user = userEvent.setup();
     const { store, payloads } = setup();
     render(<VehicleDetailsPanel store={store} />);
     await act(() => store.selectVehicle(ID));
     payloads();
-    expect(screen.getByTestId('details-param-count')).toHaveTextContent('(374)');
-    const toggle = screen.getByRole('button', { name: /Parameters/ });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await user.click(toggle);
+    expect(screen.getByTestId('details-param-count')).toHaveTextContent('374');
+    await user.click(tab(/Parameters/));
     await user.type(screen.getByRole('searchbox', { name: 'Search parameters' }), 'cell_voltage');
-    expect(screen.getByTestId('details-param-count')).toHaveTextContent('(23)');
-    expect(screen.getAllByRole('listitem')).toHaveLength(23);
+    expect(screen.getByTestId('details-param-count')).toHaveTextContent('23');
+    expect(screen.getAllByRole('row')).toHaveLength(23);
     await user.clear(screen.getByRole('searchbox'));
     await user.type(screen.getByRole('searchbox'), 'Time To');
-    const item = screen.getByRole('listitem');
-    expect(item).toHaveTextContent('Time To Charge');
-    expect(item).toHaveTextContent('N/A');
-    expect(item).toHaveAttribute('title', 'time_to_charge · 08 Sep 26 | 08:24:19');
+    const row = screen.getByRole('row');
+    expect(row).toHaveTextContent('Time To Charge');
+    expect(row).toHaveTextContent('N/A');
+    expect(row).toHaveAttribute('title', 'time_to_charge · 08 Sep 26 | 08:24:19');
+    await user.clear(screen.getByRole('searchbox'));
+    await user.click(screen.getByRole('button', { name: 'CELLS' }));
+    const keys = screen.getAllByRole('row').map((r) => r.getAttribute('data-pid')!);
+    expect(keys.length).toBeGreaterThan(0);
+    expect(keys.every((k) => k.startsWith('cell_'))).toBe(true);
+    expect(screen.getByTestId('details-param-count')).toHaveTextContent(String(keys.length));
   });
 
   it('copy writes to the clipboard and shows a "Copied" toast', async () => {
@@ -173,11 +207,12 @@ describe('F07-T4: vehicle details panel', () => {
     );
     await act(() => store.selectVehicle(ID));
     payloads();
+    await user.click(screen.getByRole('button', { name: 'Copy registration number' }));
+    expect(await navigator.clipboard.readText()).toBe('P6DED30BPDC002607');
+    expect(await screen.findByText('Copied')).toBeInTheDocument();
+    await user.click(tab(/Device/));
     await user.click(screen.getByRole('button', { name: 'Copy device ID' }));
     expect(await navigator.clipboard.readText()).toBe('158828DB0439AE67');
-    expect(await screen.findByText('Copied')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Copy location' }));
-    expect(await navigator.clipboard.readText()).toBe('28.70419, 80.56578');
   });
 
   it('locate, close and Esc go through the store', async () => {
@@ -208,17 +243,17 @@ describe('F07-T4: vehicle details panel', () => {
     expect(store.getSnapshot().selectedVehicleId).toBeNull();
   });
 
-  it('permissions: parameters hidden without vehicle.parameters.view; no panel without vehicle.details.view', async () => {
-    const user = userEvent.setup();
+  it('permissions: Parameters tab hidden without vehicle.parameters.view; no panel without vehicle.details.view', async () => {
     const { store, payloads } = setup(['live.view', 'vehicle.details.view']);
     const { unmount } = render(<VehicleDetailsPanel store={store} />);
     await act(() => store.selectVehicle(ID));
     payloads();
-    expect(panel()).toHaveTextContent('Device & Comms');
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+      'Overview',
+      'Device',
+      'Events',
+    ]);
     expect(screen.queryByTestId('details-param-count')).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Expand view' }));
-    expect(screen.getByRole('img', { name: 'Speed gauge' })).toBeInTheDocument();
-    expect(screen.queryByRole('list', { name: 'Parameters' })).toBeNull();
     unmount();
 
     const other = setup(['live.view']);
@@ -228,7 +263,7 @@ describe('F07-T4: vehicle details panel', () => {
     expect(screen.queryByRole('region')).toBeNull();
   });
 
-  it('below 1024 px it renders a bottom sheet', async () => {
+  it('below 1024 px it renders a bottom sheet at 35% without the absolute time', async () => {
     mockDesktop(false);
     const { store, payloads } = setup();
     render(<VehicleDetailsPanel store={store} />);
@@ -237,11 +272,13 @@ describe('F07-T4: vehicle details panel', () => {
     const sheet = screen.getByRole('dialog', { name: 'Vehicle details' });
     expect(sheet).toHaveAttribute('data-snap', '0.35');
     expect(within(sheet).getByTestId('details-regno')).toHaveTextContent('P6DED30BPDC002607');
+    expect(within(sheet).getByTestId('ring-battery')).toBeInTheDocument();
+    expect(within(sheet).queryByTestId('details-latest')).toBeNull();
   });
 });
 
-describe('F07-T5: live updates re-render only changed parameter cells', () => {
-  it('one PID changed → only that cell renders again', async () => {
+describe('F07-T6: live updates re-render only changed parameter rows', () => {
+  it('one PID changed → only that row renders again', async () => {
     const user = userEvent.setup();
     const renders = new Map<string, number>();
     const onCellRender = (pid: string) => renders.set(pid, (renders.get(pid) ?? 0) + 1);
@@ -249,7 +286,7 @@ describe('F07-T5: live updates re-render only changed parameter cells', () => {
     render(<VehicleDetailsPanel store={store} onCellRender={onCellRender} />);
     await act(() => store.selectVehicle(ID));
     payloads();
-    await user.click(screen.getByRole('button', { name: 'Expand view' }));
+    await user.click(tab(/Parameters/));
     expect(renders.size).toBe(374);
     expect([...renders.values()].every((n) => n === 1)).toBe(true);
 

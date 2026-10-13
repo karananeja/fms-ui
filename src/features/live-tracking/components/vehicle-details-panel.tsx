@@ -1,17 +1,21 @@
-import { ChevronDown, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useNow } from '@/shared/hooks/use-now';
 import { cn } from '@/shared/lib/utils';
-import { Button } from '@/shared/ui/button';
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/shared/ui/drawer';
+import type { ParameterGroupId } from '../config/details-config';
 import {
+  badgesModel,
+  cellStrip,
   deviceModel,
-  drivingEnergyModel,
+  eventItems,
   filterParameters,
   headerModel,
-  locationModel,
+  highlights,
+  overviewModel,
   parameterCells,
+  ringsModel,
+  sessionChart,
 } from '../lib/vehicle-details-model';
 import {
   hasPermission,
@@ -20,16 +24,18 @@ import {
   type LiveTrackingStore,
 } from '../store/live-tracking-store';
 import { useLiveTracking } from '../store/use-live-tracking';
-import { DetailsHeader } from './details-header';
-import { SectionLabel, Skeleton } from './details-ui';
-import { DeviceCommsCard } from './device-comms-card';
-import { DrivingEnergyCard } from './driving-energy-card';
-import { ExpandedDetails } from './expanded-details';
-import { LocationRow } from './location-row';
-import { ParameterSearch, ParametersGrid } from './parameters-grid';
+import { DetailsHero } from './details-hero';
+import { DeviceTab } from './device-tab';
+import { EventsTab } from './events-tab';
+import { OverviewTab } from './overview-tab';
+import { ParametersTab } from './parameters-tab';
+import { RingGauge } from './ring-gauge';
 
 export const DESKTOP_QUERY = '(min-width: 1024px)';
 const SNAP_POINTS = [0.35, 0.92];
+const NOW_TICK_MS = 5000;
+
+type TabId = 'overview' | 'parameters' | 'device' | 'events';
 
 const selectId = (s: LiveTrackingState) => s.selectedVehicleId;
 const selectSelected = (s: LiveTrackingState) => s.selected;
@@ -40,250 +46,173 @@ const selectCanParams = (s: LiveTrackingState) => hasPermission(s, 'vehicle.para
 
 interface PanelProps {
   store?: LiveTrackingStore;
-  /** Render probe for parameter cells (F07-T5). */
+  /** Render probe for parameter rows (F07-T6). */
   onCellRender?: (pid: string) => void;
-}
-
-function Section({
-  label,
-  action,
-  children,
-}: {
-  label?: ReactNode;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-3 border-t px-5 py-4">
-      {label && (
-        <div className="flex min-h-8 items-center justify-between">
-          <SectionLabel>{label}</SectionLabel>
-          {action}
-        </div>
-      )}
-      {children}
-    </section>
-  );
 }
 
 function NotFound({ onClose }: { onClose: () => void }) {
   return (
     <div className="flex flex-col items-start gap-4 p-6">
       <p className="text-sm">Vehicle not available in your fleets</p>
-      <Button variant="secondary" size="sm" onClick={onClose}>
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded-[10px] border border-glass-border bg-tile px-3 py-1.5 text-xs font-extrabold"
+      >
         Close
-      </Button>
+      </button>
     </div>
   );
 }
 
-function ParamCount({ n }: { n: number }) {
+function Tabs({
+  tab,
+  setTab,
+  tabs,
+}: {
+  tab: TabId;
+  setTab: (t: TabId) => void;
+  tabs: { id: TabId; label: string; n?: number }[];
+}) {
   return (
-    <SectionLabel>
-      Parameters <span data-testid="details-param-count">({n})</span>
-    </SectionLabel>
+    <div
+      role="tablist"
+      aria-label="Vehicle details sections"
+      className="mx-4 mt-3 flex gap-0.5 rounded-xl border border-tile-border bg-tile p-[3px]"
+    >
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          role="tab"
+          id={`details-tab-${t.id}`}
+          aria-selected={tab === t.id}
+          aria-controls="details-tabpanel"
+          onClick={() => setTab(t.id)}
+          className={cn(
+            'flex-1 rounded-[9px] py-[7px] text-xs font-extrabold',
+            tab === t.id ? 'bg-tile-border text-text' : 'text-text-muted hover:text-text',
+          )}
+        >
+          {t.label}
+          {t.n !== undefined && (
+            <span className="ml-1 text-accent" data-testid="details-param-count">
+              {t.n}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
   );
 }
 
-/** Panel content for the selected vehicle; `expanded` switches to gauges + parameters grid. */
+/** Hero + rings + tabs for the selected vehicle. `scroll` wraps the tab body. */
 function DetailsBody({
   store,
   vehicleId,
-  expanded,
-  setExpanded,
-  wide,
+  compact,
   onCellRender,
+  scroll,
 }: Required<Pick<PanelProps, 'store'>> &
   Pick<PanelProps, 'onCellRender'> & {
     vehicleId: string;
-    expanded: boolean;
-    setExpanded: (expanded: boolean) => void;
-    /** Desktop expanded = two columns; otherwise stacked. */
-    wide: boolean;
+    compact: boolean;
+    scroll: (body: ReactNode) => ReactNode;
   }) {
   const selected = useLiveTracking(selectSelected, Object.is, store);
   const summary = useLiveTracking(selectSummary, Object.is, store);
   const offset = useLiveTracking(selectOffset, Object.is, store);
   const canParams = useLiveTracking(selectCanParams, Object.is, store);
-  const now = useNow(5000) + offset;
+  const now = useNow(NOW_TICK_MS) + offset;
+  const [tab, setTab] = useState<TabId>('overview');
   const [query, setQuery] = useState('');
-  const [listOpen, setListOpen] = useState(false);
+  const [group, setGroup] = useState<ParameterGroupId>('all');
 
   const own = selected?.vehicleId === vehicleId ? selected : null;
   const c = own?.combinfo ?? null;
   const l = own?.lafparsed ?? null;
   const status = own?.status ?? null;
+  const history = own?.history;
   const ownSummary = summary?.vehicleId === vehicleId ? summary : null;
 
   const header = useMemo(
     () => headerModel(vehicleId, ownSummary, c, status, now),
     [vehicleId, ownSummary, c, status, now],
   );
-  const energy = useMemo(() => c && drivingEnergyModel(c, l), [c, l]);
+  const badges = useMemo(() => c && badgesModel(c), [c]);
+  const rings = useMemo(() => ringsModel(c, l), [c, l]);
+  const overview = useMemo(() => c && overviewModel(c), [c]);
+  const chart = useMemo(() => sessionChart(history?.samples ?? []), [history]);
+  const events = useMemo(() => eventItems(history?.events ?? []), [history]);
   const device = useMemo(() => c && deviceModel(c), [c]);
-  const location = useMemo(() => c && locationModel(c), [c]);
-  const cells = useMemo(() => l && parameterCells(l), [l]);
-  const filtered = useMemo(() => cells && filterParameters(cells, query), [cells, query]);
+  const cells = useMemo(() => l && cellStrip(l), [l]);
+  const params = useMemo(() => l && parameterCells(l), [l]);
+  const hl = useMemo(() => (l ? highlights(l) : []), [l]);
+  const filtered = useMemo(
+    () => params && filterParameters(params, query, group),
+    [params, query, group],
+  );
 
   const close = () => void store.selectVehicle(null);
   if (own?.found === false) return <NotFound onClose={close} />;
 
-  const head = (
-    <DetailsHeader
-      header={header}
-      onLocate={() => void store.locateVehicle(vehicleId)}
-      onClose={close}
-    />
-  );
-  const deviceSection = (
-    <Section label="Device & Comms">
-      {device ? <DeviceCommsCard data={device} /> : <Skeleton className="h-28" label="device" />}
-    </Section>
-  );
-  const locationSection = (
-    <Section label="Location">
-      {location ? (
-        <LocationRow location={location} />
-      ) : (
-        <Skeleton className="h-6" label="location" />
-      )}
-    </Section>
-  );
-  const grid = filtered ? (
-    <ParametersGrid cells={filtered} variant="grid" onCellRender={onCellRender} />
-  ) : (
-    <Skeleton className="h-40" label="parameters" />
-  );
-  const expand = (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label="Expand view"
-      className="ml-auto text-text-muted"
-      onClick={() => setExpanded(true)}
-    >
-      <ChevronsLeft />
-    </Button>
-  );
-  const collapse = (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label="Collapse view"
-      className="text-text-muted"
-      onClick={() => setExpanded(false)}
-    >
-      <ChevronsRight />
-    </Button>
-  );
+  const active = tab === 'parameters' && !canParams ? 'overview' : tab;
+  const tabs: { id: TabId; label: string; n?: number }[] = [
+    { id: 'overview', label: 'Overview' },
+    ...(canParams
+      ? [{ id: 'parameters' as const, label: 'Parameters', n: filtered?.length ?? 0 }]
+      : []),
+    { id: 'device', label: 'Device' },
+    { id: 'events', label: 'Events' },
+  ];
 
-  if (!expanded) {
-    return (
-      <>
-        {head}
-        <Section label="Driving · Energy" action={!canParams && expand}>
-          {energy ? (
-            <DrivingEnergyCard data={energy} />
-          ) : (
-            <Skeleton className="h-36" label="energy" />
-          )}
-        </Section>
-        {canParams && (
-          <Section>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                aria-expanded={listOpen}
-                aria-controls="details-param-list"
-                onClick={() => setListOpen(!listOpen)}
-                className="flex items-center gap-1.5 rounded-sm text-left"
-              >
-                <ParamCount n={filtered?.length ?? 0} />
-                <ChevronDown
-                  className={cn(
-                    'size-4 text-text-muted transition-transform',
-                    listOpen && 'rotate-180',
-                  )}
-                  aria-hidden
-                />
-              </button>
-              {expand}
-            </div>
-            {listOpen && (
-              <div id="details-param-list" className="flex flex-col gap-2">
-                <ParameterSearch value={query} onChange={setQuery} />
-                <div className="max-h-80 overflow-y-auto pr-1">
-                  {filtered ? (
-                    <ParametersGrid cells={filtered} variant="list" onCellRender={onCellRender} />
-                  ) : (
-                    <Skeleton className="h-40" label="parameters" />
-                  )}
-                </div>
-              </div>
-            )}
-          </Section>
-        )}
-        {deviceSection}
-        {locationSection}
-      </>
-    );
-  }
-
-  const gauges = (
-    <Section>
-      {energy ? <ExpandedDetails data={energy} /> : <Skeleton className="h-72" label="gauges" />}
-    </Section>
-  );
-  const paramsHeader = (
-    <div className="flex flex-wrap items-center gap-3">
-      <ParamCount n={filtered?.length ?? 0} />
-      <ParameterSearch value={query} onChange={setQuery} className="ml-auto w-full max-w-sm" />
-      {collapse}
-    </div>
-  );
-
-  if (!wide) {
-    return (
-      <>
-        {head}
-        {gauges}
-        {!canParams && <div className="flex justify-end px-5">{collapse}</div>}
-        {canParams && (
-          <Section>
-            {paramsHeader}
-            {grid}
-          </Section>
-        )}
-        {deviceSection}
-        {locationSection}
-      </>
-    );
-  }
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      <div className="min-h-0 overflow-y-auto border-r">
-        {head}
-        {gauges}
-        {deviceSection}
-        {locationSection}
+    <>
+      <DetailsHero
+        header={header}
+        badges={badges}
+        compact={compact}
+        onLocate={() => void store.locateVehicle(vehicleId)}
+        onClose={close}
+      />
+      <div className="grid grid-cols-3 gap-2 px-4">
+        <RingGauge ring={rings.battery} label="Battery" size={compact ? 56 : 70} />
+        <RingGauge ring={rings.range} label="Range" size={compact ? 56 : 70} />
+        <RingGauge ring={rings.health} label="Health" size={compact ? 56 : 70} />
       </div>
-      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto p-5">
-        {canParams ? (
-          <>
-            {paramsHeader}
-            {grid}
-          </>
-        ) : (
-          <div className="flex justify-end">{collapse}</div>
-        )}
-      </div>
-    </div>
+      <Tabs tab={active} setTab={setTab} tabs={tabs} />
+      {scroll(
+        <div
+          id="details-tabpanel"
+          role="tabpanel"
+          aria-labelledby={`details-tab-${active}`}
+          className="flex flex-col gap-2.5 px-4 pt-3 pb-4"
+        >
+          {active === 'overview' && (
+            <OverviewTab overview={overview} chart={chart} events={events} />
+          )}
+          {active === 'parameters' && (
+            <ParametersTab
+              cells={filtered}
+              total={params?.length ?? 0}
+              highlights={hl}
+              query={query}
+              setQuery={setQuery}
+              group={group}
+              setGroup={setGroup}
+              onCellRender={onCellRender}
+            />
+          )}
+          {active === 'device' && <DeviceTab device={device} cells={cells} />}
+          {active === 'events' && <EventsTab items={events} />}
+        </div>,
+      )}
+    </>
   );
 }
 
 function DesktopPanel({ store, vehicleId, onCellRender }: PanelProps & { vehicleId: string }) {
   const ref = useRef<HTMLElement>(null);
-  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     ref.current?.focus({ preventScroll: true });
@@ -302,19 +231,15 @@ function DesktopPanel({ store, vehicleId, onCellRender }: PanelProps & { vehicle
       ref={ref}
       tabIndex={-1}
       aria-label="Vehicle details"
-      data-details-panel={expanded ? 'expanded' : 'compact'}
-      className={cn(
-        'absolute top-14 right-3 bottom-3 z-20 flex flex-col rounded-[var(--radius-panel)] border bg-surface-1 shadow-2xl outline-none',
-        expanded ? 'left-3 overflow-hidden' : 'w-[420px] overflow-y-auto',
-      )}
+      data-details-panel="card"
+      className="absolute top-[72px] right-3.5 bottom-3.5 z-20 flex w-[420px] flex-col overflow-hidden rounded-[var(--radius-panel)] shadow-[0_30px_80px_rgb(0_0_0/0.55)] glass outline-none"
     >
       <DetailsBody
         store={store!}
         vehicleId={vehicleId}
-        expanded={expanded}
-        setExpanded={setExpanded}
-        wide
+        compact={false}
         onCellRender={onCellRender}
+        scroll={(body) => <div className="min-h-0 flex-1 overflow-y-auto">{body}</div>}
       />
     </section>
   );
@@ -322,7 +247,6 @@ function DesktopPanel({ store, vehicleId, onCellRender }: PanelProps & { vehicle
 
 function MobileSheet({ store, vehicleId, onCellRender }: PanelProps & { vehicleId: string }) {
   const [snap, setSnap] = useState<number | string | null>(SNAP_POINTS[0]!);
-  const [expanded, setExpanded] = useState(false);
   const top = snap === SNAP_POINTS[1];
   return (
     <Drawer
@@ -335,24 +259,26 @@ function MobileSheet({ store, vehicleId, onCellRender }: PanelProps & { vehicleI
     >
       <DrawerContent
         aria-label="Vehicle details"
-        data-details-panel={expanded ? 'expanded' : 'compact'}
+        data-details-panel="sheet"
         data-snap={snap ?? ''}
+        className="max-h-none bg-glass glass"
       >
         <DrawerTitle className="sr-only">Vehicle details</DrawerTitle>
         <DrawerDescription className="sr-only">
           Live details of the selected vehicle
         </DrawerDescription>
-        <div className={cn('min-h-0 flex-1', top ? 'overflow-y-auto' : 'overflow-hidden')}>
+        <div
+          className={cn(
+            'flex min-h-0 flex-1 flex-col',
+            top ? 'overflow-y-auto' : 'overflow-hidden',
+          )}
+        >
           <DetailsBody
             store={store!}
             vehicleId={vehicleId}
-            expanded={expanded}
-            setExpanded={(x) => {
-              setExpanded(x);
-              if (x) setSnap(SNAP_POINTS[1]!);
-            }}
-            wide={false}
+            compact
             onCellRender={onCellRender}
+            scroll={(body) => body}
           />
         </div>
       </DrawerContent>
@@ -360,7 +286,7 @@ function MobileSheet({ store, vehicleId, onCellRender }: PanelProps & { vehicleI
   );
 }
 
-/** Selected vehicle's details: floating card on desktop, bottom sheet below 1024 px (F07). */
+/** Selected vehicle's details: glass card on desktop, bottom sheet below 1024 px (F07). */
 export function VehicleDetailsPanel({ store = liveTrackingStore, onCellRender }: PanelProps) {
   const vehicleId = useLiveTracking(selectId, Object.is, store);
   const canView = useLiveTracking(selectCanView, Object.is, store);

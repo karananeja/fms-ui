@@ -4,6 +4,7 @@ import { liveTrackingStore, type LiveTrackingState } from '../store/live-trackin
 import { useLiveTracking } from '../store/use-live-tracking';
 import { useSelectionUrlSync } from '../hooks/use-selection-url-sync';
 import { DebugOverlay } from './debug-overlay';
+import { HeadingCompass } from './heading-compass';
 import { LiveMap } from './live-map';
 import { MapToolbar } from './map-toolbar';
 import { VehicleDetailsPanel } from './vehicle-details-panel';
@@ -46,6 +47,7 @@ export function LiveTrackingPage() {
       <MapToolbar />
       {debug && <DebugOverlay />}
       <VehicleDetailsPanel />
+      <HeadingCompass />
       <MapNotice />
     </div>
   );

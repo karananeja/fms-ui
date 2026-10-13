@@ -1,15 +1,16 @@
 import type { VehicleStatus } from '@shared/domain/vehicle-status';
 import { STATUS_META } from '../config/status-meta';
 
+/** Mockup `.status`: tinted pill with a dot. */
 export function StatusPill({ status }: { status: VehicleStatus }) {
-  const { label, color, icon: Icon } = STATUS_META[status];
+  const { label, color } = STATUS_META[status];
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium"
-      style={{ color, borderColor: color }}
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black tracking-[0.06em] uppercase"
+      style={{ color, background: `color-mix(in srgb, ${color} 15%, transparent)` }}
       data-status={status}
     >
-      <Icon className="size-3.5" aria-hidden />
+      <span className="size-2 rounded-full" style={{ background: color }} aria-hidden />
       {label}
     </span>
   );

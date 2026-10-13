@@ -24,6 +24,8 @@ import {
 } from '../store/live-tracking-store.ts';
 import type { MapClusters, MapFrame, MapPoints, MapViewport } from '../worker/worker-api.ts';
 import { clusterLabel, clusterMarkerSvg } from './cluster-marker.ts';
+import { attachSelectedCallout } from './selected-callout.ts';
+import { attachTrailLayer } from './trail-layer.ts';
 
 setWorkerUrl(workerUrl);
 
@@ -213,6 +215,11 @@ export class MapController {
         'icon-halo-width': 1.2,
       },
     });
+    // F07: selected-vehicle trail (under the selection ring) and callout.
+    this.unsubscribe.push(
+      attachTrailLayer(map, this.store, 'selected-ring'),
+      attachSelectedCallout(map, this.store),
+    );
     map.on('mousemove', 'vehicles', (e) => this.hover(e));
     map.on('mouseleave', 'vehicles', () => {
       map.getCanvas().style.cursor = '';
