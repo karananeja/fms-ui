@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Awaiting sign-off** |
+| Status | **Signed off: 2026-10-13 (user)** |
 | Intent | `intent.md` (signed off 2026-10-13) |
 | Branch | `feature/f04-live-data-pipeline` |
 | Contract | `shared/contract/ws.ts`, `payloads.ts`, `auth.ts` (F01, incl. D-024…D-028) |

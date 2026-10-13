@@ -62,3 +62,9 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 - Wrote `features/f04-live-data-pipeline/spec.md` (incl. temporary dev auto sign-in until F02, server-clock offset from heartbeats, diagnostics panel for UAT) and `features/f05-vehicle-status/spec.md` (config-driven rules per D-015).
 
 **Status:** Awaiting F04 + F05 spec sign-off.
+
+## 2026-10-13 — Session 1 (cont. 6)
+
+**User:** "approved" — F04 + F05 specs signed off.
+
+**Assistant:** Created `feature/f04-live-data-pipeline`; spawned F04 implementation sub-agent.
