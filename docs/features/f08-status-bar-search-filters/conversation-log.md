@@ -66,3 +66,11 @@ Proposed fix (not implemented; changes approved R4 and the shared F06 `MapIndex`
 - Perf (×2): running 68/168, + stopped 172/251, all 253/250, search 31/257, clear 254/248 ms; long tasks none / 57 ms. Load average ~11 (F09 in parallel).
 - Instrumented timeline: frame compute ≤ 1 ms; the remaining latency is the 4 Hz push slot (0–250 ms). The spec clicks right after a push, so it waits ~250 ms. **Open:** proposed fix 3 — `setFilter` flushes at once (changes F04-R17); needs approval.
 - Also fixed `e2e/status-bar.perf.spec.ts` `longtask` observer typing (`tsc -b` failed).
+
+## 2026-10-14 — D-073: filter change pushes at once (user approved fix 3)
+**User:** approved fix 3 (amends F04-R17).
+
+- Engine `pushNow()`: `setFilter` cancels the pending push timer and flushes synchronously; that push sets `lastPushAt`, so the 250 ms window restarts and data-driven pushes stay ≤ 4 Hz. F04-R17 amended; D-073 Accepted.
+- Test (`map-index-filter.test.ts`): immediate push with frame + filtered counts, cancelled slot doesn't fire, data waits a full 250 ms after the filter push, 100 deltas/s → ≤ 4 pushes/s. F04-T8 (data-only rate) still passes.
+- `pnpm check` 406/406; build OK; e2e chromium+clock 24/24; screenshots rewritten by e2e restored.
+- Perf (load average 8.7 / 8.6): running 81/57, + stopped 71/48, all 97/73, search 25/25, clear 50/47 ms; long tasks none/none. **All F08 budgets pass.**
