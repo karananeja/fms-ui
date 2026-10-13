@@ -1,4 +1,4 @@
-import type { Combinfo, Me } from '@shared/contract/index.ts';
+import type { Combinfo, Fleet, Me } from '@shared/contract/index.ts';
 import { act, renderHook } from '@testing-library/react';
 import { releaseProxy, type Remote } from 'comlink';
 import { describe, expect, it, vi } from 'vitest';
@@ -6,14 +6,20 @@ import { VEHICLE_STATUSES } from '@shared/domain/vehicle-status.ts';
 import { INDIA_CITIES } from '../config/india-cities.ts';
 import type {
   Bbox,
+  FilterOptions,
+  FleetNode,
   LivePush,
   LiveTrackingWorkerApi,
   MapFrame,
+  Suggestion,
+  VehicleFilter,
   VehicleSummary,
 } from '../worker/worker-api.ts';
+import { PULSE_INTERVAL_MS, PULSE_WINDOW_MS, pulseChange } from './fleet-pulse.ts';
 import {
   LiveTrackingStore,
   hasPermission,
+  normalizeFilter,
   selectedPosition,
   type LiveTrackingState,
   type LngLat,
@@ -22,6 +28,16 @@ import {
 import { useLiveTracking } from './use-live-tracking.ts';
 
 const me = { fleetIds: ['f0'] } as unknown as Me;
+const FLEETS: Fleet[] = [
+  { id: 'f0', parentId: null, name: 'North', depth: 1, vehicleCount: 10 },
+  { id: 'f1', parentId: 'f0', name: 'Delhi', depth: 2, vehicleCount: 4 },
+];
+const OPTIONS: FilterOptions = {
+  assetTypes: ['Bus'],
+  fuelTypes: ['Electric'],
+  makes: ['Tata'],
+  models: [{ make: 'Tata', model: 'Ultra' }],
+};
 const counts = (n = 0) =>
   Object.fromEntries(VEHICLE_STATUSES.map((s) => [s, n])) as LivePush['statusCounts'];
 
@@ -60,6 +76,10 @@ function fakeWorker() {
     getBounds: vi.fn(async (): Promise<Bbox | null> => [72, 12, 88, 28]),
     getClusterExpansionZoom: vi.fn<(id: number) => Promise<number | null>>(async () => 9),
     dispose: vi.fn(async () => {}),
+    setFilter: vi.fn(async (_f: VehicleFilter) => {}),
+    setFleets: vi.fn(async (_f: FleetNode[]) => {}),
+    suggest: vi.fn(async (): Promise<Suggestion[]> => []),
+    getFilterOptions: vi.fn(async (): Promise<FilterOptions> => OPTIONS),
     [releaseProxy]: vi.fn(),
   };
   const createWorkerApi = vi.fn(() => api as unknown as Remote<LiveTrackingWorkerApi>);
@@ -67,7 +87,14 @@ function fakeWorker() {
     [77, 12],
     [77.1, 12.1],
   ]);
-  const store = new LiveTrackingStore({ createWorkerApi, fetchTrail });
+  const clock = { t: 1_000_000 };
+  const fetchFleets = vi.fn(async (): Promise<Fleet[]> => FLEETS);
+  const store = new LiveTrackingStore({
+    createWorkerApi,
+    fetchTrail,
+    fetchFleets,
+    now: () => clock.t,
+  });
   const push = (over: Partial<LivePush> = {}, stats: Partial<LivePush['stats']> = {}) =>
     onPush!({
       connection: 'live',
@@ -80,7 +107,7 @@ function fakeWorker() {
       ...over,
       stats: { ...store.getSnapshot().stats, vehicleCount: 10, ...stats },
     });
-  return { api, createWorkerApi, store, push, fetchTrail };
+  return { api, createWorkerApi, store, push, fetchTrail, clock };
 }
 
 describe('F04-T7: LiveTrackingStore', () => {
@@ -392,5 +419,105 @@ describe('F07-R12: selected-vehicle trail', () => {
     ]);
     await store.selectVehicle(null);
     expect(store.getSnapshot().trail).toBeNull();
+  });
+});
+
+describe('F08-T5: store filter + pulse', () => {
+  it('toggleStatus adds and removes statuses in VEHICLE_STATUSES order; ALL clears', () => {
+    const { store, api } = fakeWorker();
+    store.start(me);
+    store.toggleStatus('charging');
+    store.toggleStatus('running');
+    expect(store.getSnapshot().filter).toEqual({ statuses: ['running', 'charging'] });
+    store.toggleStatus('charging');
+    expect(store.getSnapshot().filter).toEqual({ statuses: ['running'] });
+    store.toggleStatus(null);
+    expect(store.getSnapshot().filter).toEqual({});
+    expect(api.setFilter).toHaveBeenLastCalledWith({});
+  });
+
+  it('patchFilter merges and normalises; clearFilter empties; no-op changes are not sent', () => {
+    const { store, api } = fakeWorker();
+    store.start(me);
+    store.patchFilter({ fleetIds: ['f1'], socMin: 20, socMax: 100 });
+    store.patchFilter({ search: { field: 'regno', prefix: ' ka01 ' }, assetTypes: [] });
+    expect(store.getSnapshot().filter).toEqual({
+      fleetIds: ['f1'],
+      socMin: 20,
+      search: { field: 'regno', prefix: 'ka01' },
+    });
+    const calls = api.setFilter.mock.calls.length;
+    store.patchFilter({ assetTypes: [] });
+    expect(api.setFilter.mock.calls.length).toBe(calls);
+    store.clearFilter();
+    expect(store.getSnapshot().filter).toEqual({});
+    expect(
+      normalizeFilter({ socMin: 0, socMax: 100, search: { field: 'all', prefix: ' ' } }),
+    ).toEqual({});
+  });
+
+  it('loads permitted fleets into state and the worker', async () => {
+    const { store, api } = fakeWorker();
+    store.start(me);
+    await vi.waitFor(() => expect(store.getSnapshot().fleets).toEqual(FLEETS));
+    expect(api.setFleets).toHaveBeenCalledWith([
+      { id: 'f0', parentId: null },
+      { id: 'f1', parentId: 'f0' },
+    ]);
+  });
+
+  it('takes filtered counts, hidden selection and filter options from the worker', async () => {
+    const { store, push } = fakeWorker();
+    store.start(me);
+    push({ filteredCounts: counts(2), filteredTotal: 16, selectedMatches: true });
+    expect(store.getSnapshot()).toMatchObject({ filteredTotal: 16, selectedHidden: false });
+    expect(store.getSnapshot().filteredCounts.running).toBe(2);
+    await store.selectVehicle('v1');
+    push({
+      selectedMatches: false,
+      selected: {
+        vehicleId: 'v1',
+        found: true,
+        status: 'running',
+        combinfo: null,
+        lafparsed: null,
+      },
+    });
+    expect(store.getSnapshot().selectedHidden).toBe(true);
+    expect(selectedPosition(store.getSnapshot())).toBeNull();
+    await store.loadFilterOptions();
+    expect(store.getSnapshot().filterOptions).toEqual(OPTIONS);
+  });
+
+  it('pulse samples every 10 s after the snapshot, keeps 1 h, and restarts on a new scope', () => {
+    const { store, push, clock } = fakeWorker();
+    store.start(me);
+    const tick = (running: number) =>
+      push({ filteredCounts: { ...counts(), running } }, { snapshotComplete: true });
+    push({}, { snapshotComplete: false });
+    expect(store.getSnapshot().pulse).toEqual([]);
+    tick(10);
+    clock.t += 4000;
+    tick(11); // < 10 s: not sampled
+    expect(store.getSnapshot().pulse.map((s) => s.v)).toEqual([10]);
+    for (let k = 0; k < 400; k++) {
+      clock.t += PULSE_INTERVAL_MS;
+      tick(10 + (k % 3));
+    }
+    const pulse = store.getSnapshot().pulse;
+    expect(pulse.length).toBe(PULSE_WINDOW_MS / PULSE_INTERVAL_MS + 1);
+    expect(pulse.at(-1)!.t - pulse[0]!.t).toBe(PULSE_WINDOW_MS);
+    expect(
+      pulseChange([
+        { t: 0, v: 50 },
+        { t: 1, v: 55 },
+      ]),
+    ).toBeCloseTo(10);
+    expect(pulseChange([{ t: 0, v: 50 }])).toBeNull();
+
+    store.toggleStatus('running'); // statuses don't change the running count's scope
+    expect(store.getSnapshot().pulse).toBe(pulse);
+    store.patchFilter({ fleetIds: ['f1'] });
+    expect(store.getSnapshot().pulse).toEqual([]);
   });
 });
