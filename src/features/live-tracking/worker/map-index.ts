@@ -47,6 +47,8 @@ export class MapIndex {
   constructor(
     private readonly state: FleetState,
     opts: Partial<MapIndexOptions> = {},
+    /** F08-R4: only matching vehicles are clustered, scanned and bounded. */
+    private readonly include: (i: number) => boolean = () => true,
   ) {
     this.opts = { ...mapConfig, ...opts };
     this.scratch = new Int32Array(this.opts.maxFramePoints + 1);
@@ -87,7 +89,7 @@ export class MapIndex {
       for (const f of features) {
         if ('cluster' in f.properties) continue;
         const i = this.state.byVehicle.get((f.properties as PointProps).id);
-        if (i !== undefined && this.valid(i)) this.scratch[k++] = i;
+        if (i !== undefined && this.valid(i) && this.include(i)) this.scratch[k++] = i;
       }
       return this.pack(zoom, this.scratch.subarray(0, k), clusters);
     }
@@ -110,7 +112,7 @@ export class MapIndex {
     for (let i = 0; i < this.state.count; i++) {
       const y = lat[i]!;
       const x = lng[i]!;
-      if (!isValidPosition(y, x)) continue;
+      if (!isValidPosition(y, x) || !this.include(i)) continue;
       if (x < w) w = x;
       if (x > e) e = x;
       if (y < s) s = y;
@@ -140,7 +142,7 @@ export class MapIndex {
     for (let i = 0; i < this.state.count; i++) {
       const y = lat[i]!;
       const x = lng[i]!;
-      if (!isValidPosition(y, x)) continue;
+      if (!isValidPosition(y, x) || !this.include(i)) continue;
       features.push({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [x, y] },
@@ -166,7 +168,8 @@ export class MapIndex {
     for (let i = 0; i < this.state.count && k < limit; i++) {
       const y = lat[i]!;
       const x = lng[i]!;
-      if (y >= s && y <= n && x >= w && x <= e && isValidPosition(y, x)) this.scratch[k++] = i;
+      if (y >= s && y <= n && x >= w && x <= e && isValidPosition(y, x) && this.include(i))
+        this.scratch[k++] = i;
     }
     return k;
   }

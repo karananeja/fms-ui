@@ -9,14 +9,21 @@ import {
 } from '../config/status-rules-config.ts';
 import { parseStatusRulesConfig } from '../config/status-rules-schema.ts';
 import { FleetState } from './fleet-state.ts';
-import { FilterEngine } from './filter-engine.ts';
+import {
+  FilterEngine,
+  type FleetNode,
+  type SearchField,
+  type VehicleFilter,
+} from './filter-engine.ts';
 import { frameBuffers, MapIndex } from './map-index.ts';
+import { SearchIndex, type Suggestion } from './search-index.ts';
 import { SelectedHistory } from './selected-history.ts';
 import { detailsConfig } from '../config/details-config.ts';
 import { StatusTracker } from './status-deriver.ts';
 import type {
   Bbox,
   ConnectionState,
+  FilterOptions,
   LivePush,
   LiveStats,
   LiveTrackingWorkerApi,
@@ -62,6 +69,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   readonly client: WsClient;
   /** F08/F09 contract: consumers call `filters.matches(i)` only. */
   readonly filters: FilterEngine;
+  readonly search: SearchIndex;
   readonly map: MapIndex;
   pushCount = 0;
   private readonly clock: Clock;
@@ -107,7 +115,8 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     });
     this.status = new StatusTracker(this.state, this.rules);
     this.filters = new FilterEngine(this.state);
-    this.map = new MapIndex(this.state, deps.map);
+    this.search = new SearchIndex(this.state);
+    this.map = new MapIndex(this.state, deps.map, (i) => this.filters.matches(i));
     this.client = new WsClient({
       url: deps.url,
       createSocket: deps.createSocket,
@@ -204,6 +213,58 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     this.onPush = null;
     this.client.dispose();
     this.deps.onDispose?.();
+  }
+
+  // ---- F08: filters & search ----
+
+  setFilter(filter: VehicleFilter): void {
+    this.filters.set(filter);
+    this.rebuildNow = true;
+    this.markDirty();
+  }
+
+  setFleets(fleets: FleetNode[]): void {
+    this.filters.setFleets(fleets);
+    this.rebuildNow = true;
+    this.markDirty();
+  }
+
+  suggest(prefix: string, field: SearchField, limit = 8): Suggestion[] {
+    return this.search.suggest(prefix, field, limit);
+  }
+
+  getFilterOptions(): FilterOptions {
+    const { codes, dicts, count } = this.state;
+    const distinct = (f: 'assetType' | 'fuelType' | 'make') => {
+      const seen = new Uint8Array(dicts[f].values.length);
+      for (let i = 0; i < count; i++) seen[codes[f][i]!] = 1;
+      return dicts[f].values.filter((v, k) => seen[k] && v).sort();
+    };
+    const models = new Map<string, { make: string; model: string }>();
+    for (let i = 0; i < count; i++) {
+      const make = dicts.make.values[codes.make[i]!]!;
+      const model = dicts.model.values[codes.model[i]!]!;
+      if (model) models.set(`${make}\u0000${model}`, { make, model });
+    }
+    return {
+      assetTypes: distinct('assetType'),
+      fuelTypes: distinct('fuelType'),
+      makes: distinct('make'),
+      models: [...models.values()].sort((a, b) => a.model.localeCompare(b.model)),
+    };
+  }
+
+  private filteredPush(): Pick<LivePush, 'filteredCounts' | 'filteredTotal' | 'selectedMatches'> {
+    const { counts, total } = this.filters.active
+      ? this.filters.counts()
+      : { counts: this.status.statusCounts(), total: this.state.count };
+    const s = this.selection;
+    const i = s?.found ? this.state.indexOf(s.vehicleId) : -1;
+    return {
+      filteredCounts: counts,
+      filteredTotal: total,
+      selectedMatches: i < 0 || this.filters.matches(i),
+    };
   }
 
   // ---- subscriptions ----
@@ -315,6 +376,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
       version: this.state.version,
       statusCounts: this.status.statusCounts(),
       total: this.state.count,
+      ...this.filteredPush(),
     };
     const s = this.selection;
     const i = s?.found ? this.state.indexOf(s.vehicleId) : -1;
@@ -334,7 +396,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   // ---- map ----
 
   private get dataVersion(): number {
-    return this.state.version + this.statusEpoch;
+    return this.state.version + this.statusEpoch + this.filters.version;
   }
 
   private transfer<T>(value: T, buffers: ArrayBuffer[]): T {
