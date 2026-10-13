@@ -218,8 +218,10 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   // ---- F08: filters & search ----
 
   setFilter(filter: VehicleFilter): void {
+    const base = this.filters.baseVersion;
     this.filters.set(filter);
-    this.rebuildNow = true;
+    // D-072: only a change outside `statuses` needs the index rebuilt (or swapped) at once.
+    if (this.filters.baseVersion !== base) this.rebuildNow = true;
     this.markDirty();
   }
 
@@ -409,7 +411,10 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   /** Rebuilds the index when due; schedules a later rebuild when throttled. */
   private updateIndex(): void {
     const now = this.clock.now();
-    this.map.update(this.dataVersion, now, this.rebuildNow);
+    // D-072: a status-only filter change is cut from the current index first; a throttled
+    // rebuild that happens to be due waits for the next push instead of delaying this frame.
+    const statusOnly = !this.rebuildNow && this.filters.version !== this.frameOf.filter;
+    if (!statusOnly) this.map.update(this.dataVersion, now, this.rebuildNow);
     this.rebuildNow = false;
     const wait = this.map.rebuildWait(this.dataVersion, now);
     // wait 0 = a D-072 cache swap: rebuild right after, not on an older, longer timer.
