@@ -1,6 +1,12 @@
 import type { Combinfo, Lafparsed, Me } from '@shared/contract/index.ts';
 import type { VehicleStatus } from '@shared/domain/vehicle-status.ts';
+import type { TableRow, TableSort } from '../config/table-columns.ts';
+import type { CsvRequest, CsvResult } from './csv-exporter.ts';
 import type { SessionHistory } from './selected-history.ts';
+import type { TableQuery, TableResult } from './table-query.ts';
+import type { TrayCard } from './tray-query.ts';
+
+export type { CsvRequest, CsvResult, TableQuery, TableResult, TableRow, TableSort, TrayCard };
 
 export type ConnectionState =
   'connecting' | 'live' | 'reconnecting' | 'offline' | 'unauthenticated' | 'error';
@@ -133,4 +139,16 @@ export interface LiveTrackingWorkerApi {
   /** Bbox of all vehicles with a valid position, or null when there are none. */
   getBounds(): Bbox | null;
   dispose(): void;
+  // ---- F09 ----
+  /** Fleet id → name, for the table's Fleet column, its sort and the CSV. */
+  setFleetNames(names: Record<string, string>): void;
+  /** A sorted window of matching vehicles (all or a bbox), ≤ 200 rows. */
+  queryTable(query: TableQuery): TableResult;
+  /** The table's rows as CSV (same scope, filter, sort, columns); progress per 10 000 rows. */
+  exportCsv(
+    req: CsvRequest,
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<CsvResult>;
+  /** Up to `limit` matching vehicles in the bbox for the tray. */
+  getTray(bbox: Bbox, limit?: number): TrayCard[];
 }
