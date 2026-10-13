@@ -144,3 +144,9 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 - Wrote F08 spec (worker filter engine + search index, status pills, fleet pulse, filter panel, chips) and F09 spec (worker table query, CSV export, vehicle tray), with a shared filter contract so both can run in parallel.
 
 **Status:** Awaiting F08 + F09 spec sign-off.
+
+## 2026-10-13 — Session 1 (cont. 15)
+
+**User:** "approved" — F08 + F09 specs signed off.
+
+**Assistant:** Committed the shared filter contract (match-all `FilterEngine` stub on `engine.filters`) on `feature/f08-search-filters`, branched `feature/f09-table-csv` from it, created worktrees `../fms-ui-f08` (ports 5273/4100) and `../fms-ui-f09` (5373/4200), spawned both agents in parallel. Decision IDs reserved: F08 D-064…D-067, F09 D-068…D-071.
