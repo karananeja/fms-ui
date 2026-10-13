@@ -1,10 +1,13 @@
+import { VEHICLE_STATUSES } from '@shared/domain/vehicle-status';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { formatIst } from '@/shared/lib/format-date';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
+import { STATUS_META } from '../config/status-meta';
 import { liveTrackingStore, type LiveTrackingState } from '../store/live-tracking-store';
 import { useLiveTracking } from '../store/use-live-tracking';
 import type { ConnectionState } from '../worker/worker-api';
+import { StatusPill } from './status-pill';
 
 const CONNECTION: Record<ConnectionState, { label: string; dot: string }> = {
   connecting: { label: 'Connecting', dot: 'bg-warn animate-pulse' },
@@ -19,6 +22,8 @@ const selectConnection = (s: LiveTrackingState) => s.connection;
 const selectStats = (s: LiveTrackingState) => s.stats;
 const selectSelected = (s: LiveTrackingState) => s.selected;
 const selectSelectedId = (s: LiveTrackingState) => s.selectedVehicleId;
+const selectCounts = (s: LiveTrackingState) => s.statusCounts;
+const selectTotal = (s: LiveTrackingState) => s.total;
 
 const fmt = new Intl.NumberFormat('en-IN');
 const mb = (bytes: number) => `${(bytes / 1048576).toFixed(1)} MB`;
@@ -58,8 +63,48 @@ function FeedStats() {
       <Stat label="Worker state">
         <span data-testid="live-state-size">{mb(s.stateBytes)}</span>
       </Stat>
-      <Stat label="Server clock offset">{offset(s.serverOffsetMs)}</Stat>
+      <Stat label="Server clock offset">
+        <span data-testid="live-server-offset" data-ms={s.serverOffsetMs}>
+          {offset(s.serverOffsetMs)}
+        </span>
+      </Stat>
+      <Stat label="Status sweep">
+        <span data-testid="live-sweep-ms">{s.sweepMs.toFixed(1)} ms</span>
+      </Stat>
     </dl>
+  );
+}
+
+function StatusCounts() {
+  const counts = useLiveTracking(selectCounts);
+  const total = useLiveTracking(selectTotal);
+  return (
+    <ul
+      className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5"
+      aria-label="Vehicle status"
+    >
+      {VEHICLE_STATUSES.map((status) => {
+        const { label, color } = STATUS_META[status];
+        return (
+          <li key={status} className="flex items-center gap-2 rounded-md bg-surface-2 px-3 py-2">
+            <span className="size-2.5 rounded-full" style={{ background: color }} aria-hidden />
+            <span className="text-sm">{label}</span>
+            <span
+              className="ml-auto font-medium tabular-nums"
+              data-testid={`status-count-${status}`}
+            >
+              {fmt.format(counts[status])}
+            </span>
+          </li>
+        );
+      })}
+      <li className="flex items-center gap-2 rounded-md bg-surface-2 px-3 py-2">
+        <span className="text-sm font-medium">Total</span>
+        <span className="ml-auto font-medium tabular-nums" data-testid="status-total">
+          {fmt.format(total)}
+        </span>
+      </li>
+    </ul>
   );
 }
 
@@ -74,7 +119,12 @@ function SelectedVehicle() {
   if (!c) return <p className="text-sm text-text-muted">Waiting for {selectedId}…</p>;
   const pidCount = selected.lafparsed ? Object.keys(selected.lafparsed.candata).length : 0;
   return (
-    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-5" data-testid="live-selected">
+    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-6" data-testid="live-selected">
+      <Stat label="Status">
+        <span data-testid="live-selected-status">
+          {selected.status ? <StatusPill status={selected.status} /> : '—'}
+        </span>
+      </Stat>
       <Stat label="Reg. no">{c.regno}</Stat>
       <Stat label="Lat / Lng">
         {c.latitude.toFixed(5)}, {c.longitude.toFixed(5)}
@@ -133,6 +183,8 @@ export function LiveFeedDiagnostics() {
       <div className="flex flex-col gap-4 rounded-[var(--radius-card)] border bg-surface-1 p-4">
         <h2 className="text-sm font-medium tracking-wider text-text-muted uppercase">Live feed</h2>
         <FeedStats />
+        <h2 className="text-sm font-medium tracking-wider text-text-muted uppercase">Status</h2>
+        <StatusCounts />
         <VehiclePicker />
         <SelectedVehicle />
       </div>

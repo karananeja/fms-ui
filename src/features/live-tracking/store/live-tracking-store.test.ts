@@ -2,11 +2,14 @@ import type { Me } from '@shared/contract/index.ts';
 import { act, renderHook } from '@testing-library/react';
 import { releaseProxy, type Remote } from 'comlink';
 import { describe, expect, it, vi } from 'vitest';
+import { VEHICLE_STATUSES } from '@shared/domain/vehicle-status.ts';
 import type { LivePush, LiveTrackingWorkerApi } from '../worker/worker-api.ts';
 import { LiveTrackingStore, type LiveTrackingState } from './live-tracking-store.ts';
 import { useLiveTracking } from './use-live-tracking.ts';
 
 const me = { fleetIds: ['f0'] } as unknown as Me;
+const counts = (n = 0) =>
+  Object.fromEntries(VEHICLE_STATUSES.map((s) => [s, n])) as LivePush['statusCounts'];
 
 function fakeWorker() {
   let onPush: ((p: LivePush) => void) | undefined;
@@ -25,6 +28,8 @@ function fakeWorker() {
     onPush!({
       connection: 'live',
       version: 1,
+      statusCounts: counts(),
+      total: 0,
       ...over,
       stats: { ...store.getSnapshot().stats, vehicleCount: 10, ...stats },
     });
@@ -73,7 +78,13 @@ describe('F04-T7: LiveTrackingStore', () => {
     await store.selectVehicle('v1');
     expect(api.selectVehicle).toHaveBeenCalledWith('v1');
     expect(store.getSnapshot()).toMatchObject({ selectedVehicleId: 'v1', selected: null });
-    const selected = { vehicleId: 'v1', found: true, combinfo: null, lafparsed: null };
+    const selected = {
+      vehicleId: 'v1',
+      found: true,
+      status: 'running' as const,
+      combinfo: null,
+      lafparsed: null,
+    };
     push({ selected });
     expect(store.getSnapshot().selected).toBe(selected);
     push({ selected: { ...selected, vehicleId: 'v2' } });
@@ -84,6 +95,19 @@ describe('F04-T7: LiveTrackingStore', () => {
     expect(store.getSnapshot().selected).toMatchObject({ vehicleId: 'missing', found: false });
     await store.selectVehicle(null);
     expect(store.getSnapshot()).toMatchObject({ selectedVehicleId: null, selected: null });
+  });
+
+  it('F05-R4: exposes statusCounts and total; counts keep their identity while unchanged', () => {
+    const { store, push } = fakeWorker();
+    store.start(me);
+    push({ statusCounts: counts(2), total: 16 });
+    const first = store.getSnapshot().statusCounts;
+    expect(first).toEqual(counts(2));
+    expect(store.getSnapshot().total).toBe(16);
+    push({ statusCounts: counts(2), total: 16 });
+    expect(store.getSnapshot().statusCounts).toBe(first);
+    push({ statusCounts: { ...counts(2), running: 3 }, total: 17 });
+    expect(store.getSnapshot().statusCounts).toMatchObject({ running: 3, stopped: 2 });
   });
 
   it('records e2e metrics', () => {

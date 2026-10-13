@@ -6,6 +6,7 @@ import {
   rowSchema,
 } from '@shared/contract/index.ts';
 import { describe, expect, it } from 'vitest';
+import { deriveStatus } from '../../src/features/live-tracking/worker/status-deriver.ts';
 import combinfoSample from '../fixtures/combinfo-sample.json' with { type: 'json' };
 import lafparsedSample from '../fixtures/lafparsed-sample.json' with { type: 'json' };
 import { FleetTree } from './fleet-tree.ts';
@@ -76,6 +77,7 @@ describe('vehicle generator', () => {
     ];
     const pids = ['mcu_charge_plug_status', 'charger_status'];
     const counts: Record<string, number> = {};
+    let mismatches = 0;
     for (let i = 0; i < N; i++) {
       const live = s.liveRow(i, T) as number[];
       const c = Object.fromEntries(fields.map((f, k) => [f, live[k]!]));
@@ -86,6 +88,8 @@ describe('vehicle generator', () => {
       };
       const status = referenceStatus(T, c, laf);
       counts[status] = (counts[status] ?? 0) + 1;
+      // F05: the client rules (default config) agree with this reference on every generated row.
+      if (deriveStatus({ ...c, pids: laf }, T) !== status) mismatches++;
     }
     // The spec's target shares sum to 96%; the remainder lands mostly on "stopped".
     const target = {
@@ -102,6 +106,7 @@ describe('vehicle generator', () => {
       expect(counts[status], status).toBeGreaterThan(0);
       expect(Math.abs((100 * counts[status]!) / N - pct), status).toBeLessThan(5);
     }
+    expect(mismatches).toBe(0);
   });
 
   it('vehicle-scope payloads match the sample shapes exactly', () => {

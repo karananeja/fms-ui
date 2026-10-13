@@ -77,3 +77,12 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 **User:** "continue" — interpreted as F04 UAT acceptance + approval of D-031…D-035 (stated back to user).
 
 **Assistant:** D-031…D-035 Accepted; F04 merged into `main` (--no-ff). Created `feature/f05-vehicle-status`; spawned F05 implementation sub-agent.
+- F05 sub-agent finished: F05-T1…T9 pass; proposed D-036…D-040 (incl. D-039 fix for a pre-existing flaky F04-T5 reconnect test). Orchestrator re-ran `pnpm check` 6× (170/170 each, no flakes), `pnpm build` + leak scan (clean; worker 46 kB), `pnpm e2e` 8/8 against the user's running dev server (F04 budgets hold; F05-T8 counts sum to 1 lakh, offset +1860 s, sweep 3.7 ms) — confirmed.
+
+**Status:** F05 awaiting user acceptance (UAT) + approval of D-036…D-040.
+
+## 2026-10-13 — Session 1 (cont. 8)
+
+**User:** "continue" — interpreted as F05 UAT acceptance + approval of D-036…D-040 (stated back to user).
+
+**Assistant:** D-036…D-040 Accepted; F05 merged into `main` (--no-ff). Writing F06 + F07 specs on `main`.

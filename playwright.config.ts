@@ -13,13 +13,24 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   use: { baseURL, trace: 'retain-on-failure' },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /\.perf\.spec\.ts$/ },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      testIgnore: /\.(perf|clock)\.spec\.ts$/,
+    },
     // Perf budgets run alone, after everything else, so other tests don't skew them.
     {
       name: 'perf',
       use: { ...devices['Desktop Chrome'] },
       testMatch: /\.perf\.spec\.ts$/,
       dependencies: ['chromium'],
+    },
+    // Specs that shift the shared mock clock run last, alone.
+    {
+      name: 'clock',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /\.clock\.spec\.ts$/,
+      dependencies: ['perf'],
     },
   ],
   webServer: {
