@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Awaiting sign-off** |
+| Status | **Signed off: 2026-10-13 (user)** |
 | Intent | `intent.md` (signed off 2026-10-13) |
 | Branch | `feature/f06-live-map` |
 | Builds on | F04 (worker/store), F05 (status column + `STATUS_META`) |

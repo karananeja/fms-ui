@@ -89,3 +89,9 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 - Wrote `features/f06-live-map/spec.md` (worker supercluster + live bbox scan, transferable frames, DOM donut clusters, SDF points, auto-fit once, city jump, quick locate, offline test style; fps verified manually at UAT) and `features/f07-vehicle-details/spec.md` (URL-synced selection, pure view model tested against the sample payloads = reference screenshot values, gauges, 374-PID grid, mobile bottom sheet).
 
 **Status:** Awaiting F06 + F07 spec sign-off.
+
+## 2026-10-13 — Session 1 (cont. 9)
+
+**User:** "approved" — F06 + F07 specs signed off.
+
+**Assistant:** Created `feature/f06-live-map`; spawned F06 implementation sub-agent.

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Awaiting sign-off** |
+| Status | **Signed off: 2026-10-13 (user)** |
 | Intent | `intent.md` (signed off 2026-10-13; D-017 raw numbers, no units in Parameters) |
 | Branch | `feature/f07-vehicle-details` (after F06 is accepted) |
 | Visual reference | `reference/current-app-view.png` (compact), `reference/current-app-view-2.png` (expanded) |
