@@ -61,6 +61,8 @@ export class FilterEngine {
   private statusBits = 0;
   private children = new Map<string, string[]>();
   private test: ((i: number) => boolean) | null = null;
+  private _baseVersion = 0;
+  private baseKey: string | null = '{}';
 
   constructor(private readonly state: FleetState) {
     state.addHooks({
@@ -72,6 +74,24 @@ export class FilterEngine {
   /** Bumps on every filter change and whenever a row's match flips (rows, not statuses). */
   get version(): number {
     return this._version;
+  }
+
+  /**
+   * D-072: like `version`, but ignores `statuses`: bumps only when the non-status part of the
+   * filter (or the fleet tree) changes, or a row's non-status match flips.
+   */
+  get baseVersion(): number {
+    return this._baseVersion;
+  }
+
+  /** D-072: true when some field other than `statuses` restricts the set. */
+  get baseActive(): boolean {
+    return this.test !== null;
+  }
+
+  /** D-072: selected statuses as a bitmask over status codes (bit `code`); 0 = all. */
+  get statusMask(): number {
+    return this.statusBits;
   }
 
   get current(): VehicleFilter {
@@ -96,6 +116,7 @@ export class FilterEngine {
       if (parentId === null) continue;
       this.children.set(parentId, [...(this.children.get(parentId) ?? []), id]);
     }
+    this.baseKey = null;
     this.set(this.filter);
   }
 
@@ -106,14 +127,26 @@ export class FilterEngine {
     this.statusBits = 0;
     for (const s of filter.statuses ?? [])
       this.statusBits |= 1 << (VEHICLE_STATUSES.indexOf(s) + 1);
-    this.test = this.compile(filter);
-    this.ensureCapacity();
-    const n = this.state.count;
-    const test = this.test;
-    if (test) for (let i = 0; i < n; i++) this.base[i] = test(i) ? 1 : 0;
-    else this.base.fill(1, 0, n);
+    // D-072: a change in `statuses` alone keeps the base mask (and `baseVersion`).
+    const key = JSON.stringify({ ...filter, statuses: undefined });
+    if (key !== this.baseKey) {
+      this.baseKey = key;
+      this.test = this.compile(filter);
+      this.ensureCapacity();
+      const n = this.state.count;
+      const test = this.test;
+      if (test) for (let i = 0; i < n; i++) this.base[i] = test(i) ? 1 : 0;
+      else this.base.fill(1, 0, n);
+      this._baseVersion++;
+    }
     this._version++;
     this.setMs = performance.now() - t0;
+  }
+
+  /** D-072: matches every field except `statuses`. */
+  matchesBase(i: number): boolean {
+    if (i < 0 || i >= this.state.count) return false;
+    return this.test === null || this.base[i] === 1;
   }
 
   matches(i: number): boolean {
@@ -144,12 +177,14 @@ export class FilterEngine {
     const next = !this.test || this.test(i) ? 1 : 0;
     if (this.base[i] === next) return;
     this.base[i] = next;
+    if (this.test) this._baseVersion++;
     if (!this.empty) this._version++;
   }
 
   /** Mirrors the fleet state's swap-remove. */
   private beforeRemove(i: number): void {
     this.base[i] = this.base[this.state.count - 1]!;
+    if (this.test) this._baseVersion++;
     if (!this.empty) this._version++;
   }
 

@@ -92,7 +92,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   private viewport: MapViewport | null = null;
   /** Bumped when a sweep changed any status (the state version covers rows). */
   private statusEpoch = 0;
-  private frameOf = { data: -1, builds: -1 };
+  private frameOf = { data: -1, generation: -1, filter: -1 };
   private selectedStatus: VehicleStatus | null = null;
   private readonly history = new SelectedHistory(detailsConfig.historyMs);
   private rows = 0;
@@ -116,7 +116,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     this.status = new StatusTracker(this.state, this.rules);
     this.filters = new FilterEngine(this.state);
     this.search = new SearchIndex(this.state, (task) => this.clock.setTimeout(task, 0));
-    this.map = new MapIndex(this.state, deps.map, (i) => this.filters.matches(i));
+    this.map = new MapIndex(this.state, deps.map, this.filters);
     this.client = new WsClient({
       url: deps.url,
       createSocket: deps.createSocket,
@@ -397,8 +397,9 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
 
   // ---- map ----
 
+  /** What the cluster index is built from: statuses in the filter are applied per frame (D-072). */
   private get dataVersion(): number {
-    return this.state.version + this.statusEpoch + this.filters.version;
+    return this.state.version + this.statusEpoch + this.filters.baseVersion;
   }
 
   private transfer<T>(value: T, buffers: ArrayBuffer[]): T {
@@ -411,6 +412,11 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     this.map.update(this.dataVersion, now, this.rebuildNow);
     this.rebuildNow = false;
     const wait = this.map.rebuildWait(this.dataVersion, now);
+    // wait 0 = a D-072 cache swap: rebuild right after, not on an older, longer timer.
+    if (wait === 0 && this.rebuildTimer !== null) {
+      this.clock.clearTimeout(this.rebuildTimer);
+      this.rebuildTimer = null;
+    }
     if (wait !== null && this.rebuildTimer === null) {
       this.rebuildTimer = this.clock.setTimeout(() => {
         this.rebuildTimer = null;
@@ -421,14 +427,22 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
 
   private computeFrame(): MapFrame {
     this.updateIndex();
-    this.frameOf = { data: this.dataVersion, builds: this.map.builds };
+    this.frameOf = {
+      data: this.dataVersion,
+      generation: this.map.generation,
+      filter: this.filters.version,
+    };
     return this.map.frame(this.viewport!);
   }
 
   private frameIfChanged(): MapFrame | null {
     this.updateIndex();
-    const { data, builds } = this.frameOf;
-    return data === this.dataVersion && builds === this.map.builds ? null : this.computeFrame();
+    const { data, generation, filter } = this.frameOf;
+    return data === this.dataVersion &&
+      generation === this.map.generation &&
+      filter === this.filters.version
+      ? null
+      : this.computeFrame();
   }
 
   private tickStats(): void {

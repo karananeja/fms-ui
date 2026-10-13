@@ -14,7 +14,7 @@ test('F08 budgets: frame after filter change, long tasks while typing/filtering'
     w.__longTasks = [];
     new PerformanceObserver((list) => {
       for (const e of list.getEntries()) w.__longTasks.push(e.duration);
-    }).observe({ type: 'longtask', buffered: false });
+    }).observe({ entryTypes: ['longtask' as never] });
   });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/live-tracking');
