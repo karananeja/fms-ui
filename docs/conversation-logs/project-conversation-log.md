@@ -59,3 +59,6 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 **User:** "continue" — interpreted as F01 UAT acceptance incl. the 7 contract deviations and D-023…D-030 (stated back to user).
 
 **Assistant:** D-023…D-030 Accepted; F01 merged into `main` (--no-ff). Writing F04 + F05 specs on `main` for sign-off.
+- Wrote `features/f04-live-data-pipeline/spec.md` (incl. temporary dev auto sign-in until F02, server-clock offset from heartbeats, diagnostics panel for UAT) and `features/f05-vehicle-status/spec.md` (config-driven rules per D-015).
+
+**Status:** Awaiting F04 + F05 spec sign-off.

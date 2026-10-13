@@ -14,8 +14,8 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 | F01 | Mock server & API/WS contract | F00 | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
 | F02 | Authentication (sign-in, forgot/reset, accept invite) | F01 | Signed off | — | — | — | — |
 | F03 | Access control (fleet tree, users, invites, permissions) | F02 | Signed off | — | — | — | — |
-| F04 | Live data pipeline (worker, WS, `live-tracking-store.ts`) | F01 | Signed off | — | — | — | — |
-| F05 | Vehicle status derivation | F04 | Signed off | — | — | — | — |
+| F04 | Live data pipeline (worker, WS, `live-tracking-store.ts`) | F01 | Signed off | Awaiting sign-off | — | — | — |
+| F05 | Vehicle status derivation | F04 | Signed off | Awaiting sign-off | — | — | — |
 | F06 | Live map (markers, clusters, zoom-to-fit, city jump, quick locate) | F04, F05 | Signed off | — | — | — | — |
 | F07 | Vehicle details panel & parameters | F06 | Signed off | — | — | — | — |
 | F08 | Status bar: search, status counters, filters | F05, F06 | Signed off | — | — | — | — |
