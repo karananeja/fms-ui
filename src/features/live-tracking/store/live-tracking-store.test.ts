@@ -13,6 +13,7 @@ import type {
 } from '../worker/worker-api.ts';
 import {
   LiveTrackingStore,
+  hasPermission,
   selectedPosition,
   type LiveTrackingState,
   type MapCommand,
@@ -306,5 +307,33 @@ describe('F06-T4: store map actions', () => {
     expect(selectedPosition(store.getSnapshot())).toEqual([81, 21]);
     await store.selectVehicle(null);
     expect(selectedPosition(store.getSnapshot())).toBeNull();
+  });
+});
+
+describe('F07: permissions and the selected summary', () => {
+  it('holds me.permissions from start', () => {
+    const { store } = fakeWorker();
+    store.start({ ...me, permissions: ['live.view', 'vehicle.details.view'] });
+    const s = store.getSnapshot();
+    expect(s.permissions).toEqual(['live.view', 'vehicle.details.view']);
+    expect(hasPermission(s, 'vehicle.details.view')).toBe(true);
+    expect(hasPermission(s, 'vehicle.parameters.view')).toBe(false);
+  });
+
+  it('fetches the summary after selecting; a newer selection wins; not found has none', async () => {
+    const { store, api } = fakeWorker();
+    store.start(me);
+    api.getVehicleSummary.mockImplementation(async (id) => ({ vehicleId: id, regno: `R-${id}` }));
+    await store.selectVehicle('v1');
+    expect(store.getSnapshot().selectedSummary).toMatchObject({ regno: 'R-v1' });
+    const first = store.selectVehicle('v2');
+    await store.selectVehicle('v3');
+    await first;
+    expect(store.getSnapshot().selectedSummary).toMatchObject({ regno: 'R-v3' });
+    await store.selectVehicle('missing');
+    expect(store.getSnapshot()).toMatchObject({
+      selectedSummary: null,
+      selected: { found: false },
+    });
   });
 });

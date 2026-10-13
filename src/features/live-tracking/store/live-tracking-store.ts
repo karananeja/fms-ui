@@ -1,4 +1,4 @@
-import type { Me } from '@shared/contract/index.ts';
+import type { Me, Permission } from '@shared/contract/index.ts';
 import { VEHICLE_STATUSES, type VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import { proxy, releaseProxy, wrap, type Remote } from 'comlink';
 import type { IndiaCity } from '../config/india-cities.ts';
@@ -13,6 +13,7 @@ import type {
   MapFrame,
   MapViewport,
   SelectedVehicle,
+  VehicleSummary,
 } from '../worker/worker-api.ts';
 
 export type LngLat = [number, number];
@@ -36,6 +37,10 @@ export interface LiveTrackingState {
   total: number;
   selectedVehicleId: string | null;
   selected: SelectedVehicle | null;
+  /** Slim fleet record of the selected vehicle, fetched on selection (header before payloads). */
+  selectedSummary: VehicleSummary | null;
+  /** The signed-in user's permissions (from bootstrap `me`). */
+  permissions: readonly Permission[];
   /** Clusters/points for the current map viewport (null until the map asks). */
   mapFrame: MapFrame | null;
   /** Transient message for a toast. */
@@ -81,9 +86,14 @@ const initialState: LiveTrackingState = {
   total: 0,
   selectedVehicleId: null,
   selected: null,
+  selectedSummary: null,
+  permissions: [],
   mapFrame: null,
   notice: null,
 };
+
+export const hasPermission = (state: LiveTrackingState, permission: Permission): boolean =>
+  state.permissions.includes(permission);
 
 /** Live position of the selected vehicle: its payload, else its point in the current frame. */
 export function selectedPosition(state: LiveTrackingState): LngLat | null {
@@ -112,6 +122,8 @@ export class LiveTrackingStore {
   start(me: Me): void {
     if (this.api) return;
     this.api = this.deps.createWorkerApi();
+    const permissions = me.permissions ?? [];
+    if (permissions.join() !== this.state.permissions.join()) this.set({ ...this.state, permissions });
     void this.api.init(
       me,
       proxy((push: LivePush) => this.receive(push)),
@@ -147,13 +159,20 @@ export class LiveTrackingStore {
 
   async selectVehicle(vehicleId: string | null): Promise<void> {
     if (vehicleId === this.state.selectedVehicleId) return;
-    this.set({ ...this.state, selectedVehicleId: vehicleId, selected: null });
-    const found = (await this.api?.selectVehicle(vehicleId)) ?? false;
-    if (vehicleId !== null && !found && this.state.selectedVehicleId === vehicleId) {
+    this.set({ ...this.state, selectedVehicleId: vehicleId, selected: null, selectedSummary: null });
+    const api = this.api;
+    const found = (await api?.selectVehicle(vehicleId)) ?? false;
+    if (vehicleId === null || this.state.selectedVehicleId !== vehicleId) return;
+    if (!found) {
       this.set({
         ...this.state,
         selected: { vehicleId, found: false, status: null, combinfo: null, lafparsed: null },
       });
+      return;
+    }
+    const summary = await api!.getVehicleSummary(vehicleId);
+    if (summary && this.state.selectedVehicleId === vehicleId) {
+      this.set({ ...this.state, selectedSummary: summary });
     }
   }
 
