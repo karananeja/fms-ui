@@ -35,6 +35,24 @@ async function camera(
   return settled(page);
 }
 
+/** First listed vehicle whose derived status keeps it in place (via the debug picker). */
+async function stationaryVehicle(page: Page): Promise<string> {
+  const list = vehicleListSchema.parse(
+    await (await page.request.get('/api/vehicles?limit=20')).json(),
+  );
+  for (const v of list.items) {
+    await page.getByLabel('Select vehicle').fill(v.vehicleId);
+    await page.getByRole('button', { name: 'Select' }).click();
+    await expect(page.getByTestId('live-selected')).toContainText(v.regno);
+    const status = await page
+      .getByTestId('live-selected-status')
+      .locator('[data-status]')
+      .getAttribute('data-status');
+    if (status === 'stopped' || status === 'charging' || status === 'non-comm') return v.vehicleId;
+  }
+  throw new Error('no stationary vehicle among the first 20');
+}
+
 async function drag(page: Page, dx: number, dy: number) {
   const box = (await page.getByTestId('live-map').boundingBox())!;
   const x = box.x + box.width / 2;
@@ -97,40 +115,35 @@ test('F06-T8: cluster click zooms in; point click selects; debug locate flies to
   const zoomed = await camera(page, (m) => m.zoom > fitted.zoom + 0.5);
   expect(zoomed.zoom).toBeGreaterThan(fitted.zoom);
 
+  // A stationary vehicle, so "≤ 100 m from the vehicle" doesn't race its ~10 s reports.
   await page.getByRole('button', { name: 'Expand diagnostics' }).click();
-  const list = vehicleListSchema.parse(
-    await (await page.request.get('/api/vehicles?limit=5')).json(),
-  );
-  const vehicle = list.items[2]!;
-  await page.getByLabel('Locate vehicle ID').fill(vehicle.vehicleId);
+  const vehicleId = await stationaryVehicle(page);
+  await page.getByRole('button', { name: 'Clear' }).click();
+  await page.getByLabel('Locate vehicle ID').fill(vehicleId);
   await page.getByRole('button', { name: 'Locate' }).click();
   await page.getByRole('button', { name: 'Collapse diagnostics' }).click();
-  await expect.poll(async () => (await mapState(page))?.selectedVehicleId).toBe(vehicle.vehicleId);
+  await expect.poll(async () => (await mapState(page))?.selectedVehicleId).toBe(vehicleId);
   const located = await camera(page, (m) => Math.abs(m.zoom - 16) < 0.05);
   expect(located.zoom).toBeCloseTo(16, 1);
   await expect.poll(async () => (await mapState(page))?.highlight).not.toBeNull();
   const at = (await mapState(page))!;
   expect(metres(at.center, at.highlight!)).toBeLessThanOrEqual(100);
 
-  // Click another point on screen: it becomes the selection and gets the highlight ring.
-  const box = (await page.getByTestId('live-map').boundingBox())!;
-  const target = (await mapPoints(page, 500)).find(
-    (p) =>
-      p.id !== vehicle.vehicleId &&
-      p.x > box.x + 80 &&
-      p.x < box.x + box.width - 80 &&
-      p.y > box.y + 80 &&
-      p.y < box.y + box.height - 80,
-  );
-  test.skip(!target, 'no second vehicle on screen at zoom 16');
-  await page.mouse.click(target!.x, target!.y);
-  await expect.poll(async () => (await mapState(page))?.selectedVehicleId).toBe(target!.id);
+  // Deselect, then click the vehicle's point: it is selected again and gets the ring.
+  await page.getByRole('button', { name: 'Expand diagnostics' }).click();
+  await page.getByRole('button', { name: 'Clear' }).click();
+  await page.getByRole('button', { name: 'Collapse diagnostics' }).click();
+  await expect.poll(async () => (await mapState(page))?.highlight).toBeNull();
+  const point = (await mapPoints(page, 5000)).find((p) => p.id === vehicleId)!;
+  expect(point).toBeDefined();
+  await page.mouse.click(point.x, point.y);
+  await expect.poll(async () => (await mapState(page))?.selectedVehicleId).toBe(vehicleId);
   await expect
     .poll(async () => {
       const h = (await mapState(page))?.highlight;
-      return h ? metres(h, [target!.lng, target!.lat]) : Infinity;
+      return h ? metres(h, [point.lng, point.lat]) : Infinity;
     })
-    .toBeLessThan(200);
+    .toBeLessThan(100);
 });
 
 test('F06-R19: locating a vehicle without a position shows a toast', async ({ page }) => {

@@ -28,6 +28,7 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], launchOptions },
       testMatch: /\.perf\.spec\.ts$/,
       dependencies: ['chromium'],
+      workers: 1,
     },
     // Specs that shift the shared mock clock run last, alone.
     {
@@ -35,6 +36,7 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], launchOptions },
       testMatch: /\.clock\.spec\.ts$/,
       dependencies: ['perf'],
+      workers: 1,
     },
   ],
   webServer: {
