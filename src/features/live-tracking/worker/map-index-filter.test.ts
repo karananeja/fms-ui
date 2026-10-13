@@ -1,0 +1,152 @@
+// @vitest-environment node
+import type { Me } from '@shared/contract/index.ts';
+import { COMBINFO_SNAPSHOT_FIELDS } from '@shared/contract/ws-protocol.ts';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { statusLafPids, statusRulesConfig } from '../config/status-rules-config.ts';
+import { FilterEngine } from './filter-engine.ts';
+import { FleetState } from './fleet-state.ts';
+import { LiveTrackingEngine, SUB_FLEET_COMBINFO } from './live-tracking-engine.ts';
+import { MapIndex } from './map-index.ts';
+import { StatusTracker } from './status-deriver.ts';
+import { BASE_T, fakeSockets, snapshotRow } from './testing/fake-socket.ts';
+import type { Bbox, LivePush, MapFrame } from './worker-api.ts';
+
+const INDIA: Bbox = [68.1, 6.5, 97.4, 35.7];
+const sum = (a: ArrayLike<number>) => Array.prototype.reduce.call(a, (x, y) => x + y, 0) as number;
+
+/** `n` vehicles around Bengaluru; fleet f0 = even ids, f1 = odd ids. Every 10th has no fix. */
+const rows = (n: number) =>
+  Array.from({ length: n }, (_, i) =>
+    snapshotRow(i, {
+      fleetId: `f${i % 2}`,
+      lat: i % 10 === 0 ? 0 : 12.9 + (i % 37) / 400,
+      lng: i % 10 === 0 ? 0 : 77.5 + (i % 41) / 400,
+      utctime: BASE_T,
+      gpstime: BASE_T,
+    }),
+  );
+
+function setup(n: number) {
+  const state = new FleetState({ pids: statusLafPids(statusRulesConfig) });
+  const status = new StatusTracker(state, statusRulesConfig);
+  status.now = BASE_T;
+  const filters = new FilterEngine(state);
+  const index = new MapIndex(state, {}, (i) => filters.matches(i));
+  state.applyCombinfo(COMBINFO_SNAPSHOT_FIELDS, rows(n));
+  return { state, filters, index };
+}
+
+const frameIds = (f: MapFrame) => [...f.points.ids];
+
+describe('F08-T4: map-index honours the filter', () => {
+  it('clusters and points only count matching vehicles', () => {
+    const { state, filters, index } = setup(400);
+    index.update(state.version, 0);
+    const all = index.frame({ bbox: INDIA, zoom: 4 });
+    expect(sum(all.clusters.count) + all.points.ids.length).toBe(360);
+
+    filters.set({ fleetIds: ['f1'] }); // odd ids, none of them is a multiple of 10
+    index.update(state.version + filters.version, 1, true);
+    const f1 = index.frame({ bbox: INDIA, zoom: 4 });
+    expect(sum(f1.clusters.count) + f1.points.ids.length).toBe(200);
+    for (const id of frameIds(f1)) expect(Number(id.slice(1)) % 2).toBe(1);
+  });
+
+  it('the zoom-15+ live scan skips non-matching vehicles', () => {
+    const { state, filters, index } = setup(400);
+    filters.set({ fleetIds: ['f0'] });
+    index.update(state.version + filters.version, 0, true);
+    const f = index.frame({ bbox: [77.4, 12.8, 77.7, 13.1], zoom: 16 });
+    expect(f.clusters.count.length).toBe(0);
+    expect(f.points.ids.length).toBe(160); // even ids with a fix: 200 − 40
+    for (const id of frameIds(f)) expect(Number(id.slice(1)) % 2).toBe(0);
+  });
+
+  it('bounds fit the filtered set; null when nothing matches', () => {
+    const { filters, index } = setup(400);
+    filters.set({ search: { field: 'vin', prefix: 'VIN11' } }); // 11, 110…119
+    // v110 has no fix; the rest sit at (i % 37, i % 41) offsets.
+    const ids = [11, 111, 112, 113, 114, 115, 116, 117, 118, 119];
+    const lats = ids.map((i) => 12.9 + (i % 37) / 400);
+    const lngs = ids.map((i) => 77.5 + (i % 41) / 400);
+    const [w, s, e, n] = index.bounds()!;
+    expect(w).toBeCloseTo(Math.min(...lngs));
+    expect(e).toBeCloseTo(Math.max(...lngs));
+    expect(s).toBeCloseTo(Math.min(...lats));
+    expect(n).toBeCloseTo(Math.max(...lats));
+    filters.set({ search: { field: 'vin', prefix: 'NOPE' } });
+    expect(index.bounds()).toBeNull();
+  });
+});
+
+describe('F08: engine filter plumbing', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  function engine() {
+    const s = fakeSockets();
+    const pushes: LivePush[] = [];
+    const e = new LiveTrackingEngine({ url: 'ws://test', createSocket: s.create, random: () => 1 });
+    e.init({ fleetIds: ['f0', 'f1'] } as unknown as Me, (p) => pushes.push(p));
+    s.last().open();
+    s.last().message({
+      type: 'snapshot',
+      id: SUB_FLEET_COMBINFO,
+      seq: 1,
+      chunk: 0,
+      chunks: 1,
+      fields: COMBINFO_SNAPSHOT_FIELDS,
+      rows: rows(200),
+    });
+    return { e, pushes };
+  }
+
+  it('a filter change rebuilds at once (no throttle) and the next push carries filtered counts', () => {
+    const { e, pushes } = engine();
+    e.setViewport({ bbox: INDIA, zoom: 5 });
+    vi.advanceTimersByTime(300);
+    const builds = e.map.builds;
+    const before = pushes.at(-1)!;
+    expect(before.filteredTotal).toBe(200);
+    expect(before.filteredCounts).toEqual(before.statusCounts);
+
+    e.setFilter({ fleetIds: ['f1'] });
+    vi.advanceTimersByTime(300); // well inside clusterRebuildMs (2 s)
+    expect(e.map.builds).toBe(builds + 1);
+    const after = pushes.at(-1)!;
+    expect(after.filteredTotal).toBe(100);
+    expect(after.total).toBe(200); // unfiltered F05 counts unchanged
+    const frame = pushes
+      .map((p) => p.mapFrame)
+      .filter(Boolean)
+      .at(-1)!;
+    expect(sum(frame.clusters.count) + frame.points.ids.length).toBe(100);
+
+    e.setFilter({});
+    vi.advanceTimersByTime(300);
+    expect(pushes.at(-1)!.filteredTotal).toBe(200);
+    e.dispose();
+  });
+
+  it('reports when the selected vehicle is hidden by the filter (F08-R13)', () => {
+    const { e, pushes } = engine();
+    expect(e.selectVehicle('v2')).toBe(true);
+    vi.advanceTimersByTime(300);
+    expect(pushes.at(-1)!.selectedMatches).toBe(true);
+    e.setFilter({ fleetIds: ['f1'] });
+    vi.advanceTimersByTime(300);
+    expect(pushes.at(-1)!.selectedMatches).toBe(false);
+    e.dispose();
+  });
+
+  it('filter options list distinct values present in the fleet; models carry their make', () => {
+    const { e } = engine();
+    expect(e.getFilterOptions()).toEqual({
+      assetTypes: ['Bus'],
+      fuelTypes: ['Electric'],
+      makes: ['Make'],
+      models: [{ make: 'Make', model: 'Model' }],
+    });
+    e.dispose();
+  });
+});

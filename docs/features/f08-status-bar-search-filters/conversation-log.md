@@ -32,3 +32,13 @@ The baseline made `filteredCounts`, `filteredTotal`, `selectedMatches` required 
 
 ## 2026-10-14 — Recovery complete; final verification
 `pnpm check` after `163128e`: `tsc -b` pass, `eslint .` pass, `vitest run` 342/342 (32 files). Test report added. Next (needs approval): remaining F08-T1/T2 cases, F08-T3 perf (cold + warm search, filter apply at 1 lakh), F08-T4, then UI R7…R13.
+
+## 2026-10-14 — Milestone 4: worker tests + performance (F08-T1…T4)
+**User:** finish F08 and F09 end to end, prioritising speed; no routine approvals.
+
+- F08-T1 `filter-engine.test.ts` (21): each field, OR within / AND across, fleet subtrees, counts without the status filter, live status, version bumps, random insert/update/remove vs a reference predicate, growth regression.
+- F08-T2 `search-index.test.ts` (5): each field + "all", case, ordering, limit, payload, insert/remove.
+- F08-T4 `map-index-filter.test.ts` (6): clusters/points, zoom-16 scan, bounds; engine: filter change rebuilds inside the 2 s throttle and pushes filtered counts; `selectedMatches`; filter options.
+- F08-T3 `filter-search.perf.test.ts` first run: filters ≤ 10 ms but **cold suggestion 75.6 ms > 50 ms** (full index build). Native-sort build alone did not help (76.8 ms). Fix (D-066, proposed): build once after the snapshot, then update in place; bulk churn schedules a rebuild in its own task.
+- F08-T3 after fix: apply ≤ 9.3 ms (statuses 0.0, fleet subtree 2.1, types+make+model 3.7, SOC 2.0, search-all 9.3, everything 4.9); counts 4.2 ms; full build 73.1 ms (off the query path); query after add 0.09 / remove 0.00 / id change 0.03 / 500 adds 0.05 ms; warm ≤ 0.03 ms; re-applying 1 lakh unchanged rows 61.3 ms with the index vs 41.3 ms without.
+- Worker tests 157/157; typecheck + eslint clean.

@@ -115,7 +115,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     });
     this.status = new StatusTracker(this.state, this.rules);
     this.filters = new FilterEngine(this.state);
-    this.search = new SearchIndex(this.state);
+    this.search = new SearchIndex(this.state, (task) => this.clock.setTimeout(task, 0));
     this.map = new MapIndex(this.state, deps.map, (i) => this.filters.matches(i));
     this.client = new WsClient({
       url: deps.url,
@@ -349,6 +349,8 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     this.state.endSnapshot();
     this.snapshotComplete = true;
     this.rebuildNow = true;
+    // After the first frame goes out: later searches then never wait for a full index build.
+    this.clock.setTimeout(() => this.search.warm(), 0);
     this.client.resetBackoff();
     this.pendingTimer = this.clock.setTimeout(
       () => this.state.closePending(),

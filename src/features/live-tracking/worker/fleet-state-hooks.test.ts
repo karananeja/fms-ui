@@ -52,13 +52,15 @@ describe('D-065: fleet-state listeners', () => {
 
     const total = Object.values(tracker.statusCounts()).reduce((a, b) => a + b, 0);
     expect(total).toBe(5);
-    for (let i = 0; i < state.count; i++)
-      expect(VEHICLE_STATUSES).toContain(tracker.statusOf(i));
+    for (let i = 0; i < state.count; i++) expect(VEHICLE_STATUSES).toContain(tracker.statusOf(i));
     const matched = state.str.vehicleId.filter((_, i) => filters.matches(i)).sort();
     expect(matched).toEqual(['v0', 'v4']);
-    expect(search.suggest('ka01ab000', 'regno').map((s) => s.vehicleId).sort()).toEqual(
-      ['v0', 'v1', 'v3', 'v4', 'v5'],
-    );
+    expect(
+      search
+        .suggest('ka01ab000', 'regno')
+        .map((s) => s.vehicleId)
+        .sort(),
+    ).toEqual(['v0', 'v1', 'v3', 'v4', 'v5']);
   });
 });
 
@@ -95,6 +97,11 @@ describe('F08 search-index invalidation', () => {
     state.applyCombinfo(COMBINFO_SNAPSHOT_FIELDS, rows([2]));
     expect(search.suggest('VIN', 'vin')).toHaveLength(3);
     state.applyCombinfo(COMBINFO_LEAVE_FIELDS, [['v0', null]]);
-    expect(search.suggest('VIN', 'vin').map((s) => s.vehicleId).sort()).toEqual(['v1', 'v2']);
+    expect(
+      search
+        .suggest('VIN', 'vin')
+        .map((s) => s.vehicleId)
+        .sort(),
+    ).toEqual(['v1', 'v2']);
   });
 });
