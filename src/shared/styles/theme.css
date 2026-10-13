@@ -1,47 +1,62 @@
-/* Design tokens (F00 spec §2). Dark only. */
+/* Design tokens (DS1 spec §1, mockup v2). Dark only. */
 :root {
   color-scheme: dark;
 
-  --bg: #0e0e0f;
-  --surface-1: #18181a;
-  --surface-2: #212124;
-  --border: #2c2c30;
-  --text: #f2f2f2;
-  --text-muted: #9a9aa0;
-  --accent: #d32f45;
-  --accent-soft: #3a1a20;
-  --ok: #4ade80;
-  --warn: #f5a524;
-  --radius-card: 14px;
+  --bg: #07090c;
+  --map-bg: #0c1015;
+  --glass: rgba(14, 18, 24, 0.74);
+  --glass-strong: rgba(14, 18, 24, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --surface-solid: #0a0d11;
+  --tile: rgba(255, 255, 255, 0.035);
+  --tile-border: rgba(255, 255, 255, 0.07);
+  --text: #e8edf3;
+  --text-muted: #8b96a8;
+  --text-faint: #556072;
+  --accent: #2dd4bf;
+  --accent-2: #38bdf8;
+  --accent-soft: rgba(45, 212, 191, 0.13);
+  --accent-ink: #032a25;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --danger: #f87171;
   --radius-panel: 20px;
+  --radius-tile: 14px;
 
-  --st-running: #22c55e;
-  --st-stopped: #ef4444;
-  --st-immobilized: #a855f7;
-  --st-noncomm: #71717a;
-  --st-charging: #3b82f6;
-  --st-pullout: #f43f5e;
-  --st-nogps: #f59e0b;
-  --st-gpsnever: #52525b;
+  /* Legacy names kept so F00–F06 components keep rendering until DS1 restyles them. */
+  --surface-1: var(--glass-strong);
+  --surface-2: var(--tile);
+  --border: var(--glass-border);
+  --radius-card: var(--radius-tile);
 
-  --font-display: 'Doto', ui-monospace, monospace;
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --st-running: #4ade80;
+  --st-stopped: #f87171;
+  --st-immobilized: #c084fc;
+  --st-noncomm: #64748b;
+  --st-charging: #60a5fa;
+  --st-pullout: #fb923c;
+  --st-nogps: #facc15;
+  --st-gpsnever: #475569;
+
+  /* Doto is the only family (D-054). */
+  --font-sans: 'Doto', ui-monospace, monospace;
+  --font-display: var(--font-sans);
 
   /* shadcn/ui semantic aliases */
   --background: var(--bg);
   --foreground: var(--text);
-  --card: var(--surface-1);
+  --card: var(--glass-strong);
   --card-foreground: var(--text);
-  --popover: var(--surface-1);
+  --popover: var(--glass-strong);
   --popover-foreground: var(--text);
   --primary: var(--accent);
-  --primary-foreground: #ffffff;
-  --secondary: var(--surface-2);
+  --primary-foreground: var(--accent-ink);
+  --secondary: var(--tile);
   --secondary-foreground: var(--text);
-  --muted: var(--surface-2);
+  --muted: var(--tile);
   --muted-foreground: var(--text-muted);
-  --destructive: var(--st-stopped);
-  --input: var(--border);
+  --destructive: var(--danger);
+  --input: var(--tile-border);
   --ring: var(--accent);
-  --radius: 10px;
+  --radius: 12px;
 }

@@ -1,6 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const baseURL = 'http://localhost:5173';
+// Ports are overridable so parallel worktrees don't share (or reuse) each other's servers.
+const vitePort = process.env.VITE_PORT ?? '5173';
+const mockPort = process.env.MOCK_PORT ?? '4000';
+const baseURL = `http://localhost:${vitePort}`;
 /** Headless Chromium has no GPU: MapLibre's WebGL runs on SwiftShader (D-041). */
 const launchOptions = {
   args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
@@ -45,6 +48,6 @@ export default defineConfig({
     timeout: 60000,
     reuseExistingServer: true,
     // Offline map style; a reused `pnpm dev` keeps its own style (e2e/fixtures.ts stubs it).
-    env: { VITE_MAP_STYLE_URL: '/map-styles/blank-dark.json' },
+    env: { VITE_MAP_STYLE_URL: '/map-styles/blank-dark.json', VITE_PORT: vitePort, MOCK_PORT: mockPort },
   },
 });

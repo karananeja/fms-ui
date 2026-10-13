@@ -1,7 +1,9 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-@import '@fontsource-variable/inter';
+@import '@fontsource/doto/600.css';
 @import '@fontsource/doto/700.css';
+@import '@fontsource/doto/800.css';
+@import '@fontsource/doto/900.css';
 @import './shared/styles/theme.css';
 
 @theme inline {
@@ -13,6 +15,17 @@
   --color-text-muted: var(--text-muted);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-2: var(--accent-2);
+  --color-accent-ink: var(--accent-ink);
+  --color-text-faint: var(--text-faint);
+  --color-danger: var(--danger);
+  --color-glass: var(--glass);
+  --color-glass-strong: var(--glass-strong);
+  --color-glass-border: var(--glass-border);
+  --color-tile: var(--tile);
+  --color-tile-border: var(--tile-border);
+  --color-surface-solid: var(--surface-solid);
+  --color-map-bg: var(--map-bg);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
 
@@ -43,6 +56,7 @@
 
   --radius-card: var(--radius-card);
   --radius-panel: var(--radius-panel);
+  --radius-tile: var(--radius-tile);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -63,6 +77,17 @@
   }
   body {
     @apply bg-bg font-sans text-text antialiased;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+}
+
+@utility glass {
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  @supports (backdrop-filter: blur(1px)) {
+    background: var(--glass);
+    backdrop-filter: blur(18px) saturate(150%);
   }
 }
 
