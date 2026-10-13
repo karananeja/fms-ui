@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Awaiting sign-off** |
+| Status | **Signed off: 2026-10-13 (user)** |
 | Intent | `intent.md` (signed off 2026-10-13) |
 | Branch | `feature/f01-mock-server` |
 | Code | `shared/contract/*` (zod schemas + types), `mock-server/*` |

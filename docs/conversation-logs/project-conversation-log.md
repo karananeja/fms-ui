@@ -35,3 +35,9 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 - Initialised local git on `main` with the docs baseline commit.
 
 **Status:** Awaiting F00 + F01 spec sign-off before spawning the implementation agent.
+
+## 2026-10-13 — Session 1 (cont. 3)
+
+**User:** "approved, go ahead with F00" — F00 and F01 specs signed off.
+
+**Assistant:** Marked specs signed off; created branch `feature/f00-project-foundation`; spawned implementation sub-agent for F00 (log: `docs/features/f00-project-foundation/conversation-log.md`).

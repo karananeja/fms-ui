@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Awaiting sign-off** |
+| Status | **Signed off: 2026-10-13 (user)** |
 | Intent | `intent.md` (signed off 2026-10-13) |
 | Branch | `feature/f00-project-foundation` |
 | Env | Node 24, pnpm 10 |
