@@ -1,4 +1,5 @@
 import { HEARTBEAT_MS } from '@shared/contract/ws-protocol.ts';
+import { statusLafPids, statusRulesConfig } from './status-rules-config.ts';
 
 export const liveTrackingConfig = {
   /** Max worker → main-thread pushes per second. */
@@ -7,8 +8,8 @@ export const liveTrackingConfig = {
   backoffMaxMs: 30_000,
   /** Silence after which the socket is considered dead. */
   heartbeatTimeoutMs: 2 * HEARTBEAT_MS,
-  /** Fleet-scope lafparsed PIDs (F05 derives these from the status rules). */
-  fleetLafPids: ['mcu_charge_plug_status', 'charger_status'] as readonly string[],
+  /** Fleet-scope lafparsed PIDs, derived from the status rules (F05). */
+  fleetLafPids: statusLafPids(statusRulesConfig) as readonly string[],
   /** Latest lafparsed row per unknown device, waiting for its combinfo row. */
   pendingLafMax: 20_000,
   pendingLafTtlMs: 60_000,

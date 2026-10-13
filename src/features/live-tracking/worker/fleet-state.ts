@@ -63,7 +63,7 @@ export class StringDict {
   }
 }
 
-type Op = 'str' | 'dict' | 'num';
+type Op = 'str' | 'dict' | 'num' | 'enc';
 interface CombPlan {
   vid: number;
   did: number;
@@ -112,8 +112,9 @@ export class FleetState {
   pendingOpen = true;
   private epoch = 1;
   private stringBytes = 0;
+  hooks: FleetStateHooks;
   private readonly pendingMax: number;
-  private readonly hooks: FleetStateHooks;
+  private readonly encoders = new Map<string, (v: unknown) => number>();
   private readonly plans = new Map<string, CombPlan | LafPlan>();
 
   constructor(private readonly opts: FleetStateOptions) {
@@ -129,11 +130,19 @@ export class FleetState {
     for (const f of STRING_FIELDS) this.str[f] = [];
   }
 
-  /** Adds a typed column that grows and swap-removes with the rest (e.g. F05 `status`). */
-  addColumn<C extends Column>(name: string, Ctor: new (length: number) => C): C {
+  /**
+   * Adds a typed column that grows and swap-removes with the rest (e.g. F05 `status`). With
+   * `encode`, a combinfo field of the same name is stored as `encode(value)`.
+   */
+  addColumn<C extends Column>(
+    name: string,
+    Ctor: new (length: number) => C,
+    encode?: (v: unknown) => number,
+  ): C {
     const col = new Ctor(this.capacity);
     col.fill(missing(col));
     this.cols[name] = col;
+    if (encode) this.encoders.set(name, encode);
     return col;
   }
 
@@ -169,6 +178,7 @@ export class FleetState {
       for (const { k, op, name } of p.ops) {
         const v = row[k];
         if (op === 'num') this.cols[name]![i] = typeof v === 'number' ? v : NaN;
+        else if (op === 'enc') this.cols[name]![i] = this.encoders.get(name)!(v);
         else if (op === 'dict')
           this.codes[name as DictField][i] = this.dicts[name as DictField].id(String(v));
         else this.setString(name as StringField, i, String(v));
@@ -234,7 +244,7 @@ export class FleetState {
     return this.byVehicle.get(vehicleId) ?? -1;
   }
 
-  summary(i: number): VehicleSummary {
+  summary(i: number): Omit<VehicleSummary, 'status'> {
     const c = this.cols;
     const d = (f: DictField) => this.dicts[f].values[this.codes[f][i]!]!;
     const pids: Record<string, number | null> = {};
@@ -394,6 +404,7 @@ export class FleetState {
         if (STRING_SET.has(name)) plan!.ops.push({ k, op: 'str', name });
         else if (DICT_SET.has(name)) plan!.ops.push({ k, op: 'dict', name });
         else if (name in NUMERIC_COLUMNS) plan!.ops.push({ k, op: 'num', name });
+        else if (this.encoders.has(name)) plan!.ops.push({ k, op: 'enc', name });
       });
       this.plans.set(key, plan);
     }

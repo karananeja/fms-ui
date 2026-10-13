@@ -1,4 +1,5 @@
 import type { Combinfo, Lafparsed, Me } from '@shared/contract/index.ts';
+import type { VehicleStatus } from '@shared/domain/vehicle-status.ts';
 
 export type ConnectionState =
   'connecting' | 'live' | 'reconnecting' | 'offline' | 'unauthenticated' | 'error';
@@ -14,6 +15,8 @@ export interface LiveStats {
   /** Estimated worker memory held by the fleet state. */
   stateBytes: number;
   serverOffsetMs: number;
+  /** Duration of the last full status sweep (ms). */
+  sweepMs: number;
 }
 
 /** Full vehicle-scope payloads of the selected vehicle. */
@@ -21,6 +24,8 @@ export interface SelectedVehicle {
   vehicleId: string;
   /** False when the vehicle is not in the user's fleet state (nothing was subscribed). */
   found: boolean;
+  /** Derived status (null when not in the fleet state). */
+  status: VehicleStatus | null;
   combinfo: Combinfo | null;
   lafparsed: Lafparsed | null;
 }
@@ -29,6 +34,9 @@ export interface LivePush {
   connection: ConnectionState;
   stats: LiveStats;
   version: number;
+  statusCounts: Record<VehicleStatus, number>;
+  /** Vehicles in the fleet state (= sum of `statusCounts`). */
+  total: number;
   /** Present only when the selection or its payloads changed since the last push. */
   selected?: SelectedVehicle | null;
 }
@@ -63,6 +71,7 @@ export interface VehicleSummary {
   /** `canutctime` of the last applied fleet lafparsed row (NaN if none). */
   lafparsedAt: number;
   pids: Record<string, number | null>;
+  status: VehicleStatus;
 }
 
 /** API the worker exposes over Comlink. Later features add query methods. */

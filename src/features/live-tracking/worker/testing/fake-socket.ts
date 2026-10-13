@@ -78,7 +78,9 @@ export function snapshotRow(n: number, over: Record<string, unknown> = {}): unkn
 /** A fleet `combinfo` live-field delta row for vehicle `n`. */
 export function deltaRow(n: number, over: Record<string, unknown> = {}): unknown[] {
   const full = snapshotRow(n, over);
-  return COMBINFO_DELTA_FIELDS.map((f) => full[(COMBINFO_SNAPSHOT_FIELDS as readonly string[]).indexOf(f)]);
+  return COMBINFO_DELTA_FIELDS.map(
+    (f) => full[(COMBINFO_SNAPSHOT_FIELDS as readonly string[]).indexOf(f)],
+  );
 }
 
 export { BASE_T };

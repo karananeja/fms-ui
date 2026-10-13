@@ -1,4 +1,5 @@
 import type { Me } from '@shared/contract/index.ts';
+import { VEHICLE_STATUSES, type VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import { proxy, releaseProxy, wrap, type Remote } from 'comlink';
 import type {
   ConnectionState,
@@ -11,6 +12,9 @@ import type {
 export interface LiveTrackingState {
   connection: ConnectionState;
   stats: LiveStats;
+  /** Vehicles per derived status; sums to `total`. */
+  statusCounts: Record<VehicleStatus, number>;
+  total: number;
   selectedVehicleId: string | null;
   selected: SelectedVehicle | null;
 }
@@ -35,11 +39,22 @@ const emptyStats: LiveStats = {
   reconnects: 0,
   stateBytes: 0,
   serverOffsetMs: 0,
+  sweepMs: 0,
 };
+
+const emptyCounts = Object.fromEntries(VEHICLE_STATUSES.map((s) => [s, 0])) as Record<
+  VehicleStatus,
+  number
+>;
+
+const sameCounts = (a: Record<VehicleStatus, number>, b: Record<VehicleStatus, number>) =>
+  VEHICLE_STATUSES.every((s) => a[s] === b[s]);
 
 const initialState: LiveTrackingState = {
   connection: 'offline',
   stats: emptyStats,
+  statusCounts: emptyCounts,
+  total: 0,
   selectedVehicleId: null,
   selected: null,
 };
@@ -85,7 +100,7 @@ export class LiveTrackingStore {
     if (vehicleId !== null && !found && this.state.selectedVehicleId === vehicleId) {
       this.set({
         ...this.state,
-        selected: { vehicleId, found: false, combinfo: null, lafparsed: null },
+        selected: { vehicleId, found: false, status: null, combinfo: null, lafparsed: null },
       });
     }
   }
@@ -97,7 +112,15 @@ export class LiveTrackingStore {
     if (!m.snapshotCompleteAt && push.stats.snapshotComplete) {
       m.snapshotCompleteAt = performance.now();
     }
-    const next = { ...this.state, connection: push.connection, stats: push.stats };
+    const next = {
+      ...this.state,
+      connection: push.connection,
+      stats: push.stats,
+      total: push.total,
+      statusCounts: sameCounts(push.statusCounts, this.state.statusCounts)
+        ? this.state.statusCounts
+        : push.statusCounts,
+    };
     if (push.selected !== undefined && push.selected?.vehicleId === this.state.selectedVehicleId) {
       next.selected = push.selected;
     }

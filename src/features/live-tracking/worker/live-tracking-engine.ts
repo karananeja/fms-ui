@@ -1,6 +1,14 @@
 import type { Combinfo, Lafparsed, Me, ServerMessage } from '@shared/contract/index.ts';
+import type { VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import { liveTrackingConfig, type LiveTrackingConfig } from '../config/live-tracking-config.ts';
+import {
+  statusLafPids,
+  statusRulesConfig,
+  type StatusRulesConfig,
+} from '../config/status-rules-config.ts';
+import { parseStatusRulesConfig } from '../config/status-rules-schema.ts';
 import { FleetState } from './fleet-state.ts';
+import { StatusTracker } from './status-deriver.ts';
 import type {
   ConnectionState,
   LivePush,
@@ -20,6 +28,8 @@ export interface EngineDeps {
   clock?: Clock;
   random?: () => number;
   config?: Partial<LiveTrackingConfig>;
+  /** Status rules (validated on construction); `fleetLafPids` is derived from them. */
+  statusRules?: StatusRulesConfig;
   /** Called after `dispose()` (the worker entry closes itself here). */
   onDispose?: () => void;
 }
@@ -35,7 +45,9 @@ interface Selection {
 /** Orchestrates socket, fleet state, subscriptions and coalesced pushes. No `self`: runs in Node. */
 export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   readonly config: LiveTrackingConfig;
+  readonly rules: StatusRulesConfig;
   readonly state: FleetState;
+  readonly status: StatusTracker;
   readonly client: WsClient;
   pushCount = 0;
   private readonly clock: Clock;
@@ -50,19 +62,28 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   private pushTimer: unknown = null;
   private statsTimer: unknown = null;
   private pendingTimer: unknown = null;
+  private sweepTimer: unknown = null;
+  private sweepMs = 0;
+  private selectedStatus: VehicleStatus | null = null;
   private rows = 0;
   private msgs = 0;
   private rowsPerSec = 0;
   private msgsPerSec = 0;
 
   constructor(private readonly deps: EngineDeps) {
-    this.config = { ...liveTrackingConfig, ...deps.config };
+    this.rules = parseStatusRulesConfig(deps.statusRules ?? statusRulesConfig);
+    this.config = {
+      ...liveTrackingConfig,
+      ...(deps.statusRules && { fleetLafPids: statusLafPids(this.rules) }),
+      ...deps.config,
+    };
     this.clock = deps.clock ?? systemClock;
     this.state = new FleetState({
       pids: this.config.fleetLafPids,
       capacity: this.config.initialCapacity,
       pendingMax: this.config.pendingLafMax,
     });
+    this.status = new StatusTracker(this.state, this.rules);
     this.client = new WsClient({
       url: deps.url,
       createSocket: deps.createSocket,
@@ -83,6 +104,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     this.onPush = onPush;
     this.client.connect();
     this.tickStats();
+    this.tickSweep();
   }
 
   /** Server-clock corrected time; all freshness logic uses this. */
@@ -107,7 +129,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
 
   getVehicleSummary(vehicleId: string): VehicleSummary | null {
     const i = this.state.indexOf(vehicleId);
-    return i < 0 ? null : this.state.summary(i);
+    return i < 0 ? null : { ...this.state.summary(i), status: this.status.statusOf(i)! };
   }
 
   get connection(): ConnectionState {
@@ -124,11 +146,12 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
       reconnects: this.client.reconnects,
       stateBytes: this.state.bytes,
       serverOffsetMs: this.client.serverOffsetMs,
+      sweepMs: this.sweepMs,
     };
   }
 
   dispose(): void {
-    for (const t of [this.pushTimer, this.statsTimer, this.pendingTimer])
+    for (const t of [this.pushTimer, this.statsTimer, this.pendingTimer, this.sweepTimer])
       this.clock.clearTimeout(t);
     this.onPush = null;
     this.client.dispose();
@@ -142,6 +165,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     this.state.openPending();
     this.clock.clearTimeout(this.pendingTimer);
     if (fleetIds.length) {
+      this.snapshotComplete = false;
       const scope = { kind: 'fleet' as const, fleetIds };
       this.client.send({ type: 'subscribe', id: SUB_FLEET_COMBINFO, topic: 'combinfo', scope });
       this.client.send({
@@ -179,6 +203,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
       case 'snapshot':
       case 'delta': {
         this.rows += msg.rows.length;
+        this.status.now = this.now();
         if (msg.id === SUB_FLEET_COMBINFO) {
           const first = msg.type === 'snapshot' && msg.chunk === 0;
           if (first) {
@@ -236,10 +261,16 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
       connection: this.client.state,
       stats: this.stats,
       version: this.state.version,
+      statusCounts: this.status.statusCounts(),
+      total: this.state.count,
     };
-    if (this.selectionDirty) {
+    const s = this.selection;
+    const i = s?.found ? this.state.indexOf(s.vehicleId) : -1;
+    const status = i < 0 ? null : this.status.statusOf(i);
+    if (this.selectionDirty || status !== this.selectedStatus) {
       this.selectionDirty = false;
-      push.selected = this.selection && toSelected(this.selection);
+      this.selectedStatus = status;
+      push.selected = s && toSelected(s, status);
     }
     this.pushCount++;
     this.onPush(push);
@@ -257,11 +288,24 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     }
     this.statsTimer = this.clock.setTimeout(() => this.tickStats(), this.config.statsIntervalMs);
   }
+
+  /** 1 Hz full status pass, so time-based transitions happen without new messages. */
+  private tickSweep(): void {
+    const t0 = performance.now();
+    const changed = this.status.sweep(this.now());
+    this.sweepMs = performance.now() - t0;
+    if (changed) this.markDirty();
+    this.sweepTimer = this.clock.setTimeout(() => this.tickSweep(), this.rules.sweepIntervalMs);
+  }
 }
 
-const toSelected = ({ vehicleId, found, combinfo, lafparsed }: Selection): SelectedVehicle => ({
+const toSelected = (
+  { vehicleId, found, combinfo, lafparsed }: Selection,
+  status: VehicleStatus | null,
+): SelectedVehicle => ({
   vehicleId,
   found,
+  status,
   combinfo,
   lafparsed,
 });
