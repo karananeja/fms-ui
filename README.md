@@ -28,12 +28,39 @@ Vite proxies `/api` and `/ws` to the mock server, so cookies stay same-origin.
 |---|---|---|
 | `VITE_MAP_STYLE_URL` | `https://tiles.openfreemap.org/styles/dark` | MapLibre style URL (dev: OpenFreeMap, no key) |
 | `MOCK_PORT` | `4000` | Mock server port, also the Vite proxy target |
+| `MOCK_SEED` | `42` | Seed for the deterministic generator |
+| `MOCK_VEHICLES` | `100000` | Synthetic vehicles (max `1000000`) |
+| `MOCK_VEHICLE_INTERVAL_MS` | `10000` | Report interval per vehicle (±20% jitter) |
+| `MOCK_BATCH_MS` | `500` | WS delta flush interval |
+| `MOCK_SNAPSHOT_CHUNK` | `5000` | Rows per snapshot chunk / delta message |
+| `MOCK_LOG_LEVEL` | `info` | Mock log level (`info` prints reset/invite links) |
+
+### Mock server (F01)
+
+The contract lives in `shared/contract/` (zod schemas + types); the full spec is
+[docs/features/f01-mock-server/spec.md](docs/features/f01-mock-server/spec.md). Data is in memory and resets on restart.
+
+Seed logins:
+
+| Email | Password | Role | Scope |
+|---|---|---|---|
+| `superadmin@fms.local` | `Admin@123` | Super Admin | whole tree |
+| `ops@fms.local` | `Ops@1234` | Operator | North region |
+| `viewer@fms.local` | `View@1234` | Viewer | Delhi Hub 1 |
+
+Dev-only endpoints (not registered when `NODE_ENV=production`):
+
+- `GET /api/dev/mailbox?to=<email>`: the last reset / invite emails (with `url` and `token`).
+- `POST /api/dev/clock` `{ "offsetMs": 1860000 }`: shifts the mock clock (expiry, non-comm); `0` resets it.
+- `GET /api/dev/stats`: vehicles, sockets, subscriptions, CPU and memory of the mock.
 
 ## Scripts
 
 | Script | What it does |
 |---|---|
 | `pnpm dev` | Vite + mock server (`concurrently`, prefixed output) |
+| `pnpm mock` / `pnpm mock:once` | Mock server only (with / without restart on change) |
+| `pnpm perf:mock [vehicles] [seconds]` | F01-T9: snapshot latency and mock CPU (default 100000, 20 s) |
 | `pnpm build` | Typecheck and production build to `dist/` |
 | `pnpm preview` | Serve the production build |
 | `pnpm lint` / `pnpm lint:fix` | ESLint (incl. kebab-case file/folder names) |
@@ -47,7 +74,7 @@ Vite proxies `/api` and `/ws` to the mock server, so cookies stay same-origin.
 
 ```
 docs/          SDLC artifacts: requirements, architecture, decisions, feature intents/specs/logs
-mock-server/   Fastify mock backend (REST + WS)
+mock-server/   Fastify mock backend (REST + WS /ws/live), data generator, fixtures, tests
 shared/        API/WS contract (zod schemas + types), imported as @shared/*
 src/
   app/         router, app layout (side nav / drawer, top bar), providers
