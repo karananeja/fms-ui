@@ -63,17 +63,10 @@ export class FilterEngine {
   private test: ((i: number) => boolean) | null = null;
 
   constructor(private readonly state: FleetState) {
-    const prev = state.hooks;
-    state.hooks = {
-      rowChanged: (i) => {
-        prev.rowChanged?.(i);
-        this.rowChanged(i);
-      },
-      beforeRemove: (i) => {
-        prev.beforeRemove?.(i);
-        this.beforeRemove(i);
-      },
-    };
+    state.addHooks({
+      rowChanged: (i) => this.rowChanged(i),
+      beforeRemove: (i) => this.beforeRemove(i),
+    });
   }
 
   /** Bumps on every filter change and whenever a row's match flips (rows, not statuses). */

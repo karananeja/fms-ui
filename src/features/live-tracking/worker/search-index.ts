@@ -33,7 +33,7 @@ const lowerBound = (keys: readonly string[], prefix: string) => {
 
 /**
  * F08-R5: sorted, upper-cased key arrays per field with binary-search prefix lookup. Rebuilt
- * lazily on the next query after vehicles were added or removed.
+ * lazily on the next query after vehicles were added or removed, or an identifier changed.
  */
 export class SearchIndex {
   /** Duration of the last rebuild / query (ms). */
@@ -41,16 +41,29 @@ export class SearchIndex {
   suggestMs = 0;
   private sorted: Record<Field, Sorted> | null = null;
   private builtCount = -1;
+  /** Per-row identifiers as indexed, to spot changes without allocating. */
+  private builtRaw: Record<Field, string[]> | null = null;
 
   constructor(private readonly state: FleetState) {
-    const prev = state.hooks;
-    state.hooks = {
-      ...prev,
-      beforeRemove: (i) => {
-        prev.beforeRemove?.(i);
+    state.addHooks({
+      rowChanged: (i) => this.rowChanged(i),
+      beforeRemove: () => (this.sorted = null),
+    });
+  }
+
+  private rowChanged(i: number): void {
+    if (!this.sorted) return;
+    if (i >= this.builtCount) {
+      this.sorted = null;
+      return;
+    }
+    const raw = this.builtRaw!;
+    const { str } = this.state;
+    for (const f of SEARCH_FIELDS)
+      if (raw[f][i] !== str[f][i]) {
         this.sorted = null;
-      },
-    };
+        return;
+      }
   }
 
   suggest(prefix: string, field: SearchField, limit = 8): Suggestion[] {
@@ -104,6 +117,8 @@ export class SearchIndex {
       return { keys: order.map((i) => upper[i]!), ids: order.map((i) => ids[i]!) };
     };
     this.sorted = { regno: build('regno'), vin: build('vin'), deviceId: build('deviceId') };
+    const { regno, vin, deviceId } = this.state.str;
+    this.builtRaw = { regno: regno.slice(0, n), vin: vin.slice(0, n), deviceId: deviceId.slice(0, n) };
     this.builtCount = n;
     this.buildMs = performance.now() - t0;
     return this.sorted;

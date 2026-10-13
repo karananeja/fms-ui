@@ -112,7 +112,8 @@ export class FleetState {
   pendingOpen = true;
   private epoch = 1;
   private stringBytes = 0;
-  hooks: FleetStateHooks;
+  /** Called in registration order; see `addHooks` (D-065). */
+  private readonly listeners: FleetStateHooks[] = [];
   private readonly pendingMax: number;
   private readonly encoders = new Map<string, (v: unknown) => number>();
   private readonly plans = new Map<string, CombPlan | LafPlan>();
@@ -120,7 +121,7 @@ export class FleetState {
   constructor(private readonly opts: FleetStateOptions) {
     this.capacity = opts.capacity ?? 1024;
     this.pendingMax = opts.pendingMax ?? 20_000;
-    this.hooks = opts.hooks ?? {};
+    if (opts.hooks) this.listeners.push(opts.hooks);
     for (const [name, Ctor] of Object.entries(NUMERIC_COLUMNS)) this.addColumn<Column>(name, Ctor);
     for (const pid of opts.pids) this.pidCols[pid] = new Float32Array(this.capacity).fill(NaN);
     for (const f of DICT_FIELDS) {
@@ -144,6 +145,14 @@ export class FleetState {
     this.cols[name] = col;
     if (encode) this.encoders.set(name, encode);
     return col;
+  }
+
+  /**
+   * Subscribes to row changes and removals. Listeners run in registration order and never
+   * replace each other, so construction order cannot drop one (D-065).
+   */
+  addHooks(hooks: FleetStateHooks): void {
+    this.listeners.push(hooks);
   }
 
   get pids(): readonly string[] {
@@ -185,7 +194,7 @@ export class FleetState {
       }
       this.version++;
       applied++;
-      this.hooks.rowChanged?.(i);
+      for (const h of this.listeners) h.rowChanged?.(i);
       if (inserted) this.applyPending(i);
     }
     return applied;
@@ -305,7 +314,7 @@ export class FleetState {
 
   /** Swap-remove: the last vehicle moves into slot `i` so indices stay dense. */
   remove(i: number): void {
-    this.hooks.beforeRemove?.(i);
+    for (const h of this.listeners) h.beforeRemove?.(i);
     const last = this.count - 1;
     const vid = this.str.vehicleId[i]!;
     const did = this.str.deviceId[i]!;
@@ -347,7 +356,7 @@ export class FleetState {
       this.pidCols[name]![i] = typeof v === 'number' ? v : NaN;
     }
     this.version++;
-    this.hooks.rowChanged?.(i);
+    for (const h of this.listeners) h.rowChanged?.(i);
     return true;
   }
 
