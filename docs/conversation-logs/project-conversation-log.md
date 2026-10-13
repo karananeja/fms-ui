@@ -53,3 +53,9 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 - F01 sub-agent finished: F01-T1…T9 pass; proposed D-023…D-030; 7 contract deviations listed in test report. Orchestrator re-ran `pnpm check` (42/42), `pnpm build`, `pnpm e2e` (5/5 incl. /ws proxy) and `pnpm perf:mock 100000 10` (snapshot 199 ms, 0.048 cores) — confirmed.
 
 **Status:** F01 awaiting user acceptance (UAT) + approval of D-023…D-030 and contract deviations.
+
+## 2026-10-13 — Session 1 (cont. 5)
+
+**User:** "continue" — interpreted as F01 UAT acceptance incl. the 7 contract deviations and D-023…D-030 (stated back to user).
+
+**Assistant:** D-023…D-030 Accepted; F01 merged into `main` (--no-ff). Writing F04 + F05 specs on `main` for sign-off.
