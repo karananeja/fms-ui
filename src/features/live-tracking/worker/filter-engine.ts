@@ -160,28 +160,28 @@ export class FilterEngine {
     this.base = next;
   }
 
+  /** Columns are read from the state on every call: `FleetState.grow()` replaces them. */
   private compile(f: VehicleFilter): ((i: number) => boolean) | null {
-    const { codes, dicts, cols, str } = this.state;
+    const state = this.state;
     const checks: ((i: number) => boolean)[] = [];
     for (const [key, field] of DICT_FILTERS) {
       const list = f[key];
       if (!list?.length) continue;
       const allowed = new Set(key === 'fleetIds' ? this.subtree(list) : list);
-      const values = dicts[field].values;
-      const col = codes[field];
-      checks.push((i) => allowed.has(values[col[i]!]!));
+      checks.push((i) => allowed.has(state.dicts[field].values[state.codes[field][i]!]!));
     }
     if (f.socMin !== undefined || f.socMax !== undefined) {
       const lo = f.socMin ?? -Infinity;
       const hi = f.socMax ?? Infinity;
-      const soc = cols.soc;
-      checks.push((i) => soc[i]! >= lo && soc[i]! <= hi);
+      checks.push((i) => {
+        const soc = state.cols.soc[i]!;
+        return soc >= lo && soc <= hi;
+      });
     }
     const prefix = f.search?.prefix.trim().toUpperCase();
     if (prefix) {
       const fields = f.search!.field === 'all' ? SEARCH_FIELDS : [f.search!.field];
-      const arrays = fields.map((k) => str[k]);
-      checks.push((i) => arrays.some((a) => a[i]!.toUpperCase().startsWith(prefix)));
+      checks.push((i) => fields.some((k) => state.str[k][i]!.toUpperCase().startsWith(prefix)));
     }
     if (!checks.length) return null;
     return (i) => checks.every((c) => c(i));

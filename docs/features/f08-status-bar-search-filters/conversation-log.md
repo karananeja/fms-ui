@@ -17,3 +17,12 @@ Agent implemented a worker-side draft (filter engine, search index, map-index fi
 **Results:** worker tests 124/124 at commit time; earlier full `vitest run` 340/340; `eslint` on `worker/` clean. `tsc -b` fails on 3 pre-existing WIP test fixtures missing the new `LivePush` fields (not touched in this milestone).
 
 **Found (not fixed, pending approval):** `FilterEngine.compile()` captures `codes[field]` / `cols.soc` arrays; `FleetState.grow()` replaces them, so rows inserted after growth never match an active filter.
+
+## 2026-10-14 — Recovery, milestone 2: filter after fleet growth
+**Bug:** `FilterEngine.compile()` captured `codes[field]`, `dicts[field].values`, `cols.soc` and `str[field]`; `FleetState.grow()` replaces the typed columns, so with a filter active, rows past the old capacity never matched.
+
+**Fix:** the compiled checks read the columns from `this.state` on every call.
+
+**Test:** new `filter-engine.test.ts` (start of F08-T1): fleet + SOC + regno filter set before inserting 7 rows into a capacity-2 state (grows 2 → 4 → 8); expects `v0, v2, v4, v6`, then a post-growth SOC update drops `v6`. Before the fix: received `['v0']` only. After: passes; worker tests 125/125.
+
+**Note:** the per-call lookups add a few property reads per row to the 1 lakh mask pass; measured in F08-T3 (perf), not yet run.
