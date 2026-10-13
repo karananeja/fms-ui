@@ -224,12 +224,16 @@ describe('F09-T2: csv-exporter', () => {
     for (let k = 0; k < text.length; k++) {
       const c = text[k]!;
       if (quoted) {
-        if (c === '"' && text[k + 1] === '"') ((cell += '"'), k++);
-        else if (c === '"') quoted = false;
+        if (c === '"' && text[k + 1] === '"') {
+          cell += '"';
+          k++;
+        } else if (c === '"') quoted = false;
         else cell += c;
       } else if (c === '"') quoted = true;
-      else if (c === ',') (row.push(cell), (cell = ''));
-      else if (c === '\r' && text[k + 1] === '\n') {
+      else if (c === ',') {
+        row.push(cell);
+        cell = '';
+      } else if (c === '\r' && text[k + 1] === '\n') {
         row.push(cell);
         rows.push(row);
         row = [];
@@ -321,7 +325,7 @@ describe('F09-T4: tray-query', () => {
     const all = (
       bbox: [number, number, number, number],
       limit?: number,
-      match = (_i: number) => true,
+      match: (i: number) => boolean = () => true,
     ) => trayQuery(state, match, statusRulesConfig.priority, bbox, limit).map((c) => c.vehicleId);
     // Priority: … running before stopped. Running: v0, v3 (same utctime → id); stopped by recency.
     expect(all([70, 10, 80, 30])).toEqual(['v0', 'v3', 'v4', 'v1', 'v2']);
