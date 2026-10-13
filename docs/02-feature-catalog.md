@@ -10,7 +10,7 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 
 | ID | Feature | Depends on | Intent | Spec | Impl | Test | UAT |
 |---|---|---|---|---|---|---|---|
-| F00 | Project foundation | — | Signed off | Signed off | In progress | — | — |
+| F00 | Project foundation | — | Signed off | Signed off | Done | Passed | — |
 | F01 | Mock server & API/WS contract | F00 | Signed off | Signed off | — | — | — |
 | F02 | Authentication (sign-in, forgot/reset, accept invite) | F01 | Signed off | — | — | — | — |
 | F03 | Access control (fleet tree, users, invites, permissions) | F02 | Signed off | — | — | — | — |
