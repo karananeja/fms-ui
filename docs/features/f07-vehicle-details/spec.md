@@ -56,6 +56,7 @@ All numbers use **en-IN** grouping, and all timestamps use `formatIst`.
 | F07-R13 | **Permissions** | Visibility is read from `me.permissions`, which the store now holds from bootstrap:<br>• `vehicle.details.view` is needed to open the panel at all. Without it, a click only shows a tooltip.<br>• `vehicle.parameters.view` controls the Parameters section. |
 | F07-R14 | **Live updates** | • Values update in place at the push cadence, without layout shift and without re-mounting.<br>• The parameters grid re-renders only the cells whose value changed (memoised per key). |
 | F07-R15 | **Accessibility** | • The panel is a labelled region.<br>• Esc closes it on desktop.<br>• Copy buttons have aria-labels and show a sonner toast "Copied".<br>• Focus moves to the panel when it opens. |
+| F07-R16 | **Deselect on map click** *(amendment, 2026-10-13, from the F06 hand-over)* | Clicking an empty area of the map, meaning no point and no cluster, closes the panel and clears `?vehicle`. Dragging the map does not count as a click. |
 
 ### `humanize-pid`
 Strip leading underscores. Split on `_`. Title-case each word. Keep numeric parts unchanged (`cell_voltage_01` → "Cell Voltage 01").
@@ -70,7 +71,7 @@ A small override map handles known acronyms: SOC, SOH, DTE, BMS, MCU, VCU, MVCU,
 | F07-T3 | unit | Freshness and SOC colour bands at each boundary. Missing values show "—". Parameter search matches both label and key. |
 | F07-T4 | component | The panel renders from fixture payloads. Expand/collapse switches views. Parameter search narrows the count. Copy writes to the clipboard and shows a toast. The not-found state appears. Parameters are hidden without the permission. |
 | F07-T5 | component | Re-rendering with one PID changed re-renders only that cell (render counting). |
-| F07-T6 | e2e | Clicking a point on the map opens the panel with that regno, and the URL has `?vehicle=`. Reloading restores the panel. Esc and the close button remove the param. Back reopens it. |
+| F07-T6 | e2e | Clicking a point on the map opens the panel with that regno, and the URL has `?vehicle=`. Reloading restores the panel. Esc and the close button remove the param. Back reopens it. Clicking an empty map area closes the panel (R16). |
 | F07-T7 | e2e | Within 20 s, the GPS time in the open panel changes, showing live updates. Locate flies the map to the vehicle (zoom 16). |
 | F07-T8 | e2e | At 390 px wide, the bottom sheet opens at 35% and drags to 92%, and the map is still visible above it. |
 | F07-T9 | e2e | Expanded view shows both gauges and the parameters grid with 374 items. Searching "cell_voltage" shows 23 (20 cell voltages + maximum, minimum and mismatch-warning keys). |
