@@ -1,10 +1,12 @@
 import { ChevronDown, Search } from 'lucide-react';
 import { DropdownMenu } from 'radix-ui';
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { cn } from '@/shared/lib/utils';
 import { STATUS_META } from '../config/status-meta';
 import { liveTrackingStore, type LiveTrackingStore } from '../store/live-tracking-store';
 import type { SearchField, Suggestion } from '../worker/worker-api';
+import { DESKTOP_QUERY } from './vehicle-details-panel';
 
 export const SEARCH_DEBOUNCE_MS = 120;
 
@@ -50,6 +52,7 @@ function SuggestionRow({ s, prefix }: { s: Suggestion; prefix: string }) {
  * Enter without a highlighted suggestion applies the prefix as a filter.
  */
 export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingStore }) {
+  const desktop = useMediaQuery(DESKTOP_QUERY);
   const [text, setText] = useState('');
   const [field, setField] = useState<SearchField>('all');
   const [items, setItems] = useState<Suggestion[]>([]);
@@ -94,9 +97,17 @@ export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingS
   const answeredNow = answered === `${field}:${text.trim()}`;
   const showList = open && text.trim().length > 0 && (items.length > 0 || answeredNow);
 
-  const choose = (s: Suggestion) => {
+  /** Forget the list and its highlight, so the next query starts clean. */
+  const reset = () => {
     setOpen(false);
     setText('');
+    setItems([]);
+    setAnswered('');
+    setActive(-1);
+  };
+
+  const choose = (s: Suggestion) => {
+    reset();
     void store.locateVehicle(s.vehicleId);
   };
 
@@ -104,8 +115,7 @@ export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingS
     const prefix = text.trim();
     if (!prefix) return;
     store.patchFilter({ search: { field, prefix } });
-    setOpen(false);
-    setText('');
+    reset();
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -138,7 +148,10 @@ export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingS
   const fieldLabel = FIELDS.find((f) => f.id === field)!.label;
 
   return (
-    <div data-slot="map-search" className="pointer-events-auto relative w-full lg:w-[340px]">
+    <div
+      data-slot="map-search"
+      className="pointer-events-auto relative min-w-0 flex-1 lg:w-[340px] lg:flex-none"
+    >
       <div className="flex h-11 items-center gap-2 rounded-[14px] pr-1.5 pl-3.5 text-text-muted shadow-[0_8px_24px_var(--shadow)] glass focus-within:ring-2 focus-within:ring-ring">
         <Search className="size-4 shrink-0" aria-hidden />
         <input
@@ -150,9 +163,10 @@ export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingS
           aria-autocomplete="list"
           aria-activedescendant={showList && active >= 0 ? `${listId}-${active}` : undefined}
           value={text}
-          placeholder="VIN · REG NO · DEVICE ID"
+          placeholder={desktop ? 'VIN · REG NO · DEVICE ID' : 'Search vehicles'}
           onChange={(e) => {
             setText(e.target.value);
+            setActive(-1);
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
@@ -180,7 +194,7 @@ export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingS
             <DropdownMenu.Content
               align="end"
               sideOffset={8}
-              className="z-50 min-w-32 rounded-tile border border-glass-border bg-glass-strong p-1 shadow-[0_8px_24px_var(--shadow)]"
+              className="z-50 min-w-32 rounded-tile border border-glass-border bg-surface-solid p-1 shadow-[0_8px_24px_var(--shadow)]"
             >
               <DropdownMenu.RadioGroup
                 value={field}
@@ -205,7 +219,7 @@ export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingS
           id={listId}
           role="listbox"
           aria-label="Vehicle suggestions"
-          className="absolute inset-x-0 top-[50px] z-30 max-h-80 overflow-auto rounded-tile border border-glass-border bg-glass-strong p-1 shadow-[0_8px_24px_var(--shadow)]"
+          className="absolute inset-x-0 top-[50px] z-30 max-h-80 overflow-auto rounded-tile border border-glass-border bg-surface-solid p-1 shadow-[0_8px_24px_var(--shadow)]"
         >
           {items.map((s, k) => (
             <li

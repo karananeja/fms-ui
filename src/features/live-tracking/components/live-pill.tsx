@@ -14,10 +14,13 @@ const CONNECTION: Record<ConnectionState, { label: string; dot: string }> = {
 
 const selectConnection = (s: LiveTrackingState) => s.connection;
 const selectRate = (s: LiveTrackingState) => s.stats.rowsPerSec;
-const compact = new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 1 });
+const compactRate = new Intl.NumberFormat('en-IN', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
 
-/** DS1-R11: connection state and feed rate, top right of the map. */
-export function LivePill() {
+/** DS1-R11: connection state and feed rate, top right of the map; `compact` drops the rate. */
+export function LivePill({ compact = false }: { compact?: boolean }) {
   const connection = useLiveTracking(selectConnection);
   const rate = useLiveTracking(selectRate);
   const { label, dot } = CONNECTION[connection];
@@ -30,9 +33,9 @@ export function LivePill() {
     >
       <span className={cn('size-2 rounded-full', dot)} aria-hidden />
       <span data-testid="live-connection">{label}</span>
-      {connection === 'live' && (
+      {connection === 'live' && !compact && (
         <span className="text-text-muted" data-testid="live-rate">
-          · {compact.format(rate)} rows/s
+          · {compactRate.format(rate)} rows/s
         </span>
       )}
     </div>

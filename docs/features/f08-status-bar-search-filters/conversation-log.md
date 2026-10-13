@@ -42,3 +42,16 @@ The baseline made `filteredCounts`, `filteredTotal`, `selectedMatches` required 
 - F08-T3 `filter-search.perf.test.ts` first run: filters ≤ 10 ms but **cold suggestion 75.6 ms > 50 ms** (full index build). Native-sort build alone did not help (76.8 ms). Fix (D-066, proposed): build once after the snapshot, then update in place; bulk churn schedules a rebuild in its own task.
 - F08-T3 after fix: apply ≤ 9.3 ms (statuses 0.0, fleet subtree 2.1, types+make+model 3.7, SOC 2.0, search-all 9.3, everything 4.9); counts 4.2 ms; full build 73.1 ms (off the query path); query after add 0.09 / remove 0.00 / id change 0.03 / 500 adds 0.05 ms; warm ≤ 0.03 ms; re-applying 1 lakh unchanged rows 61.3 ms with the index vs 41.3 ms without.
 - Worker tests 157/157; typecheck + eslint clean.
+
+## 2026-10-14 — Milestones 5–7: store, UI, e2e (session resumed after an interruption)
+- Store (R7, R13; T5) committed `e4be91a`: filter state, `/api/fleets` → worker subtree, filtered counts, `selectedHidden` (hides ring/callout, "Hidden by filters" hint), pulse buffer (D-067).
+- UI (R8–R12; T6) committed `5e42c8f`: search box (combobox, `/`, field menu, 120 ms debounce), status pills (`+N` via measured fit, compact on mobile), fleet pulse card, filter panel (popover / sheet: fleet tree with search + inherited children, types, make → model, SOC dual slider), active chips. Pure helpers in `lib/status-bar-model.ts` (no fast-refresh warnings).
+- e2e (T7–T10) + screenshots; fixes found by e2e/screenshots: stale search highlight (bug), translucent overlays, mobile top row overflow, shadowed `compact` formatter in `live-pill.tsx` (caught by e2e before commit).
+- Dev probe gains `framed` (vehicles in the current frame) for T7/T8; absent from `dist/`.
+- Final: `pnpm check` 401/401, 0 warnings; build OK; e2e chromium+clock 24/24.
+
+## Open: frame budget (needs approval)
+`e2e/status-bar.perf.spec.ts`: next frame after a filter change is 25–83 ms when narrowing, but 254–314 ms when widening back towards 1 lakh (STOPPED added, ALL, Clear all) — over the 200 ms budget. Each change forces a full Supercluster rebuild (R4 "like D-063").
+Proposed fix (not implemented; changes approved R4 and the shared F06 `MapIndex`):
+1. Build clusters over the filter **without statuses**; apply the status selection when a frame is cut, from each cluster's per-status breakdown (count = sum of the selected statuses; empty clusters dropped). Status pill clicks then need no rebuild (a frame in a few ms). Trade-off: a cluster's centroid stays that of all its vehicles, not only the selected statuses.
+2. Keep the last index built with no non-status filter; when the filter returns to that, serve frames from it at once and force a fresh rebuild right after. Trade-off: for ~0.3 s cluster counts can be those of when the cached index was built.

@@ -75,7 +75,7 @@ export function LiveTrackingPage() {
           <div className="flex items-center gap-2">
             <SearchBox />
             <FilterPanel />
-            <LivePill />
+            <LivePill compact />
           </div>
           <StatusPills />
           <ActiveFilterChips />

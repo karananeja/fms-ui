@@ -137,7 +137,7 @@ export function StatusPills({ store = liveTrackingStore }: { store?: LiveTrackin
               align="end"
               sideOffset={8}
               aria-label="More statuses"
-              className="z-50 flex flex-col gap-1.5 rounded-tile border border-glass-border bg-glass-strong p-2 shadow-[0_8px_24px_var(--shadow)] [&>button]:h-9"
+              className="z-50 flex flex-col gap-1.5 rounded-tile border border-glass-border bg-surface-solid p-2 shadow-[0_8px_24px_var(--shadow)] [&>button]:h-9"
             >
               {hidden.map((s) => pill(s))}
             </Popover.Content>

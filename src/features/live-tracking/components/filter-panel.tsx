@@ -305,7 +305,7 @@ export function FilterPanel({ store = liveTrackingStore }: { store?: LiveTrackin
             sideOffset={8}
             aria-label="Filters"
             data-filter-panel="popover"
-            className="z-50 flex max-h-[min(640px,calc(100vh-120px))] w-[360px] flex-col overflow-hidden rounded-[var(--radius-panel)] border border-glass-border bg-glass-strong shadow-[0_30px_80px_rgb(0_0_0/0.55)]"
+            className="z-50 flex max-h-[min(640px,calc(100vh-120px))] w-[360px] flex-col overflow-hidden rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid shadow-[0_30px_80px_rgb(0_0_0/0.55)]"
           >
             <PanelBody store={store} onDone={() => setOpen(false)} />
           </Popover.Content>
@@ -317,7 +317,7 @@ export function FilterPanel({ store = liveTrackingStore }: { store?: LiveTrackin
     <>
       {trigger}
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent data-filter-panel="sheet" className="max-h-[90%] bg-glass-strong">
+        <DrawerContent data-filter-panel="sheet" className="max-h-[90%] bg-surface-solid">
           <DrawerTitle className="px-4 pt-3 text-sm font-black tracking-[0.12em] uppercase">
             Filters
           </DrawerTitle>
