@@ -126,7 +126,7 @@ Share-token sockets may only subscribe with vehicle scope, and only to their own
 - **`combinfo` snapshot** — every vehicle's metadata plus its live fields:
   - Metadata: `vehicleId, deviceId, regno, vin, fleetId, assetType, fuelType, make, model, variant`.
   - Live fields: `lat, lng, speed, heading, ignstatus, carbattery, devbattery, fixquality, utctime, gpstime, canutctime, soc, dte, odometer, immobilization_status, displayStatus`.
-  - The last nine of these come from `parsedcandata`. `displayStatus` is optional; the server may send it (A5).
+  - `soc`, `dte`, `odometer` and `immobilization_status` come from `parsedcandata`. `displayStatus` is optional; the server may send it (A5).
 - **`combinfo` deltas** carry only `vehicleId` and the live fields. The metadata is never repeated.
 - **`lafparsed` (fleet scope):** `deviceId, canutctime`, plus one column per requested `pid` (its `pidvalue`).
 
