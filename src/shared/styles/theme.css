@@ -1,0 +1,47 @@
+/* Design tokens (F00 spec §2). Dark only. */
+:root {
+  color-scheme: dark;
+
+  --bg: #0e0e0f;
+  --surface-1: #18181a;
+  --surface-2: #212124;
+  --border: #2c2c30;
+  --text: #f2f2f2;
+  --text-muted: #9a9aa0;
+  --accent: #d32f45;
+  --accent-soft: #3a1a20;
+  --ok: #4ade80;
+  --warn: #f5a524;
+  --radius-card: 14px;
+  --radius-panel: 20px;
+
+  --st-running: #22c55e;
+  --st-stopped: #ef4444;
+  --st-immobilized: #a855f7;
+  --st-noncomm: #71717a;
+  --st-charging: #3b82f6;
+  --st-pullout: #f43f5e;
+  --st-nogps: #f59e0b;
+  --st-gpsnever: #52525b;
+
+  --font-display: 'Doto', ui-monospace, monospace;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+
+  /* shadcn/ui semantic aliases */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface-1);
+  --card-foreground: var(--text);
+  --popover: var(--surface-1);
+  --popover-foreground: var(--text);
+  --primary: var(--accent);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--text-muted);
+  --destructive: var(--st-stopped);
+  --input: var(--border);
+  --ring: var(--accent);
+  --radius: 10px;
+}
