@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Awaiting sign-off** |
+| Status | **Signed off: 2026-10-13 (user)** |
 | Intent | `intent.md` |
 | Mockup | `docs/design/design-direction.html` (**v2**). Open it in a browser. **This is the visual source of truth.** |
 | Branch | `feature/ds1-design-refresh` |

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Revision 3: awaiting sign-off.** Rev 1 was signed off 2026-10-13 and superseded by the design correction. Rev 2 was never signed off; it was replaced after "still appears simple". |
+| Status | **Revision 3: signed off 2026-10-13 (user).** Rev 1 was signed off 2026-10-13 and superseded by the design correction. Rev 2 was never signed off; it was replaced after "still appears simple". |
 | Intent | `intent.md` (signed off 2026-10-13, layout wording amended; D-017 raw numbers, no units in Parameters) |
 | Branch | `feature/f07-vehicle-details` (rebased onto the DS1 tokens commit; runs in parallel with DS1, see §5) |
 | Visual source of truth | `docs/design/design-direction.html` **v2**. The current app's screenshots only show *which data exists*. |

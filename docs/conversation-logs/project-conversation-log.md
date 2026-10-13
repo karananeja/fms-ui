@@ -126,3 +126,9 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 - Updated DS1 intent/spec (Doto only, 2D/3D, LIVE pill, trail layer), F07 spec → rev 3, design notes on F08/F09 intents, D-051/D-052 wording, new D-054 (Doto only) and D-055 (speed plan). Saved feedback memory on turnaround time.
 
 **Status:** Awaiting sign-off of mockup v2, DS1 spec, F07 rev 3, D-051…D-055.
+
+## 2026-10-13 — Session 1 (cont. 13)
+
+**User:** "approved" — mockup v2, DS1 intent/spec, F07 spec rev 3, D-051…D-055 signed off.
+
+**Assistant:** Committed the shared DS1 tokens/font/ports commit on `feature/ds1-design-refresh`; rebased `feature/f07-vehicle-details` onto it; created two git worktrees and spawned DS1 and F07 agents in parallel (separate ports).

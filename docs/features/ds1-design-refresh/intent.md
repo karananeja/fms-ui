@@ -1,6 +1,6 @@
 # DS1 — Design Refresh ("Dark ops console") · Intent
 
-**Status:** Awaiting sign-off
+**Status:** Signed off: 2026-10-13 (user)
 
 ## Why
 The look built so far (F00 tokens, F06 map styling, F07 panel) was copied from the current app's screenshots. Those were meant **only as reference**, and the user wants a distinctly different design (user correction, 2026-10-13).
