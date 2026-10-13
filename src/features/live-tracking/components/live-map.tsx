@@ -46,7 +46,7 @@ export function LiveMap() {
         className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center"
       >
         <MapPinOff className="size-8 text-text-muted" aria-hidden />
-        <p className="font-medium">The map can't be shown</p>
+        <p className="font-bold">The map can't be shown</p>
         <p className="max-w-sm text-sm text-text-muted">
           This browser has WebGL turned off or unavailable. Live data keeps updating; enable
           hardware acceleration or use another browser to see the map.

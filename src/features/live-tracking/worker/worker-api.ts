@@ -1,5 +1,6 @@
 import type { Combinfo, Lafparsed, Me } from '@shared/contract/index.ts';
 import type { VehicleStatus } from '@shared/domain/vehicle-status.ts';
+import type { SessionHistory } from './selected-history.ts';
 
 export type ConnectionState =
   'connecting' | 'live' | 'reconnecting' | 'offline' | 'unauthenticated' | 'error';
@@ -66,6 +67,8 @@ export interface SelectedVehicle {
   status: VehicleStatus | null;
   combinfo: Combinfo | null;
   lafparsed: Lafparsed | null;
+  /** Session buffer since selection (absent in tests / until the first push). */
+  history?: SessionHistory;
 }
 
 export interface LivePush {

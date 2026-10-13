@@ -7,19 +7,8 @@ import { Button } from '@/shared/ui/button';
 import { STATUS_META } from '../config/status-meta';
 import { liveTrackingStore, type LiveTrackingState } from '../store/live-tracking-store';
 import { useLiveTracking } from '../store/use-live-tracking';
-import type { ConnectionState } from '../worker/worker-api';
 import { StatusPill } from './status-pill';
 
-const CONNECTION: Record<ConnectionState, { label: string; dot: string }> = {
-  connecting: { label: 'Connecting', dot: 'bg-warn animate-pulse' },
-  live: { label: 'Live', dot: 'bg-ok' },
-  reconnecting: { label: 'Reconnecting', dot: 'bg-warn animate-pulse' },
-  offline: { label: 'Offline', dot: 'bg-text-muted' },
-  unauthenticated: { label: 'Signed out', dot: 'bg-text-muted' },
-  error: { label: 'Error', dot: 'bg-accent' },
-};
-
-const selectConnection = (s: LiveTrackingState) => s.connection;
 const selectStats = (s: LiveTrackingState) => s.stats;
 const selectSelected = (s: LiveTrackingState) => s.selected;
 const selectSelectedId = (s: LiveTrackingState) => s.selectedVehicleId;
@@ -33,20 +22,12 @@ const offset = (ms: number) => `${ms >= 0 ? '+' : '−'}${(Math.abs(ms) / 1000).
 
 function Stat({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-md bg-surface-2 px-3 py-2">
-      <dt className="text-xs text-text-muted">{label}</dt>
-      <dd className="font-medium tabular-nums">{children}</dd>
+    <div className="flex flex-col gap-0.5 rounded-tile border border-tile-border bg-tile px-3 py-2">
+      <dt className="text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
+        {label}
+      </dt>
+      <dd className="font-black tabular-nums">{children}</dd>
     </div>
-  );
-}
-
-function ConnectionBadge() {
-  const { label, dot } = CONNECTION[useLiveTracking(selectConnection)];
-  return (
-    <span className="flex items-center gap-2 text-sm font-medium" data-testid="live-connection">
-      <span className={cn('size-2.5 rounded-full', dot)} aria-hidden />
-      {label}
-    </span>
   );
 }
 
@@ -98,21 +79,21 @@ function StatusCounts() {
       {VEHICLE_STATUSES.map((status) => {
         const { label, color } = STATUS_META[status];
         return (
-          <li key={status} className="flex items-center gap-2 rounded-md bg-surface-2 px-3 py-2">
+          <li
+            key={status}
+            className="flex items-center gap-2 rounded-tile border border-tile-border bg-tile px-3 py-2"
+          >
             <span className="size-2.5 rounded-full" style={{ background: color }} aria-hidden />
             <span className="text-sm">{label}</span>
-            <span
-              className="ml-auto font-medium tabular-nums"
-              data-testid={`status-count-${status}`}
-            >
+            <span className="ml-auto font-bold tabular-nums" data-testid={`status-count-${status}`}>
               {fmt.format(counts[status])}
             </span>
           </li>
         );
       })}
-      <li className="flex items-center gap-2 rounded-md bg-surface-2 px-3 py-2">
-        <span className="text-sm font-medium">Total</span>
-        <span className="ml-auto font-medium tabular-nums" data-testid="status-total">
+      <li className="flex items-center gap-2 rounded-tile border border-tile-border bg-tile px-3 py-2">
+        <span className="text-sm font-bold">Total</span>
+        <span className="ml-auto font-bold tabular-nums" data-testid="status-total">
           {fmt.format(total)}
         </span>
       </li>
@@ -164,7 +145,7 @@ function VehiclePicker() {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="vehicleId"
-        className="h-9 min-w-0 flex-1 rounded-md border bg-surface-2 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-64"
+        className="h-9 min-w-0 flex-1 rounded-md border border-tile-border bg-tile px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-64"
       />
       <Button type="submit" size="sm">
         Select
@@ -200,7 +181,7 @@ function LocateVehicle() {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="vehicleId"
-        className="h-9 min-w-0 flex-1 rounded-md border bg-surface-2 px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-64"
+        className="h-9 min-w-0 flex-1 rounded-md border border-tile-border bg-tile px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-64"
       />
       <Button type="submit" size="sm">
         Locate
@@ -215,14 +196,13 @@ export function DebugOverlay() {
   return (
     <section
       aria-label="Diagnostics"
-      className="absolute top-2 left-2 z-10 flex max-h-[calc(100%-1rem)] w-[min(30rem,calc(100%-1rem))] flex-col rounded-[var(--radius-card)] border bg-surface-1/95 shadow-lg backdrop-blur"
+      className="absolute top-16 left-3.5 z-10 flex max-h-[calc(100%-8rem)] w-[min(30rem,calc(100%-1.75rem))] flex-col rounded-panel shadow-[0_8px_24px_var(--shadow)] glass"
     >
       <div className="flex items-center justify-between gap-4 px-4 py-2">
-        <h2 className="text-sm font-medium tracking-wider text-text-muted uppercase">
+        <h2 className="text-xs font-extrabold tracking-[0.12em] text-text-muted uppercase">
           Diagnostics
         </h2>
         <div className="flex items-center gap-2">
-          <ConnectionBadge />
           <Button
             variant="ghost"
             size="icon-sm"
@@ -237,7 +217,9 @@ export function DebugOverlay() {
       {open && (
         <div className="flex flex-col gap-4 overflow-auto px-4 pb-4">
           <FeedStats />
-          <h3 className="text-sm font-medium tracking-wider text-text-muted uppercase">Status</h3>
+          <h3 className="text-xs font-extrabold tracking-[0.12em] text-text-muted uppercase">
+            Status
+          </h3>
           <StatusCounts />
           <VehiclePicker />
           <LocateVehicle />

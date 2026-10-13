@@ -64,7 +64,7 @@ Rules:
 | DS1-R9 | **Debug overlay and toasts** use `.glass`. Toasts get the teal accent for success and `--danger` for errors. |
 | DS1-R10 | **2D/3D toggle:**<br>• Pitches the map to 55° and adds a `fill-extrusion` building layer, if the style has building data (OpenFreeMap does).<br>• Off by default. The choice is remembered in localStorage.<br>• The blank e2e style degrades gracefully, with no buildings and the pitch only. |
 | DS1-R11 | **LIVE indicator:** a glass pill at top right showing the connection state (pulsing teal dot when live) and the rows/s rate (`stats.rowsPerSec`). It replaces the connection badge that was only in the debug overlay. |
-| DS1-R12 | **Selected-vehicle trail layer:** a gradient teal line (fading to transparent at the tail) with a soft wide halo underneath. DS1 adds the layer; F07 rev 3 feeds it data. |
+| DS1-R12 | *(Reassigned to F07 on 2026-10-13 so one agent owns all selected-vehicle visuals.)* **Selected-vehicle trail layer:** a gradient teal line (fading to transparent at the tail) with a soft wide halo underneath. DS1 adds the layer; F07 rev 3 feeds it data. |
 
 ## 4. Acceptance tests
 | ID | Type | Test |

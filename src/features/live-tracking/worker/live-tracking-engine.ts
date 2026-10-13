@@ -10,6 +10,8 @@ import {
 import { parseStatusRulesConfig } from '../config/status-rules-schema.ts';
 import { FleetState } from './fleet-state.ts';
 import { frameBuffers, MapIndex } from './map-index.ts';
+import { SelectedHistory } from './selected-history.ts';
+import { detailsConfig } from '../config/details-config.ts';
 import { StatusTracker } from './status-deriver.ts';
 import type {
   Bbox,
@@ -74,11 +76,14 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   private sweepTimer: unknown = null;
   private sweepMs = 0;
   private rebuildTimer: unknown = null;
+  /** The first complete snapshot must show at once, not after the rebuild throttle. */
+  private rebuildNow = false;
   private viewport: MapViewport | null = null;
   /** Bumped when a sweep changed any status (the state version covers rows). */
   private statusEpoch = 0;
   private frameOf = { data: -1, builds: -1 };
   private selectedStatus: VehicleStatus | null = null;
+  private readonly history = new SelectedHistory(detailsConfig.historyMs);
   private rows = 0;
   private msgs = 0;
   private rowsPerSec = 0;
@@ -132,6 +137,8 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     if ((current?.vehicleId ?? null) === vehicleId) return current?.found ?? true;
     if (current?.found) this.unsubscribeSelection(current);
     this.selection = null;
+    this.history.reset();
+    this.selectedStatus = null;
     if (vehicleId !== null) {
       const found = this.state.indexOf(vehicleId) >= 0;
       this.selection = { vehicleId, found, gen: 0, combinfo: null, lafparsed: null };
@@ -257,8 +264,11 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
       case 'payload': {
         const s = this.selection;
         if (!s) break;
-        if (msg.id === `sel-c-${s.gen}`) s.combinfo = msg.data as Combinfo;
-        else if (msg.id === `sel-l-${s.gen}`) s.lafparsed = msg.data as Lafparsed;
+        if (msg.id === `sel-c-${s.gen}`) {
+          s.combinfo = msg.data as Combinfo;
+          const i = this.state.indexOf(s.vehicleId);
+          this.history.addPayload(s.combinfo, i < 0 ? null : this.status.statusOf(i));
+        } else if (msg.id === `sel-l-${s.gen}`) s.lafparsed = msg.data as Lafparsed;
         else break;
         this.selectionDirty = true;
         break;
@@ -273,6 +283,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   private completeSnapshot(): void {
     this.state.endSnapshot();
     this.snapshotComplete = true;
+    this.rebuildNow = true;
     this.client.resetBackoff();
     this.pendingTimer = this.clock.setTimeout(
       () => this.state.closePending(),
@@ -307,7 +318,8 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     if (this.selectionDirty || status !== this.selectedStatus) {
       this.selectionDirty = false;
       this.selectedStatus = status;
-      push.selected = s && toSelected(s, status);
+      this.history.observeStatus(status, this.now());
+      push.selected = s && { ...toSelected(s, status), history: this.history.view() };
     }
     const frame = this.viewport && this.frameIfChanged();
     if (frame) push.mapFrame = frame;
@@ -328,7 +340,8 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   /** Rebuilds the index when due; schedules a later rebuild when throttled. */
   private updateIndex(): void {
     const now = this.clock.now();
-    this.map.update(this.dataVersion, now);
+    this.map.update(this.dataVersion, now, this.rebuildNow);
+    this.rebuildNow = false;
     const wait = this.map.rebuildWait(this.dataVersion, now);
     if (wait !== null && this.rebuildTimer === null) {
       this.rebuildTimer = this.clock.setTimeout(() => {

@@ -1,7 +1,9 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-@import '@fontsource-variable/inter';
+@import '@fontsource/doto/600.css';
 @import '@fontsource/doto/700.css';
+@import '@fontsource/doto/800.css';
+@import '@fontsource/doto/900.css';
 @import './shared/styles/theme.css';
 
 @theme inline {
@@ -13,6 +15,17 @@
   --color-text-muted: var(--text-muted);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-2: var(--accent-2);
+  --color-accent-ink: var(--accent-ink);
+  --color-text-faint: var(--text-faint);
+  --color-danger: var(--danger);
+  --color-glass: var(--glass);
+  --color-glass-strong: var(--glass-strong);
+  --color-glass-border: var(--glass-border);
+  --color-tile: var(--tile);
+  --color-tile-border: var(--tile-border);
+  --color-surface-solid: var(--surface-solid);
+  --color-map-bg: var(--map-bg);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
 
@@ -43,6 +56,7 @@
 
   --radius-card: var(--radius-card);
   --radius-panel: var(--radius-panel);
+  --radius-tile: var(--radius-tile);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -63,50 +77,121 @@
   }
   body {
     @apply bg-bg font-sans text-text antialiased;
+    font-weight: 600;
+    letter-spacing: 0.01em;
   }
 }
 
-/* MapLibre controls on the dark theme (F06). Unlayered + `.maplibregl-map` so they beat
-   maplibre-gl.css, which loads later with the map chunk. */
-.maplibregl-map .maplibregl-ctrl-group {
-  background: var(--surface-1);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.4);
+@utility glass {
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  @supports (backdrop-filter: blur(1px)) {
+    background: var(--glass);
+    backdrop-filter: blur(18px) saturate(150%);
+  }
 }
-.maplibregl-map .maplibregl-ctrl-group button + button {
-  border-top-color: var(--border);
-}
-.maplibregl-map .maplibregl-ctrl-group .maplibregl-ctrl-icon {
-  filter: invert(1);
+
+/* MapLibre chrome on the dark theme (DS1-R5/R7/R8). Unlayered + `.maplibregl-map` so it beats
+   maplibre-gl.css, which loads later with the map chunk. Zoom/fit/3D are our own tools. */
+div.maplibregl-map {
+  font-family: var(--font-sans);
+  background: var(--map-bg);
 }
 .maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-attrib {
-  background: rgb(24 24 26 / 0.85);
-  color: var(--text-muted);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 11px;
 }
 .maplibregl-map .maplibregl-ctrl-attrib a {
-  color: var(--text-muted);
+  color: var(--text-faint);
 }
 .maplibregl-map .maplibregl-ctrl-scale {
-  background: rgb(24 24 26 / 0.7);
-  border-color: var(--text-muted);
-  color: var(--text-muted);
+  background: transparent;
+  border-color: var(--text-faint);
+  color: var(--text-faint);
+  font-size: 11px;
 }
 .maplibregl-map .maplibregl-popup-content {
-  background: var(--surface-1);
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
   color: var(--text);
-  border-radius: 8px;
+  border-radius: var(--radius-tile);
   padding: 8px 12px;
   font-size: 12px;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.5);
+  box-shadow: 0 8px 24px var(--shadow);
 }
 .maplibregl-map .maplibregl-popup-tip {
   display: none;
 }
 .fms-cluster {
+  /* No `position` here: MapLibre's `.maplibregl-marker` positions it absolutely. */
+  display: grid;
+  place-items: center;
   cursor: pointer;
   border-radius: 9999px;
   padding: 0;
 }
+.fms-cluster::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, var(--accent-halo), transparent 70%);
+  pointer-events: none;
+}
+.fms-cluster > svg {
+  position: relative;
+  display: block;
+}
+.fms-cluster-core {
+  position: absolute;
+  inset: 5px;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+}
 .fms-cluster:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+.fms-vignette {
+  background: radial-gradient(ellipse at 55% 45%, transparent 45%, var(--vignette) 100%);
+}
+@keyframes fms-pulse {
+  70% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.fms-pulse {
+  box-shadow: 0 0 0 0 var(--accent-glow);
+  animation: fms-pulse 1.8s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fms-pulse {
+    animation: none;
+  }
+}
+
+/* Keep the zoom buttons clear of the compact details card (F07). */
+@media (min-width: 1024px) {
+  .live-tracking:has([data-details-panel='compact']) .maplibregl-ctrl-bottom-right {
+    right: 444px;
+  }
+}
+
+/* Honour reduced motion for slide-in sheets (also keeps e2e clicks off moving targets). */
+@media (prefers-reduced-motion: reduce) {
+  [data-slot='sheet-overlay'],
+  [data-slot='sheet-content'] {
+    animation: none !important;
+    transition: none !important;
+  }
 }

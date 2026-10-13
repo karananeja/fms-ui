@@ -52,9 +52,10 @@ export class MapIndex {
     this.scratch = new Int32Array(this.opts.maxFramePoints + 1);
   }
 
-  /** Rebuilds when the data changed and the throttle allows (or there is no index yet). */
-  update(dataVersion: number, now: number): boolean {
-    if (this.index && (dataVersion === this.builtVersion || !this.rebuildDue(now))) return false;
+  /** Rebuilds when the data changed and the throttle allows (or there is no index yet); `force` skips the throttle. */
+  update(dataVersion: number, now: number, force = false): boolean {
+    if (this.index && (dataVersion === this.builtVersion || (!force && !this.rebuildDue(now))))
+      return false;
     this.rebuild(dataVersion, now);
     return true;
   }

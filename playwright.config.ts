@@ -1,6 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const baseURL = 'http://localhost:5173';
+// Ports are overridable so parallel worktrees don't share (or reuse) each other's servers.
+const vitePort = process.env.VITE_PORT ?? '5173';
+const mockPort = process.env.MOCK_PORT ?? '4000';
+const baseURL = `http://localhost:${vitePort}`;
 /** Headless Chromium has no GPU: MapLibre's WebGL runs on SwiftShader (D-041). */
 const launchOptions = {
   args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
@@ -15,17 +18,18 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   reporter: [['list'], ['html', { open: 'never' }]],
-  use: { baseURL, trace: 'retain-on-failure', launchOptions },
+  // Reduced motion: no clicks on sliding sheets; the app honours it (src/index.css).
+  use: { baseURL, trace: 'retain-on-failure', launchOptions, reducedMotion: 'reduce' },
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], launchOptions },
+      use: { ...devices['Desktop Chrome'], launchOptions, reducedMotion: 'reduce' },
       testIgnore: /\.(perf|clock)\.spec\.ts$/,
     },
     // Perf budgets run alone, after everything else, so other tests don't skew them.
     {
       name: 'perf',
-      use: { ...devices['Desktop Chrome'], launchOptions },
+      use: { ...devices['Desktop Chrome'], launchOptions, reducedMotion: 'reduce' },
       testMatch: /\.perf\.spec\.ts$/,
       dependencies: ['chromium'],
       workers: 1,
@@ -33,7 +37,7 @@ export default defineConfig({
     // Specs that shift the shared mock clock run last, alone.
     {
       name: 'clock',
-      use: { ...devices['Desktop Chrome'], launchOptions },
+      use: { ...devices['Desktop Chrome'], launchOptions, reducedMotion: 'reduce' },
       testMatch: /\.clock\.spec\.ts$/,
       dependencies: ['perf'],
       workers: 1,
@@ -45,6 +49,6 @@ export default defineConfig({
     timeout: 60000,
     reuseExistingServer: true,
     // Offline map style; a reused `pnpm dev` keeps its own style (e2e/fixtures.ts stubs it).
-    env: { VITE_MAP_STYLE_URL: '/map-styles/blank-dark.json' },
+    env: { VITE_MAP_STYLE_URL: '/map-styles/blank-dark.json', VITE_PORT: vitePort, MOCK_PORT: mockPort },
   },
 });

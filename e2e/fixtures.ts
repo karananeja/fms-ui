@@ -29,6 +29,7 @@ export { expect } from '@playwright/test';
 export interface FmsMap {
   center: [number, number];
   zoom: number;
+  pitch: number;
   bounds: number[];
   frameVersion: number;
   clusterCount: number;
@@ -37,10 +38,11 @@ export interface FmsMap {
   vehicleCount: number;
   moving: boolean;
   selectedVehicleId: string | null;
+  trailLength: number | null;
   highlight(): [number, number] | null;
   points(limit?: number): { id: string; lng: number; lat: number; x: number; y: number }[];
 }
-type Win = { __fmsMap?: FmsMap };
+export type Win = { __fmsMap?: FmsMap };
 
 /** Reads plain fields of `window.__fmsMap` (null until the map controller exists). */
 export const mapState = (page: Page) =>
@@ -58,6 +60,7 @@ export const mapState = (page: Page) =>
           vehicleCount: m.vehicleCount,
           moving: m.moving,
           selectedVehicleId: m.selectedVehicleId,
+          trailLength: m.trailLength,
           highlight: m.highlight(),
         }
       : null;

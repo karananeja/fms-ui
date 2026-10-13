@@ -22,6 +22,9 @@ export function exposeMapProbe(
     get zoom() {
       return map.getZoom();
     },
+    get pitch() {
+      return map.getPitch();
+    },
     get bounds() {
       return map.getBounds().toArray().flat();
     },
@@ -45,6 +48,10 @@ export function exposeMapProbe(
     },
     get selectedVehicleId() {
       return store.getSnapshot().selectedVehicleId;
+    },
+    /** Points in the selected vehicle's trail (F07), or null. */
+    get trailLength() {
+      return store.getSnapshot().trail?.length ?? null;
     },
     highlight: () => highlight(),
     /** Points of the current frame in client (page) coordinates. */

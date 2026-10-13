@@ -1,4 +1,4 @@
-import type { Me } from '@shared/contract/index.ts';
+import type { Combinfo, Me } from '@shared/contract/index.ts';
 import { act, renderHook } from '@testing-library/react';
 import { releaseProxy, type Remote } from 'comlink';
 import { describe, expect, it, vi } from 'vitest';
@@ -13,8 +13,10 @@ import type {
 } from '../worker/worker-api.ts';
 import {
   LiveTrackingStore,
+  hasPermission,
   selectedPosition,
   type LiveTrackingState,
+  type LngLat,
   type MapCommand,
 } from './live-tracking-store.ts';
 import { useLiveTracking } from './use-live-tracking.ts';
@@ -61,7 +63,11 @@ function fakeWorker() {
     [releaseProxy]: vi.fn(),
   };
   const createWorkerApi = vi.fn(() => api as unknown as Remote<LiveTrackingWorkerApi>);
-  const store = new LiveTrackingStore({ createWorkerApi });
+  const fetchTrail = vi.fn(async (): Promise<LngLat[]> => [
+    [77, 12],
+    [77.1, 12.1],
+  ]);
+  const store = new LiveTrackingStore({ createWorkerApi, fetchTrail });
   const push = (over: Partial<LivePush> = {}, stats: Partial<LivePush['stats']> = {}) =>
     onPush!({
       connection: 'live',
@@ -71,7 +77,7 @@ function fakeWorker() {
       ...over,
       stats: { ...store.getSnapshot().stats, vehicleCount: 10, ...stats },
     });
-  return { api, createWorkerApi, store, push };
+  return { api, createWorkerApi, store, push, fetchTrail };
 }
 
 describe('F04-T7: LiveTrackingStore', () => {
@@ -306,5 +312,82 @@ describe('F06-T4: store map actions', () => {
     expect(selectedPosition(store.getSnapshot())).toEqual([81, 21]);
     await store.selectVehicle(null);
     expect(selectedPosition(store.getSnapshot())).toBeNull();
+  });
+});
+
+describe('F07: permissions and the selected summary', () => {
+  it('holds me.permissions from start', () => {
+    const { store } = fakeWorker();
+    store.start({ ...me, permissions: ['live.view', 'vehicle.details.view'] });
+    const s = store.getSnapshot();
+    expect(s.permissions).toEqual(['live.view', 'vehicle.details.view']);
+    expect(hasPermission(s, 'vehicle.details.view')).toBe(true);
+    expect(hasPermission(s, 'vehicle.parameters.view')).toBe(false);
+  });
+
+  it('fetches the summary after selecting; a newer selection wins; not found has none', async () => {
+    const { store, api } = fakeWorker();
+    store.start(me);
+    api.getVehicleSummary.mockImplementation(async (id) => ({ vehicleId: id, regno: `R-${id}` }));
+    await store.selectVehicle('v1');
+    expect(store.getSnapshot().selectedSummary).toMatchObject({ regno: 'R-v1' });
+    const first = store.selectVehicle('v2');
+    await store.selectVehicle('v3');
+    await first;
+    expect(store.getSnapshot().selectedSummary).toMatchObject({ regno: 'R-v3' });
+    await store.selectVehicle('missing');
+    expect(store.getSnapshot()).toMatchObject({
+      selectedSummary: null,
+      selected: { found: false },
+    });
+  });
+});
+
+describe('F07: map click and resize', () => {
+  it('R13/R16: vehicle click selects only with vehicle.details.view; empty click deselects', async () => {
+    const { store, api } = fakeWorker();
+    store.start({ ...me, permissions: ['live.view'] });
+    store.clickMap('v1');
+    expect(store.getSnapshot().selectedVehicleId).toBeNull();
+    expect(api.selectVehicle).not.toHaveBeenCalled();
+
+    const ok = fakeWorker();
+    ok.store.start({ ...me, permissions: ['live.view', 'vehicle.details.view'] });
+    ok.store.clickMap('v1');
+    expect(ok.store.getSnapshot().selectedVehicleId).toBe('v1');
+    ok.store.clickMap(null);
+    expect(ok.store.getSnapshot().selectedVehicleId).toBeNull();
+    ok.api.selectVehicle.mockClear();
+    ok.store.clickMap(null);
+    expect(ok.api.selectVehicle).not.toHaveBeenCalled();
+  });
+
+  it('resizeMap emits a resize command', () => {
+    const { store } = fakeWorker();
+    const cmds: MapCommand[] = [];
+    store.onMapCommand((c) => cmds.push(c));
+    store.resizeMap();
+    expect(cmds).toEqual([{ type: 'resize' }]);
+  });
+});
+
+describe('F07-R12: selected-vehicle trail', () => {
+  it('fetches on select, appends live positions once, clears on deselect', async () => {
+    const { store, push, fetchTrail } = fakeWorker();
+    store.start({ fleetIds: ['f0'], permissions: [] } as unknown as Me);
+    await store.selectVehicle('v1');
+    expect(fetchTrail).toHaveBeenCalledWith('v1', 60);
+    await vi.waitFor(() => expect(store.getSnapshot().trail).toHaveLength(2));
+    const combinfo = { latitude: 12.2, longitude: 77.2 } as Combinfo;
+    const selected = { vehicleId: 'v1', found: true, status: null, combinfo, lafparsed: null };
+    push({ selected });
+    push({ selected: { ...selected } });
+    expect(store.getSnapshot().trail).toEqual([
+      [77, 12],
+      [77.1, 12.1],
+      [77.2, 12.2],
+    ]);
+    await store.selectVehicle(null);
+    expect(store.getSnapshot().trail).toBeNull();
   });
 });

@@ -1,9 +1,10 @@
-import { Building2, Maximize } from 'lucide-react';
+import { Building2, Maximize, Minus, Plus } from 'lucide-react';
 import { Popover } from 'radix-ui';
-import { useState, type FormEvent } from 'react';
-import { Button } from '@/shared/ui/button';
+import { useState, useSyncExternalStore, type ComponentProps, type FormEvent } from 'react';
+import { cn } from '@/shared/lib/utils';
 import { INDIA_CITIES, type IndiaCity } from '../config/india-cities';
 import { liveTrackingStore, type LiveTrackingState } from '../store/live-tracking-store';
+import { mapView } from '../store/map-view';
 import { useLiveTracking } from '../store/use-live-tracking';
 
 const selectHasVehicles = (s: LiveTrackingState) => s.total > 0;
@@ -28,16 +29,21 @@ function CitySelect() {
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger asChild>
-        <Button variant="secondary" size="sm" className="shadow-md" aria-haspopup="listbox">
-          <Building2 aria-hidden />
-          Jump to city…
-        </Button>
+        <button
+          type="button"
+          aria-haspopup="listbox"
+          className="flex h-12 items-center gap-2 rounded-tile px-3.5 text-xs font-extrabold tracking-[0.12em] text-text-muted uppercase shadow-[0_8px_24px_var(--shadow)] glass outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Building2 className="size-4" aria-hidden />
+          <span className="tracking-normal normal-case">Jump to city…</span>
+        </button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
-          align="end"
-          sideOffset={6}
-          className="z-50 w-60 rounded-md border bg-surface-1 p-2 shadow-lg"
+          align="start"
+          side="top"
+          sideOffset={8}
+          className="z-50 w-60 rounded-tile border border-glass-border bg-glass-strong p-2 shadow-[0_8px_24px_var(--shadow)]"
         >
           <form onSubmit={submit}>
             <input
@@ -46,7 +52,7 @@ function CitySelect() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search city"
               aria-label="Search city"
-              className="h-8 w-full rounded-md border bg-surface-2 px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-9 w-full rounded-md border border-tile-border bg-tile px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </form>
           <ul role="listbox" aria-label="Cities" className="mt-2 max-h-64 overflow-auto">
@@ -55,7 +61,7 @@ function CitySelect() {
                 <button
                   type="button"
                   onClick={() => choose(city)}
-                  className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none"
+                  className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-accent-soft hover:text-accent focus-visible:bg-accent-soft focus-visible:text-accent focus-visible:outline-none"
                 >
                   {city.name}
                   <span className="text-xs text-text-muted">{city.state}</span>
@@ -70,22 +76,55 @@ function CitySelect() {
   );
 }
 
-/** Top-right map actions: zoom to fit, city jump. */
+function Tool({ className, ...props }: ComponentProps<'button'>) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        'grid size-9 place-items-center rounded-[10px] text-xs font-black text-text-muted outline-none hover:bg-tile hover:text-text focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 aria-pressed:bg-accent-soft aria-pressed:text-accent [&_svg]:size-[18px]',
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/** Bottom-left map tools (DS1-R7/R10): zoom, fit, 2D/3D (desktop only) and the city jump. */
 export function MapToolbar() {
   const hasVehicles = useLiveTracking(selectHasVehicles);
+  const is3d = useSyncExternalStore(mapView.subscribe, mapView.get3d);
   return (
-    <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
-      <Button
-        variant="secondary"
-        size="icon-sm"
-        className="shadow-md"
-        aria-label="Zoom to fit"
-        title="Zoom to fit all vehicles"
-        disabled={!hasVehicles}
-        onClick={() => void liveTrackingStore.fitToVehicles()}
+    <div className="absolute bottom-12 left-3.5 z-10 flex items-end gap-2">
+      <div
+        role="toolbar"
+        aria-label="Map tools"
+        aria-orientation="vertical"
+        className="flex flex-col gap-1 rounded-tile p-1.5 shadow-[0_8px_24px_var(--shadow)] glass"
       >
-        <Maximize aria-hidden />
-      </Button>
+        <Tool aria-label="Zoom in" title="Zoom in" onClick={() => mapView.zoom(1)}>
+          <Plus aria-hidden />
+        </Tool>
+        <Tool aria-label="Zoom out" title="Zoom out" onClick={() => mapView.zoom(-1)}>
+          <Minus aria-hidden />
+        </Tool>
+        <Tool
+          aria-label="Zoom to fit"
+          title="Zoom to fit all vehicles"
+          disabled={!hasVehicles}
+          onClick={() => void liveTrackingStore.fitToVehicles()}
+        >
+          <Maximize aria-hidden />
+        </Tool>
+        <Tool
+          className="hidden lg:grid"
+          aria-label="3D view"
+          title={is3d ? 'Switch to 2D' : 'Switch to 3D'}
+          aria-pressed={is3d}
+          onClick={() => mapView.set3d(!is3d)}
+        >
+          3D
+        </Tool>
+      </div>
       <CitySelect />
     </div>
   );
