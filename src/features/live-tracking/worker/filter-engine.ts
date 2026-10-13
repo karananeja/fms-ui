@@ -44,8 +44,7 @@ export class FilterEngine {
     this._version++;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   matches(i: number): boolean {
-    return true;
+    return i >= 0;
   }
 }
