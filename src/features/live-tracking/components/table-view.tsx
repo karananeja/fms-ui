@@ -1,9 +1,14 @@
-import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table';
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  type ColumnDef,
+  type Row,
+} from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowDown, ArrowUp, LocateFixed } from 'lucide-react';
-import { useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
-import { useNow } from '@/shared/hooks/use-now';
 import { formatIst } from '@/shared/lib/format-date';
 import { cn } from '@/shared/lib/utils';
 import { COLUMN_BY_ID, type TableColumnId, type TableRow } from '../config/table-columns';
@@ -43,10 +48,14 @@ const grouped = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
 const DASH = '—';
 const n0 = (v: number | null) => (v === null ? DASH : grouped.format(v));
 
+/** IST time; the relative age is computed on hover, so no per-cell timers or periodic re-renders. */
 function TimeCell({ at }: { at: number | null }) {
-  const now = useNow(30_000);
   if (at === null) return <>{DASH}</>;
-  return <span title={formatRelative(at, now)}>{formatIst(at)}</span>;
+  return (
+    <span onPointerEnter={(e) => (e.currentTarget.title = formatRelative(at, Date.now()))}>
+      {formatIst(at)}
+    </span>
+  );
 }
 
 function Cell({
@@ -90,6 +99,89 @@ function Cell({
   }
 }
 
+/** One virtual row; memoised so scrolling only renders rows that entered the window. */
+const VehicleRow = memo(function VehicleRow({
+  index,
+  start,
+  row: r,
+  columns,
+  selected,
+  onSelect,
+  onLocate,
+}: {
+  index: number;
+  start: number;
+  row: Row<TableRow> | undefined;
+  columns: TableColumnId[];
+  selected: boolean;
+  onSelect: (vehicleId: string) => void;
+  onLocate: (vehicleId: string) => void;
+}) {
+  const id = r?.original.vehicleId;
+  return (
+    <div
+      role="row"
+      aria-rowindex={index + 2}
+      aria-selected={selected}
+      data-vehicle-id={id}
+      onClick={() => id && onSelect(id)}
+      className={cn(
+        'group absolute inset-x-0 flex cursor-pointer border-b border-glass-border/50 text-sm hover:bg-tile',
+        selected && 'bg-accent-soft hover:bg-accent-soft',
+      )}
+      style={{ height: ROW_H, transform: `translateY(${start}px)` }}
+    >
+      {r
+        ? r.getVisibleCells().map((c, k) => (
+            <div
+              key={c.id}
+              role="cell"
+              style={{ width: c.column.getSize() }}
+              className={cn(
+                'flex shrink-0 items-center px-3',
+                COLUMN_BY_ID[c.column.id as TableColumnId].numeric && 'justify-end tabular-nums',
+                // The sticky cell is opaque (rows scroll under it) and carries the row tint on top.
+                k === 0 &&
+                  'sticky left-0 z-[1] bg-map-bg group-hover:bg-[image:linear-gradient(var(--tile),var(--tile))] lg:bg-surface-solid',
+                k === 0 &&
+                  selected &&
+                  'bg-[image:linear-gradient(var(--accent-soft),var(--accent-soft))] group-hover:bg-[image:linear-gradient(var(--accent-soft),var(--accent-soft))]',
+              )}
+            >
+              <span className="min-w-0 truncate">
+                {flexRender(c.column.columnDef.cell, c.getContext())}
+              </span>
+            </div>
+          ))
+        : columns.map((cid) => (
+            <div
+              key={cid}
+              role="cell"
+              style={{ width: WIDTH[cid] }}
+              className="flex shrink-0 items-center px-3"
+            >
+              <span className="h-3 w-2/3 animate-pulse rounded bg-tile" aria-hidden />
+            </div>
+          ))}
+      <div role="cell" className="flex w-14 shrink-0 items-center justify-center">
+        {id && (
+          <button
+            type="button"
+            aria-label={`Locate ${r.original.regno || id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onLocate(id);
+            }}
+            className="grid size-8 place-items-center rounded-[10px] text-text-muted outline-none hover:bg-tile hover:text-accent focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <LocateFixed className="size-4" aria-hidden />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+});
+
 const selectSelected = (s: LiveTrackingState) => s.selectedVehicleId;
 
 /**
@@ -116,6 +208,13 @@ export function TableView({
   const fleets = useTableView((s) => s.fleetNames, store);
   const selected = useLiveTracking(selectSelected, Object.is, live);
   const scroller = useRef<HTMLDivElement>(null);
+  // Stable callbacks so memoised rows only re-render when their own data changes.
+  const locateRef = useRef(onLocate);
+  useEffect(() => {
+    locateRef.current = onLocate;
+  });
+  const locate = useMemo(() => (id: string) => locateRef.current(id), []);
+  const select = useMemo(() => (id: string) => void live.selectVehicle(id), [live]);
 
   useEffect(() => {
     store.open(desktop ? 'desktop' : 'mobile');
@@ -151,6 +250,8 @@ export function TableView({
     getScrollElement: () => scroller.current,
     estimateSize: () => ROW_H,
     overscan: 8,
+    // Let React batch scroll renders instead of a synchronous render per scroll event (F09 budget).
+    useFlushSync: false,
     // Until the scroller is measured (and in jsdom): a typical viewport.
     initialRect: { width: 1200, height: 800 },
   });
@@ -175,7 +276,11 @@ export function TableView({
     <section
       aria-label="Vehicle table"
       data-testid="table-view"
-      className="absolute inset-0 z-[15] flex flex-col overflow-hidden bg-map-bg lg:inset-3.5 lg:rounded-[var(--radius-panel)] lg:shadow-[0_30px_80px_rgb(0_0_0/0.55)] lg:glass"
+      className={cn(
+        'absolute inset-0 z-[15] flex flex-col overflow-hidden bg-map-bg lg:inset-3.5 lg:rounded-[var(--radius-panel)] lg:shadow-[0_30px_80px_rgb(0_0_0/0.55)] lg:glass',
+        // The details card (420 px + gutters) sits beside the table, not over its Locate column.
+        selected && 'lg:right-[448px]',
+      )}
     >
       <TableToolbar onBack={onBack} store={store} live={live} />
       <div ref={scroller} data-testid="table-scroller" className="min-h-0 flex-1 overflow-auto">
@@ -227,61 +332,16 @@ export function TableView({
               const r = model[v.index - offset];
               const id = r?.original.vehicleId;
               return (
-                <div
+                <VehicleRow
                   key={v.index}
-                  role="row"
-                  aria-rowindex={v.index + 2}
-                  aria-selected={!!id && id === selected}
-                  data-vehicle-id={id}
-                  onClick={() => id && void live.selectVehicle(id)}
-                  className={cn(
-                    'absolute inset-x-0 flex cursor-pointer border-b border-glass-border/50 text-sm hover:bg-tile',
-                    id && id === selected && 'bg-accent-soft hover:bg-accent-soft',
-                  )}
-                  style={{ height: ROW_H, transform: `translateY(${v.start}px)` }}
-                >
-                  {r
-                    ? r.getVisibleCells().map((c, k) => (
-                        <div
-                          key={c.id}
-                          role="cell"
-                          style={{ width: c.column.getSize() }}
-                          className={cn(
-                            'flex shrink-0 items-center truncate px-3',
-                            COLUMN_BY_ID[c.column.id as TableColumnId].numeric &&
-                              'justify-end tabular-nums',
-                            k === 0 && 'sticky left-0 z-[1] bg-map-bg lg:bg-surface-solid',
-                          )}
-                        >
-                          {flexRender(c.column.columnDef.cell, c.getContext())}
-                        </div>
-                      ))
-                    : columns.map((cid) => (
-                        <div
-                          key={cid}
-                          role="cell"
-                          style={{ width: WIDTH[cid] }}
-                          className="flex shrink-0 items-center px-3"
-                        >
-                          <span className="h-3 w-2/3 animate-pulse rounded bg-tile" aria-hidden />
-                        </div>
-                      ))}
-                  <div role="cell" className="flex w-14 shrink-0 items-center justify-center">
-                    {id && (
-                      <button
-                        type="button"
-                        aria-label={`Locate ${r.original.regno || id}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onLocate(id);
-                        }}
-                        className="grid size-8 place-items-center rounded-[10px] text-text-muted outline-none hover:bg-tile hover:text-accent focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <LocateFixed className="size-4" aria-hidden />
-                      </button>
-                    )}
-                  </div>
-                </div>
+                  index={v.index}
+                  start={v.start}
+                  row={r}
+                  columns={columns}
+                  selected={!!id && id === selected}
+                  onSelect={select}
+                  onLocate={locate}
+                />
               );
             })}
           </div>

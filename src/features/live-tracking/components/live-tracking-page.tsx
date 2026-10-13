@@ -76,7 +76,7 @@ export function LiveTrackingPage() {
       {table && <TableView onBack={() => setView('map')} onLocate={locate} />}
       {debug && <DebugOverlay />}
       <VehicleDetailsPanel />
-      <HeadingCompass />
+      {!table && <HeadingCompass />}
       <MapNotice />
     </div>
   );

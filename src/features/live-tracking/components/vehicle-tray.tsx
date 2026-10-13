@@ -63,7 +63,11 @@ export function VehicleTray({
   const [cards, setCards] = useState<TrayCard[]>([]);
   const [collapsed, setCollapsed] = useState(readCollapsed);
 
-  useEffect(() => void table.loadFleetNames(), [table]);
+  // Retried with the frames until it succeeds (the first call can race the dev sign-in).
+  const namesMissing = Object.keys(fleets).length === 0;
+  useEffect(() => {
+    if (namesMissing) void table.loadFleetNames();
+  }, [table, namesMissing, frame]);
 
   // A new frame means the view or the data changed: re-query the tray (F09-R6).
   useEffect(() => {
@@ -138,7 +142,7 @@ export function VehicleTray({
                     </span>
                     <span className="mt-1.5 flex gap-3 text-[11px] text-text-muted">
                       {stats(c).map(([k, v]) => (
-                        <span key={k}>
+                        <span key={k} className="whitespace-nowrap">
                           {k} <b className="font-extrabold text-text">{v}</b>
                         </span>
                       ))}

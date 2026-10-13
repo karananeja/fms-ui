@@ -52,7 +52,7 @@ export function TableToolbar({
     <div
       role="toolbar"
       aria-label="Table tools"
-      className="flex [scrollbar-width:none] items-center gap-1.5 overflow-x-auto border-b border-glass-border p-2"
+      className="flex flex-wrap items-center gap-1.5 border-b border-glass-border p-2"
     >
       <ToolButton onClick={onBack} aria-label="Back to map">
         <ArrowLeft aria-hidden />
