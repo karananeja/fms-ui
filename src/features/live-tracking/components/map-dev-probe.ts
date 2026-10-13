@@ -22,6 +22,9 @@ export function exposeMapProbe(
     get zoom() {
       return map.getZoom();
     },
+    get pitch() {
+      return map.getPitch();
+    },
     get bounds() {
       return map.getBounds().toArray().flat();
     },

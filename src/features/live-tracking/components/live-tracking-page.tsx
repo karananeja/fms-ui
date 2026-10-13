@@ -4,6 +4,7 @@ import { liveTrackingStore, type LiveTrackingState } from '../store/live-trackin
 import { useLiveTracking } from '../store/use-live-tracking';
 import { DebugOverlay } from './debug-overlay';
 import { LiveMap } from './live-map';
+import { LivePill } from './live-pill';
 import { MapToolbar } from './map-toolbar';
 
 const NOTICE_MS = 3000;
@@ -19,10 +20,10 @@ function MapNotice() {
   return (
     <div
       role="status"
-      className="pointer-events-none absolute inset-x-0 bottom-12 z-20 flex justify-center"
+      className="pointer-events-none absolute inset-x-0 bottom-28 z-20 flex justify-center px-4"
     >
       {notice && (
-        <p className="rounded-md border bg-surface-1 px-4 py-2 text-sm shadow-lg">
+        <p className="rounded-tile border-l-2 border-l-accent px-4 py-2.5 text-sm shadow-[0_8px_24px_var(--shadow)] glass">
           {notice.message}
         </p>
       )}
@@ -40,6 +41,13 @@ export function LiveTrackingPage() {
     <div className="relative h-full overflow-hidden">
       <h1 className="sr-only">Live tracking</h1>
       <LiveMap />
+      <div className="fms-vignette pointer-events-none absolute inset-0" aria-hidden />
+      {/* DS1-R3: top overlay slots (search left, status chips right) for F08; hidden while empty. */}
+      <div className="pointer-events-none absolute inset-x-3.5 top-3.5 z-10 flex items-center gap-2.5">
+        <div data-slot="map-search" className="pointer-events-auto empty:hidden" />
+        <div data-slot="map-status-chips" className="pointer-events-auto empty:hidden" />
+        <LivePill />
+      </div>
       <MapToolbar />
       {debug && <DebugOverlay />}
       <MapNotice />

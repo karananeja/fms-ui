@@ -9,8 +9,18 @@ import { PageActionsSlotContext } from './page-actions-context';
 const activeOptions = { exact: true } as const;
 
 function Brand() {
-  return <span className="font-display text-lg font-bold text-accent">FMS</span>;
+  return (
+    <span
+      aria-label="FMS"
+      className="grid size-[38px] place-items-center rounded-tile bg-linear-135 from-accent to-accent-2 text-[15px] font-black text-accent-ink shadow-[0_0_24px_var(--accent-glow)]"
+    >
+      F
+    </span>
+  );
 }
+
+const navLink =
+  'text-text-faint outline-none hover:bg-tile hover:text-text focus-visible:ring-2 focus-visible:ring-ring data-[status=active]:bg-accent-soft data-[status=active]:text-accent data-[status=active]:shadow-[inset_2px_0_0_var(--accent)]';
 
 export function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -19,9 +29,9 @@ export function AppLayout() {
 
   return (
     <div className="flex h-full">
-      <aside className="hidden w-16 shrink-0 flex-col items-center gap-2 border-r bg-surface-1 py-4 lg:flex">
+      <aside className="hidden w-16 shrink-0 flex-col items-center gap-2 border-r border-glass-border bg-surface-solid py-4 lg:flex">
         <Brand />
-        <nav aria-label="Main navigation" className="mt-4 flex flex-col gap-1">
+        <nav aria-label="Main navigation" className="mt-3.5 flex flex-col gap-2">
           {navItems.map(({ to, label, icon: Icon }) => (
             <Link
               key={to}
@@ -29,7 +39,7 @@ export function AppLayout() {
               activeOptions={activeOptions}
               title={label}
               aria-label={label}
-              className="flex size-10 items-center justify-center rounded-md text-text-muted hover:bg-surface-2 hover:text-text data-[status=active]:bg-accent-soft data-[status=active]:text-accent"
+              className={`flex size-11 items-center justify-center rounded-tile ${navLink}`}
             >
               <Icon className="size-5" />
             </Link>
@@ -38,16 +48,17 @@ export function AppLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-surface-1 px-4">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-glass-border bg-surface-solid px-4">
           <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
                 <Menu />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-72 bg-surface-1">
-              <SheetTitle className="px-4 pt-4">
+            <SheetContent side="left" className="w-72 border-glass-border bg-surface-solid">
+              <SheetTitle className="flex items-center gap-3 px-4 pt-4 text-sm font-black tracking-[0.12em]">
                 <Brand />
+                FMS
               </SheetTitle>
               <SheetDescription className="sr-only">Main navigation</SheetDescription>
               <nav aria-label="Drawer navigation" className="flex flex-col gap-1 px-2">
@@ -57,7 +68,7 @@ export function AppLayout() {
                     to={to}
                     activeOptions={activeOptions}
                     onClick={() => setDrawerOpen(false)}
-                    className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-text-muted hover:bg-surface-2 hover:text-text data-[status=active]:bg-accent-soft data-[status=active]:text-accent"
+                    className={`flex items-center gap-3 rounded-tile px-3 py-2.5 text-sm ${navLink}`}
                   >
                     <Icon className="size-4" />
                     {label}
@@ -66,7 +77,7 @@ export function AppLayout() {
               </nav>
             </SheetContent>
           </Sheet>
-          <span className="truncate text-sm font-medium tracking-wider text-text-muted uppercase">
+          <span className="truncate text-xs font-extrabold tracking-[0.12em] text-text-muted uppercase">
             {title}
           </span>
           <div

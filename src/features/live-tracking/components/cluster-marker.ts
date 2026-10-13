@@ -10,21 +10,23 @@ export function shortCount(n: number): string {
 
 export const clusterLabel = (count: number) => `${indian.format(count)} vehicles`;
 
-const size = (count: number) => (count < 100 ? 34 : count < 1000 ? 40 : count < 10_000 ? 46 : 52);
+/** DS1-R5 sizes. */
+export const clusterSize = (count: number) => (count < 100 ? 38 : count < 1000 ? 46 : 58);
+
+const STROKE = 3.2;
 
 /**
- * SVG donut for a cluster: one ring segment per status (in `colors` order, sized by
- * `breakdown`), the short count in the centre. Plain DOM string: hundreds of these update
- * per frame, so no React here.
+ * Status donut for a cluster (DS1-R5): one ring segment per status (in `colors` order, sized
+ * by `breakdown`) around a glass centre (`.fms-cluster-core`, styled in `index.css`) holding
+ * the short count. Plain DOM string: hundreds of these update per frame, so no React here.
  */
 export function clusterMarkerSvg(
   count: number,
   breakdown: ArrayLike<number>,
   colors: readonly string[],
 ): string {
-  const d = size(count);
-  const stroke = 5;
-  const r = d / 2 - stroke / 2 - 1;
+  const d = clusterSize(count);
+  const r = d / 2 - STROKE / 2;
   const c = 2 * Math.PI * r;
   let offset = 0;
   let ring = '';
@@ -32,8 +34,8 @@ export function clusterMarkerSvg(
     const n = breakdown[k]!;
     if (!n) continue;
     const len = (n / count) * c;
-    ring += `<circle r="${r}" cx="${d / 2}" cy="${d / 2}" fill="none" stroke="${colors[k]}" stroke-width="${stroke}" stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-offset}"/>`;
+    ring += `<circle r="${r}" cx="${d / 2}" cy="${d / 2}" fill="none" stroke="${colors[k]}" stroke-width="${STROKE}" stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-offset}"/>`;
     offset += len;
   }
-  return `<svg width="${d}" height="${d}" viewBox="0 0 ${d} ${d}" aria-hidden="true"><circle r="${r}" cx="${d / 2}" cy="${d / 2}" fill="rgb(14 14 15 / 0.88)"/><g transform="rotate(-90 ${d / 2} ${d / 2})">${ring}</g><text x="50%" y="50%" dy="0.35em" text-anchor="middle" fill="#f2f2f2" font-size="${d < 40 ? 11 : 12}" font-weight="600" font-family="Inter Variable, system-ui, sans-serif">${shortCount(count)}</text></svg>`;
+  return `<svg width="${d}" height="${d}" viewBox="0 0 ${d} ${d}" aria-hidden="true"><g transform="rotate(-90 ${d / 2} ${d / 2})">${ring}</g></svg><span class="fms-cluster-core" aria-hidden="true">${shortCount(count)}</span>`;
 }

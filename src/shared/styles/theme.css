@@ -20,6 +20,12 @@
   --ok: #34d399;
   --warn: #fbbf24;
   --danger: #f87171;
+  --shadow: rgba(0, 0, 0, 0.45);
+  --vignette: rgba(5, 7, 10, 0.7);
+  --accent-glow: rgba(45, 212, 191, 0.4);
+  --accent-halo: rgba(45, 212, 191, 0.16);
+  --transparent: rgba(0, 0, 0, 0);
+  --building: #18202a;
   --radius-panel: 20px;
   --radius-tile: 14px;
 

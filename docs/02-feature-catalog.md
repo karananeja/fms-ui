@@ -17,7 +17,7 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 | F04 | Live data pipeline (worker, WS, `live-tracking-store.ts`) | F01 | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
 | F05 | Vehicle status derivation | F04 | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
 | F06 | Live map (markers, clusters, zoom-to-fit, city jump, quick locate) | F04, F05 | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
-| DS1 | Design refresh ("Dark ops console"; restyles F00 shell + F06 map) | F06 | Signed off | Signed off | In progress | — | — |
+| DS1 | Design refresh ("Dark ops console"; restyles F00 shell + F06 map) | F06 | Signed off | Signed off | Done | Passed | — |
 | F07 | Vehicle details panel & parameters | DS1 tokens | Signed off (amended) | Rev 3 signed off | In progress (parallel with DS1) | — | — |
 | F08 | Status bar: search, status counters, filters | F05, F06 | Signed off | — | — | — | — |
 | F09 | Table view (full / viewport) & CSV export | F08 | Signed off | — | — | — | — |
