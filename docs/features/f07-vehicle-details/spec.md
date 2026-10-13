@@ -2,86 +2,92 @@
 
 | Field | Value |
 |---|---|
-| Status | **Revision 2: awaiting sign-off.** Revision 1 was signed off 2026-10-13 and then superseded by the design correction. |
-| Intent | `intent.md` (signed off 2026-10-13; D-017 raw numbers, no units in Parameters) |
-| Branch | `feature/f07-vehicle-details` (resumes after DS1 is accepted; rebased onto `main`) |
-| Visual source of truth | `docs/design/design-direction.html` (DS1). **Not** the current app's screenshots. Those are reference for *which data exists* only. |
+| Status | **Revision 3: awaiting sign-off.** Rev 1 was signed off 2026-10-13 and superseded by the design correction. Rev 2 was never signed off; it was replaced after "still appears simple". |
+| Intent | `intent.md` (signed off 2026-10-13, layout wording amended; D-017 raw numbers, no units in Parameters) |
+| Branch | `feature/f07-vehicle-details` (rebased onto the DS1 tokens commit; runs in parallel with DS1, see §5) |
+| Visual source of truth | `docs/design/design-direction.html` **v2**. The current app's screenshots only show *which data exists*. |
+| Already done (paused branch) | `details-config.ts`, `vehicle-details-model.ts`, `humanize-pid.ts`, `?vehicle=` URL sync, store permissions/`clickMap`/deselect (R16), with unit tests. D-048…D-050. |
 
 ## 1. Files (kebab-case)
 
 ```
 src/features/live-tracking/
-  config/details-config.ts             freshness thresholds, SOC colour bands, speed meter max, N/A sentinels   (done)
-  lib/vehicle-details-model.ts         pure: payloads (+summary, status, now) → view model (all formatting rules)  (done; extend)
-  lib/humanize-pid.ts                  'motor_temperature' → 'Motor Temperature'   (done)
-  lib/format-relative.ts               '2 min ago' / '31 h ago'
-  components/vehicle-details-panel.tsx     glass card (desktop) / bottom sheet (mobile) + tabs
-  components/details-header.tsx
-  components/overview-tab.tsx
-  components/parameters-tab.tsx
-  components/device-tab.tsx
-  components/metric-tile.tsx
-  components/battery-ring.tsx
-  components/location-row.tsx
+  config/details-config.ts          (done) + speedometer max, range ring max, parameter groups, highlight PIDs
+  lib/vehicle-details-model.ts      (done) + rings, speedo, cells strip, events view model
+  lib/humanize-pid.ts               (done)
+  lib/format-relative.ts            '2 min ago' / '31 h ago'
+  worker/selected-history.ts        per-selection ring buffer {t, soc, speed, lat, lng} + status/ignition event log
+  components/vehicle-details-panel.tsx   glass card (desktop) / bottom sheet (mobile), tabs
+  components/details-hero.tsx       header, vehicle illustration, signal + GPS badges, freshness row
+  components/vehicle-illustration.tsx    SVG per assetType: e-scooter, e-3W, e-car, truck (fallback: e-scooter)
+  components/ring-gauge.tsx         battery / range / health rings
+  components/speedometer.tsx        SVG arc 0–speedoMax with ticks; red zone above 75%
+  components/session-chart.tsx      SVG area chart (SOC over session)
+  components/overview-tab.tsx  parameters-tab.tsx  device-tab.tsx  events-tab.tsx
+  components/cell-strip.tsx         20-cell voltage bars
+  components/selected-callout.tsx   map callout next to the selected vehicle
+  components/heading-compass.tsx    compass showing the selected vehicle's heading
+mock-server/routes/…              GET /api/vehicles/:id/trail?minutes=60 (reuses the share-trail generator)
 ```
-Revision 1's WIP components are deleted: `driving-energy-card`, `expanded-details`, `radial-gauge`, `parameters-grid`, `device-comms-card`, `details-ui`.
-New dependencies: `sonner` (copy toasts, shadcn) and `vaul` (mobile bottom sheet, shadcn Drawer).
+- Rev-1 WIP components are deleted: `driving-energy-card`, `expanded-details`, `radial-gauge`, `parameters-grid`, `device-comms-card`, `details-ui`.
+- Charts and gauges are hand-written SVG. No chart library is added.
 
 ## 2. Requirements
 
-### Selection & routing
+### Selection & routing (unchanged)
 | ID | Requirement |
 |---|---|
-| F07-R1 | **Selection lives in the URL** as `?vehicle=<vehicleId>` on `/live-tracking`, kept in sync both ways with `store.selectedVehicleId`. Reload, back/forward and deep links all work. Closing the panel removes the param and deselects. |
-| F07-R2 | **The header shows immediately** from `getVehicleSummary` (slim, already in the worker). The full `combinfo`/`lafparsed` payloads fill in when they arrive; until then their sections show skeletons. |
-| F07-R3 | If the vehicle is `found: false` (D-033), the panel shows "Vehicle not available in your fleets" with a Close button. |
+| F07-R1 | **Selection lives in the URL** as `?vehicle=<vehicleId>`, kept in sync both ways with the store. Reload, back/forward and deep links work. Closing the panel deselects. *(done)* |
+| F07-R2 | **The header shows immediately** from `getVehicleSummary`. Full payloads fill in when they arrive; until then, skeletons. |
+| F07-R3 | `found: false` → "Vehicle not available in your fleets", with a Close button. |
 
 ### Layout
 | ID | Requirement |
 |---|---|
-| F07-R4 | **Desktop (≥ 1024 px):**<br>• A floating `.glass` card on the right of the map: 392 px wide, `--radius-panel`.<br>• Top edge below the map's top slot row; 14 px inset from the right and bottom.<br>• Fixed header, three **tabs** (Overview · Parameters `n` · Device), and a scrollable body.<br>• There is **no** expanded/wide mode. The tabs replace it.<br>• The map stays fully usable around the card. |
-| F07-R5 | **Mobile (< 1024 px):**<br>• The same card becomes a bottom sheet (vaul) with snap points at 35% and 92%.<br>• The header's absolute timestamp is hidden. |
+| F07-R4 | **Desktop (≥ 1024 px):**<br>• A floating `.glass` card on the right: 420 px wide, top under the top bar, 14 px inset, deep shadow.<br>• Fixed **hero** at the top, then the **rings row**, then **tabs** (Overview · Parameters `n` · Device · Events), then a scrollable body. |
+| F07-R5 | **Mobile (< 1024 px):** a glass bottom sheet (vaul) with snap points at 35% and 92%. At 35% it shows the hero and the rings. The absolute time is hidden. |
 
-### Content, using the view model in `vehicle-details-model.ts`
-
-All numbers use **en-IN** grouping, and all timestamps use `formatIst`.
-
+### Content (view model in `vehicle-details-model.ts`; all text in Doto)
 | ID | Section | Rules |
 |---|---|---|
-| F07-R6 | **Header** | • Regno in `--font-mono`, with icon buttons for copy, locate (`store.locateVehicle`) and close.<br>• Below it: a `StatusPill` (F05), then `make · model · variant` (from the summary), then a fuel tag (`appmeta.fueltype`, falling back to the summary `fuelType`).<br>• **Freshness row:** "GPS `<relative>`" (`gpstime`) and "CAN `<relative>`" (`canutctime`), each with a dot:<br>&nbsp;&nbsp;• ≤ 5 min: `--ok`<br>&nbsp;&nbsp;• ≤ 30 min: `--warn`<br>&nbsp;&nbsp;• otherwise: `--danger`<br>&nbsp;&nbsp;Based on server-corrected now.<br>• Each relative time has its absolute `formatIst` value as a tooltip.<br>• On desktop, the newer absolute time is also shown right-aligned. |
-| F07-R7 | **Overview tab** | • **2×2 metric tiles:**<br>&nbsp;&nbsp;• **Speed**: integer km/h, with a thin teal meter against `config.speedMeterMax` (120).<br>&nbsp;&nbsp;• **Battery**: a ring plus SOC %, coloured by band (< 20 `--danger`, < 60 `--warn`, otherwise `--ok`).<br>&nbsp;&nbsp;• **Range (DTE)**: integer km.<br>&nbsp;&nbsp;• **Odometer**: whole km, rounded down (D-049).<br>• **Key/value tile:**<br>&nbsp;&nbsp;• State of health: 1 decimal %, `--ok` if ≥ 80.<br>&nbsp;&nbsp;• Motor temperature: raw.<br>&nbsp;&nbsp;• Motor speed: `engine_speed`, rpm.<br>&nbsp;&nbsp;• Ignition: On/Off, with the last on/off time.<br>• Location row (R11).<br>• A missing value shows "—". |
-| F07-R8 | *(removed in revision 2)* | Dial gauges and the expanded view are dropped in favour of tiles and tabs. |
-| F07-R9 | **Parameters tab** | • **Every lafparsed PID** (374), as a dense key/value list: humanised label in muted text, raw value in `--font-mono`, no units (D-017).<br>• `65535` (`config.naSentinels`) shows as "N/A" in `--text-faint`.<br>• Each row's `title` = the key + `formatIst(timestamp)`.<br>• A search box does case-insensitive substring matching on label **or** key.<br>• The tab label shows the filtered count.<br>• Sorted A–Z by label.<br>• The tab is hidden without `vehicle.parameters.view`. |
-| F07-R10 | **Device tab** | • Device ID tile, with copy.<br>• 2×2 tiles:<br>&nbsp;&nbsp;• Aux battery: `carbattery`, 2 decimals, V. `--danger` when below the F05 pullout threshold.<br>&nbsp;&nbsp;• Internal battery: `devbattery`, 2 decimals, V.<br>&nbsp;&nbsp;• Signal: `rxdbm` dBm.<br>&nbsp;&nbsp;• GPS fix: `fixquality` 0 → "None" (`--warn`), otherwise "Fix (q)". |
-| F07-R11 | **Location** | Lat/lng to 5 decimals in `--font-mono`, with copy. |
-| F07-R12 | **Not shown** | Reports and Analytics buttons (C16). The **Share live location** CTA (the teal outline button in the mockup) is not rendered until F10 adds it. |
-| F07-R13 | **Permissions** | Visibility is read from `me.permissions`, which the store now holds from bootstrap:<br>• `vehicle.details.view` is needed to open the panel at all. Without it, a click only shows a tooltip.<br>• `vehicle.parameters.view` controls the Parameters tab. |
-| F07-R14 | **Live updates** | • Values update in place at the push cadence, without layout shift and without re-mounting.<br>• The parameters list re-renders only the rows whose value changed (memoised per key). |
-| F07-R15 | **Accessibility** | • The panel is a labelled region.<br>• Esc closes it on desktop.<br>• Copy buttons have aria-labels and show a sonner toast "Copied".<br>• Focus moves to the panel when it opens. |
-| F07-R16 | **Deselect on map click** *(amendment, 2026-10-13, from the F06 hand-over)* | Clicking an empty area of the map, meaning no point and no cluster, closes the panel and clears `?vehicle`. Dragging the map does not count as a click. |
+| F07-R6 | **Hero** | • Regno, with copy, locate and close buttons.<br>• Status pill, `MAKE · MODEL · VARIANT` (uppercase), fuel tag.<br>• **Vehicle illustration** chosen by `assetType`, on a teal floor glow.<br>• **Badges:**<br>&nbsp;&nbsp;• Signal: `rxdbm`, shown as 4 bars. ≥ −70 = 3 bars, ≥ −85 = 2, ≥ −100 = 1, else 0.<br>&nbsp;&nbsp;• GPS fix: `fixquality` 0 = "NONE" in `--warn`, otherwise "FIX q".<br>• **Freshness row:** GPS and CAN as relative times, with dots (≤ 5 min `--ok`, ≤ 30 min `--warn`, else `--danger`). The absolute `formatIst` time shows on hover. The newer absolute time is right-aligned on desktop. |
+| F07-R7 | **Rings row** | • **Battery:** SOC %, band-coloured (< 20 danger, < 60 warn, else ok).<br>• **Range:** DTE km, against `rangeRingMax` (150).<br>• **Health:** SOH %, ok if ≥ 80.<br>A missing value shows "—" with an empty ring. |
+| F07-R8 | **Overview tab** | • **Speedometer:** 0–`speedoMax` (120) km/h, ticks every 5, labels every 20, red zone above 90. Next to it, key/value rows: Odometer (rounded down), Motor speed (`engine_speed` rpm), Motor temp (raw), Ignition (On/Off + time from `lastignon`/`lastignoff`).<br>• **Energy · this session:** a SOC area chart from `selected-history` (since selection, sampled per payload, ≤ 2 h buffer), with time ticks and the latest point marked. With fewer than 2 samples it says "Collecting…".<br>• **Share live location:** gradient CTA. Hidden until F10. |
+| F07-R9 | **Parameters tab** | • Search box: case-insensitive, matches label **or** key.<br>• **Group chips** by key pattern (from config): ALL · BMS (`bms_`) · MCU (`mcu_`) · CELLS (`cell_`) · CHARGER (`charger_`) · FAULTS (`fault` anywhere in the key).<br>• **Highlight tiles:** a configurable list, default battery_voltage, bms_chargingcycles, afe_temperature, ah_throughput.<br>• **Then the dense list of all 374:** humanised label, raw value, no units (D-017). `65535` → "N/A" (faint). Each row's `title` = key + `formatIst(timestamp)`. Sorted A–Z.<br>• The tab label shows the filtered count.<br>• The tab is hidden without `vehicle.parameters.view`. |
+| F07-R10 | **Device tab** | • Device ID tile, with copy.<br>• Tiles:<br>&nbsp;&nbsp;• Aux battery: 2 decimals V, `--danger` below the F05 pullout threshold.<br>&nbsp;&nbsp;• Internal battery: 2 decimals V.<br>&nbsp;&nbsp;• Signal: dBm.<br>&nbsp;&nbsp;• GPS fix.<br>• **Cell strip:** bars for `cell_voltage_01…20` (missing cells skipped). The lowest cell is in `--warn`, with its value on hover. |
+| F07-R11 | **Events tab** | • A timeline, newest first, from `selected-history`:<br>&nbsp;&nbsp;• Status transitions observed since selection (F05 status changes).<br>&nbsp;&nbsp;• Ignition on/off from `lastignon`/`lastignoff`.<br>• Each event shows a time, a status-coloured icon, a title and a detail line (location or SOC).<br>• **Only observed or reported events.** Nothing is invented. Empty state: "No events since you opened this vehicle". |
+| F07-R12 | **Map extras for the selected vehicle** | • **Trail:** on select, fetch `GET /api/vehicles/:id/trail?minutes=60` (new mock endpoint, scope- and permission-checked like the vehicle WS scope). Live positions are appended. The data feeds DS1's trail layer, and is cleared on deselect.<br>• **Callout:** a glass card next to the selected marker with regno, status and `speed · SOC`. It follows the vehicle.<br>• **Compass:** a glass compass near the card showing heading and an 8-point label (N, NE…NW). |
+| F07-R13 | **Permissions** | `vehicle.details.view` is needed to open the panel. `vehicle.parameters.view` controls the Parameters tab. *(store part done)* |
+| F07-R14 | **Live updates** | Values update in place at push cadence. Rings, speedometer and chart animate (≤ 300 ms, `prefers-reduced-motion` respected). Parameter rows are memoised per key. No main-thread long task > 50 ms. |
+| F07-R15 | **Accessibility** | The panel is a labelled region. Esc closes it. Copy buttons have aria-labels and show a toast. Focus moves to the panel. The charts have text alternatives. |
+| F07-R16 | **Deselect on map click** | Clicking empty map (not a drag) closes the panel. *(done)* |
+| F07-R17 | **Not shown** | Reports and Analytics buttons (C16). |
 
-### `humanize-pid`
-Strip leading underscores. Split on `_`. Title-case each word. Keep numeric parts unchanged (`cell_voltage_01` → "Cell Voltage 01").
-A small override map handles known acronyms: SOC, SOH, DTE, BMS, MCU, VCU, MVCU, ODO, ECU, ID, BLE, CAN, GSM, IMU, AFE, OCV, LED, DC, AC, UDS, EOL, TFT, ADC, PWM, FOC, TCU, VIN.
+`humanize-pid` (done): strip leading underscores, split on `_`, title-case, keep numbers, and apply the acronym map.
 
 ## 3. Acceptance tests
-
 | ID | Type | Test |
 |---|---|---|
-| F07-T1 | unit | `humanize-pid` covers underscores, numbers and acronyms, plus `_12v_count` → "12V Count" and `5v_fault` → "5V Fault". |
-| F07-T2 | unit | `vehicle-details-model` from the **`caninfo.md` / `lafparsed.md` samples**, with status `pullout` and a fixed `now`, produces **exactly** these values (the data matches the sample; the presentation is new):<br>• Regno `P6DED30BPDC002607`.<br>• GPS `08 Sep 26 \| 09:33:42`; CAN `08 Sep 26 \| 09:33:49` (absolute).<br>• With `now` = GPS time + 31 h: relative times `31 h ago`, danger dots.<br>• Battery `49%` with the warn band.<br>• DTE `56` km; SOH `100.0` %; ODO `1,077` km.<br>• Aux `0.07` V; Internal `3.60` V.<br>• Location `28.70419, 80.56578`.<br>• 374 parameters, and `time_to_charge` shows "N/A". |
-| F07-T3 | unit | Freshness and SOC colour bands at each boundary. `format-relative` covers just now / min / h / d. Missing values show "—". Parameter search matches both label and key. |
-| F07-T4 | component | The panel renders from fixture payloads. Tabs switch content. Parameter search narrows the count. Copy writes to the clipboard and shows a toast. The not-found state appears. The Parameters tab is hidden without the permission. |
-| F07-T5 | component | Re-rendering with one PID changed re-renders only that cell (render counting). |
-| F07-T6 | e2e | Clicking a point on the map opens the panel with that regno, and the URL has `?vehicle=`. Reloading restores the panel. Esc and the close button remove the param. Back reopens it. Clicking an empty map area closes the panel (R16). |
-| F07-T7 | e2e | Within 20 s, the GPS time in the open panel changes, showing live updates. Locate flies the map to the vehicle (zoom 16). |
-| F07-T8 | e2e | At 390 px wide, the bottom sheet opens at 35% and drags to 92%, and the map is still visible above it. |
-| F07-T9 | e2e | The Parameters tab lists 374 rows. Searching "cell_voltage" shows 23 (20 cell voltages + maximum, minimum and mismatch-warning keys). |
-| F07-T10 | cmd | `pnpm check`, `pnpm build` and `pnpm e2e` all pass. F04/F05/F06 budgets still hold: re-run the perf project and record the numbers. |
-| F07-T11 | e2e | Screenshots of the Overview, Parameters and Device tabs (desktop) and the mobile sheet are saved to `docs/features/f07-vehicle-details/screenshots/` for UAT against the mockup. |
+| F07-T1 | unit | `humanize-pid` *(done)*. |
+| F07-T2 | unit | From the sample payloads (status pullout, fixed now = GPS + 31 h):<br>• Regno, plus both absolute times `08 Sep 26 \| 09:33:42` / `09:33:49` and the relative `31 h ago`, with danger dots.<br>• Rings: 49 (warn), 56, 100.0 (ok).<br>• ODO 1,077; Aux 0.07 (danger); Internal 3.60.<br>• Signal −70 → 3 bars; GPS fix NONE.<br>• Location 28.70419, 80.56578.<br>• 374 params, `time_to_charge` N/A.<br>• 20-cell strip with the lowest cell flagged. |
+| F07-T3 | unit | Freshness, SOC bands, signal bars and `format-relative` at their boundaries. Group-chip filters (BMS / MCU / CELLS / CHARGER / FAULTS counts match the key patterns). Search on label or key. |
+| F07-T4 | unit | `selected-history`:<br>• The buffer is capped at 2 h.<br>• Status transitions are recorded once each.<br>• Ignition events are de-duplicated.<br>• It resets on a new selection. |
+| F07-T5 | component | The panel renders from fixtures. All 4 tabs work. The parameters search, chips and count work. Copy works and shows a toast. The not-found state appears. The Parameters tab is hidden without the permission. "Collecting…" shows with fewer than 2 samples. |
+| F07-T6 | component | Changing one PID re-renders only that parameter row (render counting). |
+| F07-T7 | integration | The mock trail endpoint returns about 60 min of points for an in-scope vehicle, `403` out of scope, and `401` without a session. |
+| F07-T8 | e2e | Click a point: the panel opens, `?vehicle=` is set, and the trail and callout appear. Reload restores everything. Esc, the close button and an empty-map click deselect, which removes the trail and callout. Back reopens the panel. |
+| F07-T9 | e2e | Within 20 s the GPS relative time or the session chart updates. Locate flies to zoom 16. |
+| F07-T10 | e2e | 390 px: the sheet opens at 35% (hero + rings visible) and drags to 92%. Parameters tab: 374 rows; "cell_voltage" → 23; the CELLS chip → `cell_` keys. |
+| F07-T11 | e2e | Screenshots for UAT against the v2 mockup, saved to `docs/features/f07-vehicle-details/screenshots/`: Overview, Parameters, Device and Events tabs (desktop), the map with trail, callout and compass, and the mobile sheet. |
+| F07-T12 | cmd | `pnpm check`, `pnpm build` and `pnpm e2e` all pass. F04–F06 budgets still hold, measured in one perf run at the end. |
 
 ## 4. Out of scope
 - Share flow (F10).
 - Reports and Analytics.
-- Trend charts.
-- Writing values back to the vehicle (e.g. immobilise).
+- History beyond the 60-min trail and the session buffer.
+- Commands to the vehicle.
+
+## 5. Delivery (speed, D-055)
+- F07 rev 3 runs **in parallel** with DS1, each in its own worktree.
+- DS1 owns the tokens, map styling and trail layer. F07 owns the card, the trail data, the callout and the compass.
+- Both start from a shared tokens commit, so neither waits on the other.
