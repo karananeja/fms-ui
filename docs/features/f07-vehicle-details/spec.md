@@ -65,7 +65,7 @@ A small override map handles known acronyms: SOC, SOH, DTE, BMS, MCU, VCU, MVCU,
 
 | ID | Type | Test |
 |---|---|---|
-| F07-T1 | unit | `humanize-pid` covers underscores, numbers, acronyms `_12v_count` → "12V Count" and `5v_fault` → "5V Fault". |
+| F07-T1 | unit | `humanize-pid` covers underscores, numbers and acronyms, plus `_12v_count` → "12V Count" and `5v_fault` → "5V Fault". |
 | F07-T2 | unit | `vehicle-details-model` from the **`caninfo.md` / `lafparsed.md` samples**, with status `pullout` and a fixed `now`, produces **exactly** the reference screenshot's values:<br>• Regno `P6DED30BPDC002607`.<br>• GPS `08 Sep 26 \| 09:33:42`; CAN `08 Sep 26 \| 09:33:49`.<br>• Battery `49%` with the warn band.<br>• DTE `56` km; SOH `100.0` %; ODO `1,077` km.<br>• Aux `0.07` V; Internal `3.60` V.<br>• Location `28.70419, 80.56578`.<br>• 374 parameters, and `time_to_charge` shows "N/A". |
 | F07-T3 | unit | Freshness and SOC colour bands at each boundary. Missing values show "—". Parameter search matches both label and key. |
 | F07-T4 | component | The panel renders from fixture payloads. Expand/collapse switches views. Parameter search narrows the count. Copy writes to the clipboard and shows a toast. The not-found state appears. Parameters are hidden without the permission. |
