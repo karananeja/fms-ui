@@ -225,7 +225,7 @@ export class VehicleSim {
   /** Last time the frozen value of a long-lived outage was refreshed (always `age` or more before `t`). */
   private frozen(i: number, t: number, epoch: number): number {
     const off = this.reportPhase[i]! * epoch;
-    return Math.floor((t - off) / epoch) * epoch + off - Math.round(this.ageMs[i]!);
+    return Math.round(Math.floor((t - off) / epoch) * epoch + off - this.ageMs[i]!);
   }
 
   /** Time of this vehicle's latest report at or before `t`. Non-comm vehicles stopped reporting. */
