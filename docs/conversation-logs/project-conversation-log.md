@@ -95,3 +95,6 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 **User:** "approved" — F06 + F07 specs signed off.
 
 **Assistant:** Created `feature/f06-live-map`; spawned F06 implementation sub-agent.
+- F06 sub-agent finished: F06-T1…T11 pass; proposed D-041…D-047. Orchestrator re-ran `pnpm check` (194/194), `pnpm build` + leak scan (clean), `pnpm e2e` 14/14 against the user's running dev server (F06-T9 0 long tasks; F04 first data 1051 ms / snapshot 1276 ms — within budget but up from ~550 ms due to MapLibre load; one page-load long task of 91 ms, outside the streaming budget) — confirmed. Flagged to user.
+
+**Status:** F06 awaiting user acceptance (UAT incl. manual ≥ 50 fps check) + approval of D-041…D-047.
