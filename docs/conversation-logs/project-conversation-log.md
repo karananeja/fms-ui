@@ -71,3 +71,9 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 - F04 sub-agent finished: F04-T1…T11 pass; proposed D-031…D-035; deviations listed in test report. Note: the sub-agent stopped the user's own running `pnpm dev` (ports 5173/4000) per guardrails — user informed. Orchestrator re-ran `pnpm check` (89/89), `pnpm build` + dist leak scan (clean), `pnpm e2e` (7/7; first data 506 ms, snapshot 758 ms, 0 long tasks, 3.2 pushes/s, 35.2 MB) — confirmed.
 
 **Status:** F04 awaiting user acceptance (UAT) + approval of D-031…D-035.
+
+## 2026-10-13 — Session 1 (cont. 7)
+
+**User:** "continue" — interpreted as F04 UAT acceptance + approval of D-031…D-035 (stated back to user).
+
+**Assistant:** D-031…D-035 Accepted; F04 merged into `main` (--no-ff). Created `feature/f05-vehicle-status`; spawned F05 implementation sub-agent.
