@@ -55,3 +55,14 @@ The baseline made `filteredCounts`, `filteredTotal`, `selectedMatches` required 
 Proposed fix (not implemented; changes approved R4 and the shared F06 `MapIndex`):
 1. Build clusters over the filter **without statuses**; apply the status selection when a frame is cut, from each cluster's per-status breakdown (count = sum of the selected statuses; empty clusters dropped). Status pill clicks then need no rebuild (a frame in a few ms). Trade-off: a cluster's centroid stays that of all its vehicles, not only the selected statuses.
 2. Keep the last index built with no non-status filter; when the filter returns to that, serve frames from it at once and force a fresh rebuild right after. Trade-off: for ~0.3 s cluster counts can be those of when the cached index was built.
+
+## 2026-10-14 — Frame budget: D-072 implemented (user approved both fixes)
+**User:** approved fixes 1 and 2 above (changes F08-R4 and the shared F06 `MapIndex`).
+
+- `FilterEngine`: `matchesBase`, `statusMask`, `baseActive`, `baseVersion` (bumps only when the non-status part changes or a row's base match flips); a status-only `set` skips the mask pass.
+- `MapIndex` takes the filter object (`MapFilter`), builds over `matchesBase`, applies `statusMask` per frame (count = selected statuses, breakdown zeroed elsewhere, empty clusters dropped; points/scan/bounds use `matches`). Keeps the last unfiltered index; a forced update that returns to no non-status filter swaps it in (`cacheHits`, `generation`) and leaves the rebuild due.
+- Engine: map data version uses `baseVersion`; `setFilter` forces only on a base change; frame identity = data + `generation` + `filters.version`; a status-only change defers a due throttled rebuild to the next push; fixed a same-flush double `updateIndex` that rebuilt straight after the swap (found by instrumentation).
+- Tests: `map-index-filter.test.ts` +4 (10). `pnpm check` 405/405; build OK; e2e chromium+clock 24/24 (`VITE_PORT=5273 MOCK_PORT=4100` — without them Playwright reused main's server on 5173 and 5 F08 specs failed).
+- Perf (×2): running 68/168, + stopped 172/251, all 253/250, search 31/257, clear 254/248 ms; long tasks none / 57 ms. Load average ~11 (F09 in parallel).
+- Instrumented timeline: frame compute ≤ 1 ms; the remaining latency is the 4 Hz push slot (0–250 ms). The spec clicks right after a push, so it waits ~250 ms. **Open:** proposed fix 3 — `setFilter` flushes at once (changes F04-R17); needs approval.
+- Also fixed `e2e/status-bar.perf.spec.ts` `longtask` observer typing (`tsc -b` failed).
