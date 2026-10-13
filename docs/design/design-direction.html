@@ -3,25 +3,29 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>FMS Design Direction</title>
+<title>FMS Design Direction v2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Doto:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
 <style>
   :root {
-    --bg: #0a0c10;
-    --map: #0f1318;
-    --map-road: #1a2029;
-    --map-water: #0b1520;
-    --glass: rgba(18, 22, 29, 0.72);
-    --glass-strong: rgba(18, 22, 29, 0.88);
+    --bg: #07090c;
+    --map: #0c1015;
+    --block: #121820;
+    --block-hi: #18202a;
+    --road: #1c2530;
+    --road-major: #243040;
+    --water: #08121b;
+    --glass: rgba(14, 18, 24, 0.74);
+    --glass-strong: rgba(14, 18, 24, 0.9);
     --glass-border: rgba(255, 255, 255, 0.08);
     --tile: rgba(255, 255, 255, 0.035);
-    --tile-border: rgba(255, 255, 255, 0.06);
-    --text: #e6eaf0;
-    --muted: #8a94a6;
-    --faint: #5b6577;
+    --tile-border: rgba(255, 255, 255, 0.07);
+    --text: #e8edf3;
+    --muted: #8b96a8;
+    --faint: #556072;
     --accent: #2dd4bf;
-    --accent-soft: rgba(45, 212, 191, 0.12);
+    --accent-2: #38bdf8;
+    --accent-soft: rgba(45, 212, 191, 0.13);
     --ok: #34d399;
     --warn: #fbbf24;
     --danger: #f87171;
@@ -33,398 +37,545 @@
     --st-pullout: #fb923c;
     --st-nogps: #facc15;
     --st-gpsnever: #475569;
-    --r-panel: 18px;
-    --r-tile: 12px;
-    --mono: 'JetBrains Mono', ui-monospace, monospace;
-    --sans: 'Inter', system-ui, sans-serif;
+    --font: 'Doto', ui-monospace, monospace;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans); }
-  .num { font-variant-numeric: tabular-nums; }
-  .mono { font-family: var(--mono); letter-spacing: 0.02em; }
-  .label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-  .glass { background: var(--glass); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%); border: 1px solid var(--glass-border); }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 600 14px/1.45 var(--font); letter-spacing: 0.01em; }
+  .label { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .muted { color: var(--muted); }
+  .faint { color: var(--faint); }
+  .glass { background: var(--glass); backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%); border: 1px solid var(--glass-border); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .spacer { flex: 1; }
 
-  header.intro { max-width: 1200px; margin: 0 auto; padding: 28px 16px 8px; }
-  header.intro h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; }
-  header.intro p { margin: 0; color: var(--muted); max-width: 760px; }
+  header.intro { max-width: 1320px; margin: 0 auto; padding: 28px 16px 6px; }
+  header.intro h1 { margin: 0 0 6px; font-size: 26px; font-weight: 900; }
+  header.intro p { margin: 0; color: var(--muted); max-width: 900px; }
+  .legend-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .ftag { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--tile-border); color: var(--muted); }
+  .ftag b { color: var(--accent); }
 
-  /* ---------- app frame ---------- */
-  .frame { max-width: 1200px; margin: 20px auto; padding: 0 16px; }
-  .app { position: relative; height: 720px; border-radius: 20px; overflow: hidden; border: 1px solid var(--glass-border); display: grid; grid-template-columns: 64px 1fr; }
-  .rail { background: #0c0f14; border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 0; }
-  .rail .logo { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), #0ea5e9); margin-bottom: 10px; }
-  .rail .it { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; color: var(--muted); }
-  .rail .it.on { background: var(--accent-soft); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
-  .rail svg { width: 20px; height: 20px; }
+  .frame { max-width: 1320px; margin: 18px auto; padding: 0 16px; }
+  .app { position: relative; height: 860px; border-radius: 22px; overflow: hidden; border: 1px solid var(--glass-border); display: grid; grid-template-columns: 68px 1fr; background: var(--bg); }
 
-  .map { position: relative; background: var(--map); overflow: hidden; }
-  .map svg.bg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  /* rail */
+  .rail { background: #0a0d11; border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 0; z-index: 2; }
+  .logo { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: radial-gradient(circle at 30% 30%, #5eead4, #0d9488 70%); color: #04201c; font-weight: 900; font-size: 15px; margin-bottom: 14px; box-shadow: 0 0 24px rgba(45,212,191,.35); }
+  .nav { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: var(--faint); position: relative; }
+  .nav.on { color: var(--accent); background: var(--accent-soft); }
+  .nav.on::before { content: ''; position: absolute; left: -12px; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  .nav svg { width: 20px; height: 20px; }
+  .rail .bottom { margin-top: auto; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #334155, #1e293b); display: grid; place-items: center; font-size: 12px; font-weight: 900; color: var(--muted); border: 1px solid var(--glass-border); }
 
-  /* top bar over map */
-  .topbar { position: absolute; top: 14px; left: 14px; right: 14px; display: flex; gap: 10px; align-items: center; }
-  .search { flex: 0 1 420px; height: 42px; border-radius: 12px; display: flex; align-items: center; gap: 10px; padding: 0 12px; color: var(--muted); }
-  .search kbd { margin-left: auto; font: 11px var(--mono); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--glass-border); color: var(--faint); }
-  .chips { display: flex; gap: 6px; padding: 5px; border-radius: 12px; overflow: hidden; }
-  .chip { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 8px; font-size: 12px; color: var(--muted); white-space: nowrap; }
-  .chip b { color: var(--text); font-weight: 600; }
-  .chip.on { background: var(--accent-soft); color: var(--accent); }
-  .chip.on b { color: var(--accent); }
-  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  /* map */
+  .map { position: relative; overflow: hidden; background: var(--map); }
+  .map svg.city { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at 55% 45%, transparent 40%, rgba(5,7,10,.75) 100%); pointer-events: none; }
 
-  .tools { position: absolute; left: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 12px; }
-  .tool { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); }
+  /* top bar */
+  .top { position: absolute; top: 14px; left: 14px; right: 14px; display: flex; gap: 10px; align-items: center; z-index: 3; }
+  .search { width: 340px; height: 44px; border-radius: 14px; display: flex; align-items: center; gap: 10px; padding: 0 14px; color: var(--muted); }
+  .search kbd { margin-left: auto; font: 800 11px var(--font); padding: 2px 7px; border-radius: 6px; border: 1px solid var(--glass-border); color: var(--faint); }
+  .pills { display: flex; gap: 6px; }
+  .pill { height: 36px; padding: 0 12px; border-radius: 999px; display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 800; color: var(--muted); }
+  .pill b { color: var(--text); font-weight: 900; }
+  .pill.on { background: var(--accent); color: #032a25; border-color: transparent; }
+  .pill.on b { color: #032a25; }
+  .live { margin-left: auto; height: 36px; padding: 0 12px; border-radius: 999px; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; color: var(--accent); }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 rgba(45,212,191,.6); animation: pulse 1.8s infinite; }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 9px rgba(45,212,191,0); } 100% { box-shadow: 0 0 0 0 rgba(45,212,191,0); } }
+
+  /* fleet pulse card */
+  .pulsecard { position: absolute; top: 72px; left: 14px; width: 300px; border-radius: 18px; padding: 16px; z-index: 3; }
+  .bigcount { font-size: 40px; font-weight: 900; line-height: 1; letter-spacing: 0.02em; }
+  .stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px; margin: 14px 0 12px; }
+  .stack i { display: block; height: 100%; }
+  .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 14px; font-size: 12px; }
+  .legend div { display: flex; align-items: center; gap: 7px; color: var(--muted); }
+  .legend b { margin-left: auto; color: var(--text); font-weight: 800; }
+  .spark-wrap { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--glass-border); }
+
+  /* clusters & vehicles */
+  .cluster { position: absolute; transform: translate(-50%, -50%); z-index: 2; }
+  .cluster .c { position: absolute; inset: 8px; border-radius: 50%; background: var(--glass-strong); display: grid; place-items: center; font-weight: 900; font-size: 13px; border: 1px solid var(--glass-border); }
+  .cluster::after { content: ''; position: absolute; inset: -10px; border-radius: 50%; background: radial-gradient(circle, rgba(45,212,191,.12), transparent 70%); z-index: -1; }
+  .veh { position: absolute; width: 22px; height: 22px; transform: translate(-50%, -50%); z-index: 2; filter: drop-shadow(0 0 6px rgba(0,0,0,.8)); }
+  .sel-wrap { position: absolute; transform: translate(-50%, -50%); z-index: 2; }
+  .sel-ring { width: 46px; height: 46px; border-radius: 50%; border: 2px solid var(--accent); box-shadow: 0 0 0 8px var(--accent-soft), 0 0 30px rgba(45,212,191,.45); display: grid; place-items: center; background: rgba(45,212,191,.08); }
+  .callout { position: absolute; left: 34px; top: -64px; width: 168px; border-radius: 12px; padding: 10px 12px; font-size: 11px; }
+  .callout .k { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+  .callout .v { font-size: 15px; font-weight: 900; }
+
+  /* tools */
+  .tools { position: absolute; left: 14px; bottom: 196px; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 14px; z-index: 3; }
+  .tool { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: var(--muted); font-weight: 900; font-size: 12px; }
+  .tool.on { color: var(--accent); background: var(--accent-soft); }
   .tool svg { width: 18px; height: 18px; }
-  .citybtn { position: absolute; left: 66px; bottom: 14px; height: 46px; border-radius: 12px; display: flex; align-items: center; gap: 8px; padding: 0 14px; color: var(--muted); font-size: 13px; }
-  .attrib { position: absolute; right: 8px; bottom: 6px; font-size: 10px; color: var(--faint); }
+  .compass { position: absolute; right: 446px; top: 72px; width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; z-index: 3; }
 
-  /* clusters + markers */
-  .cluster { position: absolute; transform: translate(-50%, -50%); }
-  .cluster .c { position: absolute; inset: 7px; border-radius: 50%; background: var(--glass-strong); display: grid; place-items: center; font: 600 12px var(--sans); border: 1px solid var(--glass-border); }
-  .veh { position: absolute; width: 18px; height: 18px; transform: translate(-50%, -50%); }
-  .veh.sel::after { content: ''; position: absolute; inset: -9px; border-radius: 50%; border: 2px solid var(--accent); box-shadow: 0 0 0 6px var(--accent-soft); }
+  /* bottom carousel */
+  .tray { position: absolute; left: 14px; right: 446px; bottom: 14px; display: flex; gap: 10px; z-index: 3; }
+  .vcard { flex: 1; min-width: 0; border-radius: 16px; padding: 12px 12px 10px; position: relative; overflow: hidden; }
+  .vcard.on { border-color: rgba(45,212,191,.55); box-shadow: inset 0 0 0 1px rgba(45,212,191,.35), 0 0 30px rgba(45,212,191,.12); }
+  .vcard .id { font-size: 15px; font-weight: 900; letter-spacing: .03em; }
+  .vcard .meta { font-size: 11px; color: var(--muted); }
+  .vcard .stats { display: flex; gap: 12px; margin-top: 8px; font-size: 11px; color: var(--muted); }
+  .vcard .stats b { display: block; color: var(--text); font-size: 15px; font-weight: 900; }
+  .vcard svg.sil { position: absolute; right: -6px; bottom: 6px; width: 92px; opacity: .9; }
+  .vcard .st { position: absolute; top: 12px; right: 12px; }
 
   /* details card */
-  .card { position: absolute; top: 70px; right: 14px; bottom: 14px; width: 392px; border-radius: var(--r-panel); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,0.45); }
-  .card-head { padding: 16px 16px 12px; border-bottom: 1px solid var(--glass-border); }
-  .row { display: flex; align-items: center; gap: 8px; }
-  .regno { font: 600 18px var(--mono); }
-  .icon-btn { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); border: 1px solid transparent; }
-  .icon-btn:hover { border-color: var(--glass-border); color: var(--text); }
-  .icon-btn svg { width: 16px; height: 16px; }
-  .spacer { flex: 1; }
-  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
-  .tag { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--tile-border); color: var(--muted); }
-  .status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 999px; }
-  .fresh { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 12px; color: var(--muted); }
-  .fresh span b { color: var(--text); font-weight: 500; }
+  .card { position: absolute; top: 72px; right: 14px; bottom: 14px; width: 420px; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; z-index: 3; box-shadow: 0 30px 80px rgba(0,0,0,.55); }
+  .hero { position: relative; padding: 16px 16px 0; background: radial-gradient(ellipse at 70% 80%, rgba(45,212,191,.16), transparent 60%); }
+  .regno { font-size: 20px; font-weight: 900; letter-spacing: .04em; }
+  .ibtn { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; color: var(--muted); border: 1px solid var(--glass-border); background: rgba(255,255,255,.02); }
+  .ibtn svg { width: 15px; height: 15px; }
+  .status { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 900; letter-spacing: .06em; padding: 4px 10px; border-radius: 999px; text-transform: uppercase; }
+  .tag { font-size: 10px; font-weight: 900; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--tile-border); color: var(--muted); }
+  .heroimg { position: relative; height: 128px; margin-top: 4px; }
+  .heroimg svg.scooter { position: absolute; left: 50%; bottom: 4px; width: 230px; transform: translateX(-50%); }
+  .badge { position: absolute; border-radius: 10px; padding: 6px 8px; font-size: 10px; font-weight: 800; color: var(--muted); }
+  .badge b { display: block; color: var(--text); font-size: 13px; font-weight: 900; }
+  .signal { display: flex; align-items: flex-end; gap: 2px; height: 14px; }
+  .signal i { width: 3px; background: var(--ok); border-radius: 1px; }
+  .signal i.off { background: rgba(255,255,255,.15); }
+  .fresh { display: flex; gap: 14px; font-size: 11px; color: var(--muted); padding: 10px 0 12px; }
+  .fresh b { color: var(--text); font-weight: 800; }
 
-  .tabs { display: flex; gap: 4px; padding: 10px 16px 0; }
-  .tab { font-size: 13px; padding: 7px 10px; border-radius: 8px; color: var(--muted); }
-  .tab.on { color: var(--text); background: var(--tile); }
-  .tab .n { color: var(--faint); margin-left: 4px; }
+  .rings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 0 16px; }
+  .ringtile { text-align: center; padding: 10px 4px 8px; border-radius: 14px; background: var(--tile); border: 1px solid var(--tile-border); }
+  .ringtile .v { font-size: 17px; font-weight: 900; line-height: 1.05; margin-top: -59px; height: 48px; margin-bottom: 11px; display: flex; flex-direction: column; justify-content: center; }
+  .ringtile .v small { font-size: 9px; color: var(--muted); font-weight: 800; letter-spacing: .1em; }
+  .ringtile .l { font-size: 10px; color: var(--muted); font-weight: 800; letter-spacing: .1em; margin-top: 6px; text-transform: uppercase; }
 
-  .body { padding: 12px 16px 16px; overflow: auto; flex: 1; display: flex; flex-direction: column; gap: 12px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .tile { background: var(--tile); border: 1px solid var(--tile-border); border-radius: var(--r-tile); padding: 12px; }
-  .big { font-size: 26px; font-weight: 600; line-height: 1.1; margin-top: 6px; }
-  .big small { font-size: 12px; color: var(--muted); font-weight: 500; margin-left: 3px; }
-  .ring-wrap { display: flex; align-items: center; gap: 12px; }
-  .meter { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.07); margin-top: 10px; overflow: hidden; }
-  .meter i { display: block; height: 100%; border-radius: 2px; }
-  .kv { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; font-size: 13px; }
+  .tabs { display: flex; gap: 2px; margin: 12px 16px 0; padding: 3px; border-radius: 12px; background: var(--tile); border: 1px solid var(--tile-border); }
+  .tab { flex: 1; text-align: center; font-size: 12px; font-weight: 800; padding: 7px 0; border-radius: 9px; color: var(--muted); }
+  .tab.on { background: rgba(255,255,255,.07); color: var(--text); }
+  .tab .n { color: var(--accent); margin-left: 4px; }
+  .body { padding: 12px 16px 16px; overflow: auto; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .panel { border-radius: 14px; background: var(--tile); border: 1px solid var(--tile-border); padding: 12px; }
+  .speedo { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; }
+  .speedo .num { font-size: 34px; font-weight: 900; line-height: 1; }
+  .kv { display: grid; grid-template-columns: 1fr auto; gap: 7px 10px; font-size: 12px; }
   .kv dt { color: var(--muted); }
-  .kv dd { margin: 0; text-align: right; }
-  .loc { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
-  .cta { height: 40px; border-radius: 10px; border: 1px solid rgba(45,212,191,0.35); background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 13px; }
+  .kv dd { margin: 0; text-align: right; font-weight: 800; }
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .ev { display: grid; grid-template-columns: 54px 20px 1fr; gap: 8px; align-items: start; font-size: 12px; min-height: 34px; }
+  .ev .t { color: var(--muted); font-size: 11px; padding-top: 2px; }
+  .ev .ic { position: relative; display: grid; justify-items: center; height: 100%; }
+  .ev .ic span { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; z-index: 1; }
+  .ev .ic::after { content: ''; position: absolute; top: 18px; bottom: -2px; width: 1px; background: var(--tile-border); }
+  .ev:last-child .ic::after { display: none; }
+  .ev .d b { display: block; font-weight: 900; }
+  .ev .d span { color: var(--muted); font-size: 11px; }
+  .cta { height: 42px; border-radius: 12px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #03201c; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 900; font-size: 13px; letter-spacing: .04em; box-shadow: 0 8px 24px rgba(45,212,191,.25); }
   .cta svg { width: 16px; height: 16px; }
 
-  /* params panel (second frame) */
-  .param-search { height: 36px; border-radius: 10px; background: var(--tile); border: 1px solid var(--tile-border); display: flex; align-items: center; gap: 8px; padding: 0 10px; color: var(--faint); font-size: 13px; }
-  .plist { display: flex; flex-direction: column; }
-  .prow { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 8px 2px; border-bottom: 1px solid var(--tile-border); font-size: 13px; }
-  .prow span:first-child { color: var(--muted); }
-  .prow .na { color: var(--faint); }
+  .attrib { position: absolute; right: 446px; bottom: 2px; font-size: 9px; color: var(--faint); z-index: 3; }
 
-  .notes { max-width: 1200px; margin: 8px auto 40px; padding: 0 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
-  .note { background: #10141a; border: 1px solid var(--glass-border); border-radius: 14px; padding: 16px; }
-  .note h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
-  .note p, .note li { color: var(--muted); font-size: 13px; margin: 0; }
-  .note ul { margin: 0; padding-left: 18px; }
-  .swatches { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-  .sw { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
-  .sw i { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
-
-  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .mini { position: relative; height: 560px; border-radius: 20px; overflow: hidden; border: 1px solid var(--glass-border); background: var(--map); }
-  .mini .card { top: 14px; }
+  /* secondary frames */
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 390px; gap: 16px; }
+  .mini { position: relative; border-radius: 20px; overflow: hidden; border: 1px solid var(--glass-border); background: var(--map); padding: 14px; }
   .caption { color: var(--muted); font-size: 12px; margin: 8px 2px 0; }
+  .prow { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 7px 2px; border-bottom: 1px dashed var(--tile-border); font-size: 12px; }
+  .prow span:first-child { color: var(--muted); }
+  .pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ptile { border-radius: 12px; background: var(--tile); border: 1px solid var(--tile-border); padding: 10px; }
+  .ptile .k { font-size: 10px; color: var(--muted); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .ptile .v { font-size: 20px; font-weight: 900; margin-top: 2px; }
+  .chipf { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .chipf span { font-size: 11px; font-weight: 800; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--tile-border); color: var(--muted); }
+  .chipf span.on { border-color: rgba(45,212,191,.5); color: var(--accent); background: var(--accent-soft); }
+  .phone { width: 360px; height: 720px; margin: 0 auto; border-radius: 40px; border: 1px solid var(--glass-border); overflow: hidden; position: relative; background: var(--map); }
 
-  @media (max-width: 900px) {
-    .app { grid-template-columns: 1fr; height: 760px; }
-    .rail { display: none; }
-    .chips { display: none; }
-    .card { top: auto; left: 8px; right: 8px; width: auto; height: 52%; border-radius: 18px 18px 14px 14px; }
-    .twocol { grid-template-columns: 1fr; }
-    .citybtn { display: none; }
-    .fresh .abs { display: none; }
-    .tools { display: none; }
+  .notes { max-width: 1320px; margin: 10px auto 48px; padding: 0 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+  .note { background: #0d1117; border: 1px solid var(--glass-border); border-radius: 16px; padding: 16px; }
+  .note h3 { margin: 0 0 8px; font-size: 14px; font-weight: 900; }
+  .note li { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  .note ul { margin: 0; padding-left: 18px; }
+
+  @media (max-width: 1100px) {
+    .grid3 { grid-template-columns: 1fr; }
+    .app { height: auto; min-height: 900px; grid-template-columns: 1fr; }
+    .rail, .pulsecard, .tray, .compass, .tools, .pills, .live, .attrib { display: none; }
+    .search { width: 100%; }
+    .card { top: auto; left: 8px; right: 8px; width: auto; height: 640px; }
   }
 </style>
 </head>
 <body>
 <header class="intro">
-  <h1>Design direction — “Dark ops console”</h1>
-  <p>A proposal for sign-off. It replaces the look inherited from the current app (red accent, dot-matrix numerals, stacked cards). The data shown is the <span class="mono">caninfo.md</span> / <span class="mono">lafparsed.md</span> sample.</p>
+  <h1>Design direction v2 · “Ops console”</h1>
+  <p>Richer, image-led, and drawn from the inspiration shots: floating glass over a dark city map (sample-3), status pills and a vehicle tray (sample-3/-5), hero vehicle with ring gauges and a speedometer (sample/-2), and an event timeline (sample-3/-4). Doto is used throughout. The data is the <span style="color:var(--text)">caninfo.md</span> / <span style="color:var(--text)">lafparsed.md</span> sample.</p>
+  <div class="legend-tags">
+    <span class="ftag">Status pills · fleet pulse → <b>F08</b></span>
+    <span class="ftag">Map markers · clusters · tools · 2D/3D → <b>DS1</b></span>
+    <span class="ftag">Details card · hero · rings · speedo · timeline · trail → <b>F07</b></span>
+    <span class="ftag">Vehicle tray (vehicles in view) → <b>F09</b></span>
+    <span class="ftag">Share CTA → <b>F10</b></span>
+  </div>
 </header>
 
 <section class="frame">
   <div class="app">
     <nav class="rail">
-      <div class="logo"></div>
-      <div class="it on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg></div>
-      <div class="it"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg></div>
-      <div class="it"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M17 11a3 3 0 1 0 0-6M21 20a6 6 0 0 0-4-5.6"/></svg></div>
+      <div class="logo">F</div>
+      <div class="nav on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg></div>
+      <div class="nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg></div>
+      <div class="nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg></div>
+      <div class="nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M17 11a3 3 0 1 0 0-6M21 20a6 6 0 0 0-4-5.6"/></svg></div>
+      <div class="nav bottom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1A2 2 0 1 1 4.3 17l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1A2 2 0 1 1 7 4.3l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1A2 2 0 1 1 19.7 7l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></div>
+      <div class="avatar">KA</div>
     </nav>
 
     <div class="map">
-      <svg class="bg" viewBox="0 0 1136 720" preserveAspectRatio="xMidYMid slice">
-        <rect width="1136" height="720" fill="var(--map)"/>
-        <path d="M0 520 C 180 470, 260 560, 420 520 S 700 430, 820 470 S 1040 560, 1136 520 L1136 720 L0 720Z" fill="var(--map-water)"/>
-        <g stroke="var(--map-road)" stroke-width="3" fill="none">
-          <path d="M0 160 C 200 180, 420 120, 640 190 S 980 240, 1136 200"/>
-          <path d="M120 0 C 160 200, 260 330, 230 720"/>
-          <path d="M520 0 C 540 160, 480 320, 560 460 S 620 640, 600 720"/>
-          <path d="M0 340 C 300 360, 520 300, 760 340 S 1000 380, 1136 360"/>
-          <path d="M840 0 C 820 200, 900 360, 880 720"/>
-        </g>
-        <g stroke="#141a22" stroke-width="1.2" fill="none">
-          <path d="M60 60 L 400 80 L 460 260 L 300 420"/><path d="M640 60 L 700 260 L 980 300"/>
-          <path d="M300 240 L 700 420 L 760 600"/><path d="M40 420 L 380 600"/>
-        </g>
-      </svg>
+      <svg class="city" viewBox="0 0 1252 860" preserveAspectRatio="xMidYMid slice" id="city"></svg>
+      <div class="vignette"></div>
 
-      <div class="topbar">
+      <div class="top">
         <div class="search glass">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          Search VIN, reg no, device ID
-          <kbd>/</kbd>
+          VIN · REG NO · DEVICE ID <kbd>/</kbd>
         </div>
-        <div class="chips glass">
-          <div class="chip on">All <b class="num">1,00,000</b></div>
-          <div class="chip"><span class="dot" style="background:var(--st-running)"></span>Running <b class="num">34,646</b></div>
-          <div class="chip"><span class="dot" style="background:var(--st-stopped)"></span>Stopped <b class="num">34,342</b></div>
-          <div class="chip"><span class="dot" style="background:var(--st-charging)"></span>Charging <b class="num">7,940</b></div>
-          <div class="chip"><span class="dot" style="background:var(--st-noncomm)"></span>Non-comm <b class="num">8,161</b></div>
-          <div class="chip">+4 more</div>
+        <div class="pills">
+          <div class="pill on">ALL <b>1,00,000</b></div>
+          <div class="pill glass"><span class="dot" style="background:var(--st-running)"></span>RUNNING <b>34,646</b></div>
+          <div class="pill glass"><span class="dot" style="background:var(--st-stopped)"></span>STOPPED <b>34,342</b></div>
+          <div class="pill glass"><span class="dot" style="background:var(--st-charging)"></span>CHARGING <b>7,940</b></div>
+          <div class="pill glass">+5</div>
+        </div>
+        <div class="live glass"><span class="pulse"></span>LIVE · 18.6K ROWS/S</div>
+      </div>
+
+      <div class="pulsecard glass">
+        <div class="row"><span class="label">Fleet pulse</span><span class="spacer"></span><span class="faint" style="font-size:11px">NORTH · 5 FLEETS</span></div>
+        <div class="row" style="margin-top:10px;align-items:flex-end"><span class="bigcount">1,00,000</span><span class="muted" style="font-size:12px;margin-left:6px">vehicles</span></div>
+        <div class="stack">
+          <i style="width:34.6%;background:var(--st-running)"></i><i style="width:34.3%;background:var(--st-stopped)"></i><i style="width:8.2%;background:var(--st-noncomm)"></i><i style="width:8%;background:var(--st-charging)"></i><i style="width:5.1%;background:var(--st-nogps)"></i><i style="width:4.9%;background:var(--st-pullout)"></i><i style="width:3.9%;background:var(--st-immobilized)"></i><i style="width:1.1%;background:var(--st-gpsnever)"></i>
+        </div>
+        <div class="legend">
+          <div><span class="dot" style="background:var(--st-running)"></span>Running<b>34,646</b></div>
+          <div><span class="dot" style="background:var(--st-stopped)"></span>Stopped<b>34,342</b></div>
+          <div><span class="dot" style="background:var(--st-noncomm)"></span>Non-comm<b>8,161</b></div>
+          <div><span class="dot" style="background:var(--st-charging)"></span>Charging<b>7,940</b></div>
+          <div><span class="dot" style="background:var(--st-nogps)"></span>No GPS<b>5,062</b></div>
+          <div><span class="dot" style="background:var(--st-pullout)"></span>Pullout<b>4,889</b></div>
+          <div><span class="dot" style="background:var(--st-immobilized)"></span>Immobilized<b>3,898</b></div>
+          <div><span class="dot" style="background:var(--st-gpsnever)"></span>GPS never<b>1,062</b></div>
+        </div>
+        <div class="spark-wrap">
+          <div class="row"><span class="label">Running · last hour</span><span class="spacer"></span><span style="color:var(--ok);font-size:12px">▲ 2.4%</span></div>
+          <svg viewBox="0 0 268 46" width="100%" height="46" style="margin-top:6px">
+            <defs><linearGradient id="g1" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#4ade80" stop-opacity=".35"/><stop offset="1" stop-color="#4ade80" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0 34 L20 30 L40 32 L60 26 L80 28 L100 22 L120 24 L140 18 L160 21 L180 15 L200 18 L220 12 L240 14 L268 8 L268 46 L0 46Z" fill="url(#g1)"/>
+            <path d="M0 34 L20 30 L40 32 L60 26 L80 28 L100 22 L120 24 L140 18 L160 21 L180 15 L200 18 L220 12 L240 14 L268 8" fill="none" stroke="#4ade80" stroke-width="2"/>
+          </svg>
         </div>
       </div>
 
       <!-- clusters -->
-      <div class="cluster" style="left:23%;top:30%;width:58px;height:58px">
-        <svg width="58" height="58" viewBox="0 0 36 36" style="position:absolute;inset:0;transform:rotate(-90deg)">
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-running)" stroke-width="3.2" stroke-dasharray="35 65"/>
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-stopped)" stroke-width="3.2" stroke-dasharray="34 66" stroke-dashoffset="-35"/>
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-charging)" stroke-width="3.2" stroke-dasharray="8 92" stroke-dashoffset="-69"/>
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-noncomm)" stroke-width="3.2" stroke-dasharray="13 87" stroke-dashoffset="-77"/>
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-pullout)" stroke-width="3.2" stroke-dasharray="10 90" stroke-dashoffset="-90"/>
+      <div class="cluster" style="left:46%;top:24%;width:64px;height:64px">
+        <svg width="64" height="64" viewBox="0 0 36 36" style="position:absolute;inset:0;transform:rotate(-90deg)">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-running)" stroke-width="3" stroke-dasharray="35 65"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-stopped)" stroke-width="3" stroke-dasharray="34 66" stroke-dashoffset="-35"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-charging)" stroke-width="3" stroke-dasharray="8 92" stroke-dashoffset="-69"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-noncomm)" stroke-width="3" stroke-dasharray="13 87" stroke-dashoffset="-77"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-pullout)" stroke-width="3" stroke-dasharray="10 90" stroke-dashoffset="-90"/>
         </svg>
-        <div class="c num">3.4k</div>
+        <div class="c">3.4K</div>
       </div>
-      <div class="cluster" style="left:46%;top:66%;width:46px;height:46px">
-        <svg width="46" height="46" viewBox="0 0 36 36" style="position:absolute;inset:0;transform:rotate(-90deg)">
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-running)" stroke-width="3.2" stroke-dasharray="55 45"/>
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-stopped)" stroke-width="3.2" stroke-dasharray="30 70" stroke-dashoffset="-55"/>
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-immobilized)" stroke-width="3.2" stroke-dasharray="15 85" stroke-dashoffset="-85"/>
+      <div class="cluster" style="left:62%;top:58%;width:50px;height:50px">
+        <svg width="50" height="50" viewBox="0 0 36 36" style="position:absolute;inset:0;transform:rotate(-90deg)">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-running)" stroke-width="3" stroke-dasharray="55 45"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-stopped)" stroke-width="3" stroke-dasharray="30 70" stroke-dashoffset="-55"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-immobilized)" stroke-width="3" stroke-dasharray="15 85" stroke-dashoffset="-85"/>
         </svg>
-        <div class="c num">340</div>
-      </div>
-      <div class="cluster" style="left:12%;top:72%;width:38px;height:38px">
-        <svg width="38" height="38" viewBox="0 0 36 36" style="position:absolute;inset:0;transform:rotate(-90deg)">
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-stopped)" stroke-width="3.2" stroke-dasharray="70 30"/>
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-nogps)" stroke-width="3.2" stroke-dasharray="30 70" stroke-dashoffset="-70"/>
-        </svg>
-        <div class="c num">12</div>
+        <div class="c">340</div>
       </div>
 
-      <!-- individual vehicles -->
-      <svg class="veh" style="left:36%;top:44%" viewBox="0 0 20 20"><path d="M10 2 17 17 10 13.5 3 17Z" fill="var(--st-running)" stroke="#0a0c10" stroke-width="1.5" transform="rotate(40 10 10)"/></svg>
-      <svg class="veh" style="left:39%;top:51%" viewBox="0 0 20 20"><path d="M10 2 17 17 10 13.5 3 17Z" fill="var(--st-running)" stroke="#0a0c10" stroke-width="1.5" transform="rotate(200 10 10)"/></svg>
-      <svg class="veh" style="left:33%;top:56%" viewBox="0 0 20 20"><circle cx="10" cy="10" r="5.5" fill="var(--st-charging)" stroke="#0a0c10" stroke-width="2"/></svg>
-      <svg class="veh sel" style="left:42%;top:40%" viewBox="0 0 20 20"><circle cx="10" cy="10" r="5.5" fill="var(--st-pullout)" stroke="#0a0c10" stroke-width="2"/></svg>
-      <svg class="veh" style="left:30%;top:47%" viewBox="0 0 20 20"><circle cx="10" cy="10" r="5.5" fill="var(--st-stopped)" stroke="#0a0c10" stroke-width="2"/></svg>
-      <svg class="veh" style="left:44%;top:50%" viewBox="0 0 20 20"><circle cx="10" cy="10" r="5" fill="none" stroke="var(--st-noncomm)" stroke-width="2" stroke-dasharray="2 2"/></svg>
+      <!-- trail + selected vehicle -->
+      <svg style="position:absolute;inset:0;width:100%;height:100%;z-index:1" viewBox="0 0 1252 860" preserveAspectRatio="xMidYMid slice">
+        <defs><linearGradient id="trail" x1="0" x2="1"><stop offset="0" stop-color="#2dd4bf" stop-opacity="0"/><stop offset="1" stop-color="#2dd4bf" stop-opacity=".9"/></linearGradient></defs>
+        <path d="M250 640 C 330 600, 360 520, 430 500 S 520 470, 560 420" fill="none" stroke="url(#trail)" stroke-width="4" stroke-linecap="round"/>
+        <path d="M250 640 C 330 600, 360 520, 430 500 S 520 470, 560 420" fill="none" stroke="#2dd4bf" stroke-opacity=".25" stroke-width="12" stroke-linecap="round"/>
+      </svg>
+      <div class="sel-wrap" style="left:44.7%;top:48.8%">
+        <div class="sel-ring"><svg width="16" height="16" viewBox="0 0 20 20"><circle cx="10" cy="10" r="6" fill="var(--st-pullout)" stroke="#07090c" stroke-width="2"/></svg></div>
+        <div class="callout glass"><div class="k">P6DED30BPDC002607</div><div class="v" style="color:var(--st-pullout)">PULLOUT</div><div class="muted">0 km/h · 49% SoC</div></div>
+      </div>
+
+      <svg class="veh" style="left:35%;top:40%" viewBox="0 0 20 20"><path d="M10 2 17 17 10 13.5 3 17Z" fill="var(--st-running)" stroke="#07090c" stroke-width="1.6" transform="rotate(40 10 10)"/></svg>
+      <svg class="veh" style="left:52%;top:43%" viewBox="0 0 20 20"><path d="M10 2 17 17 10 13.5 3 17Z" fill="var(--st-running)" stroke="#07090c" stroke-width="1.6" transform="rotate(200 10 10)"/></svg>
+      <svg class="veh" style="left:56%;top:36%" viewBox="0 0 20 20"><path d="M10 2 17 17 10 13.5 3 17Z" fill="var(--st-running)" stroke="#07090c" stroke-width="1.6" transform="rotate(110 10 10)"/></svg>
+      <svg class="veh" style="left:38%;top:58%" viewBox="0 0 20 20"><circle cx="10" cy="10" r="6" fill="var(--st-charging)" stroke="#07090c" stroke-width="2"/></svg>
+      <svg class="veh" style="left:31%;top:50%" viewBox="0 0 20 20"><circle cx="10" cy="10" r="6" fill="var(--st-stopped)" stroke="#07090c" stroke-width="2"/></svg>
+      <svg class="veh" style="left:50%;top:54%" viewBox="0 0 20 20"><circle cx="10" cy="10" r="5.5" fill="none" stroke="var(--st-noncomm)" stroke-width="2" stroke-dasharray="2.2 2"/></svg>
+      <svg class="veh" style="left:41%;top:33%" viewBox="0 0 20 20"><circle cx="10" cy="10" r="6" fill="var(--st-immobilized)" stroke="#07090c" stroke-width="2"/></svg>
 
       <div class="tools glass">
-        <div class="tool" title="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></div>
-        <div class="tool" title="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></div>
-        <div class="tool" title="Fit all vehicles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></div>
-        <div class="tool" title="Table view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg></div>
+        <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></div>
+        <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></div>
+        <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
+        <div class="tool on">3D</div>
+        <div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg></div>
       </div>
-      <div class="citybtn glass">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
-        Jump to city…
+
+      <div class="compass glass">
+        <svg width="56" height="56" viewBox="0 0 56 56">
+          <g stroke="#556072" stroke-width="1">
+            <line x1="28" y1="4" x2="28" y2="9"/><line x1="28" y1="47" x2="28" y2="52"/><line x1="4" y1="28" x2="9" y2="28"/><line x1="47" y1="28" x2="52" y2="28"/>
+          </g>
+          <g transform="rotate(302 28 28)"><path d="M28 12 32 28 28 26 24 28Z" fill="#2dd4bf"/><path d="M28 44 32 28 28 30 24 28Z" fill="#334155"/></g>
+          <text x="28" y="32" text-anchor="middle" font-family="Doto" font-weight="900" font-size="10" fill="#e8edf3">NW</text>
+        </svg>
+      </div>
+
+      <div class="tray">
+        <div class="vcard glass on">
+          <div class="st"><span class="dot" style="background:var(--st-pullout)"></span></div>
+          <div class="id">P6DED30B…607</div><div class="meta">BGauss C12 · Delhi Hub 1</div>
+          <div class="stats"><div>SOC<b style="color:var(--warn)">49%</b></div><div>DTE<b>56</b></div></div>
+          <svg class="sil" viewBox="0 0 120 60"><use href="#scooter-mini"/></svg>
+        </div>
+        <div class="vcard glass">
+          <div class="st"><span class="dot" style="background:var(--st-running)"></span></div>
+          <div class="id">DL01AB4821</div><div class="meta">Ather 450 · Delhi Hub 1</div>
+          <div class="stats"><div>SPEED<b>38</b></div><div>SOC<b style="color:var(--ok)">82%</b></div></div>
+          <svg class="sil" viewBox="0 0 120 60"><use href="#scooter-mini"/></svg>
+        </div>
+        <div class="vcard glass">
+          <div class="st"><span class="dot" style="background:var(--st-charging)"></span></div>
+          <div class="id">DL03CJ0917</div><div class="meta">Piaggio Ape E · Hub 2</div>
+          <div class="stats"><div>SOC<b style="color:var(--st-charging)">64%</b></div><div>ETA<b>40m</b></div></div>
+          <svg class="sil" viewBox="0 0 120 60"><use href="#scooter-mini"/></svg>
+        </div>
+        <div class="vcard glass">
+          <div class="st"><span class="dot" style="background:var(--st-stopped)"></span></div>
+          <div class="id">HR26DK7730</div><div class="meta">Tata Ace EV · Hub 3</div>
+          <div class="stats"><div>IDLE<b>14m</b></div><div>SOC<b style="color:var(--danger)">12%</b></div></div>
+          <svg class="sil" viewBox="0 0 120 60"><use href="#scooter-mini"/></svg>
+        </div>
       </div>
       <div class="attrib">© OpenStreetMap contributors</div>
 
-      <!-- floating details card -->
+      <!-- details card -->
       <aside class="card glass">
-        <div class="card-head">
+        <div class="hero">
           <div class="row">
-            <span class="regno">P6DED30BPDC002607</span>
-            <span class="spacer"></span>
-            <div class="icon-btn" title="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg></div>
-            <div class="icon-btn" title="Locate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/></svg></div>
-            <div class="icon-btn" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></div>
+            <span class="regno">P6DED30BPDC002607</span><span class="spacer"></span>
+            <div class="ibtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg></div>
+            <div class="ibtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></div>
+            <div class="ibtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></div>
           </div>
-          <div class="row" style="margin-top:6px">
-            <span class="status" style="background:rgba(251,146,60,.14);color:var(--st-pullout)"><span class="dot" style="background:var(--st-pullout)"></span>Pullout</span>
-            <span class="sub" style="margin:0">BGauss · C12 · i Max</span>
-            <span class="tag">EV</span>
+          <div class="row" style="margin-top:8px">
+            <span class="status" style="background:rgba(251,146,60,.15);color:var(--st-pullout)"><span class="dot" style="background:var(--st-pullout)"></span>Pullout</span>
+            <span class="muted" style="font-size:12px">BGAUSS · C12 · I MAX</span><span class="tag">EV</span>
+          </div>
+          <div class="heroimg">
+            <svg class="scooter" viewBox="0 0 240 120" id="scooter-big">
+              <defs>
+                <linearGradient id="body" x1="0" x2="1"><stop offset="0" stop-color="#1f2a36"/><stop offset=".6" stop-color="#2b3a4a"/><stop offset="1" stop-color="#16202a"/></linearGradient>
+                <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#2dd4bf" stop-opacity=".45"/><stop offset="1" stop-color="#2dd4bf" stop-opacity="0"/></radialGradient>
+              </defs>
+              <ellipse cx="120" cy="108" rx="100" ry="9" fill="url(#glow)"/>
+              <g id="scooter-mini-src">
+                <circle cx="52" cy="88" r="20" fill="#0b0f14" stroke="#3a4a5c" stroke-width="5"/><circle cx="52" cy="88" r="7" fill="#2dd4bf"/>
+                <circle cx="190" cy="88" r="20" fill="#0b0f14" stroke="#3a4a5c" stroke-width="5"/><circle cx="190" cy="88" r="7" fill="#2dd4bf"/>
+                <path d="M30 80 C 40 60, 70 58, 92 62 L 150 62 C 160 62, 166 56, 170 46 L 182 20 L 192 20 L 196 30 L 184 62 C 200 66, 212 76, 214 88 L 172 88 C 170 76, 160 70, 148 72 L 74 76 C 66 78, 60 84, 58 88 Z" fill="url(#body)" stroke="#3d5063" stroke-width="1.5"/>
+                <path d="M92 62 L 100 46 L 146 46 L 150 62 Z" fill="#111821" stroke="#3d5063" stroke-width="1.5"/>
+                <path d="M182 20 L 200 14" stroke="#8b96a8" stroke-width="4" stroke-linecap="round"/>
+                <rect x="104" y="66" width="40" height="5" rx="2" fill="#2dd4bf" opacity=".8"/>
+                <circle cx="207" cy="44" r="4" fill="#fbbf24"/>
+              </g>
+            </svg>
+            <div class="badge glass" style="left:0;top:18px">SIGNAL<b class="row" style="gap:6px">−70<span class="signal"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i class="off" style="height:14px"></i></span></b></div>
+            <div class="badge glass" style="right:0;top:18px;text-align:right">GPS FIX<b style="color:var(--warn)">NONE</b></div>
           </div>
           <div class="fresh">
-            <span><span class="dot" style="background:var(--danger)"></span> GPS <b>31 h ago</b></span>
-            <span><span class="dot" style="background:var(--danger)"></span> CAN <b>31 h ago</b></span>
-            <span style="margin-left:auto" class="num abs">08 Sep 26 | 09:33:42</span>
+            <span><span class="dot" style="background:var(--danger)"></span> GPS <b>31H AGO</b></span>
+            <span><span class="dot" style="background:var(--danger)"></span> CAN <b>31H AGO</b></span>
+            <span style="margin-left:auto">08 SEP 26 | 09:33:42</span>
           </div>
         </div>
+
+        <div class="rings">
+          <div class="ringtile">
+            <svg width="70" height="70" viewBox="0 0 36 36" style="transform:rotate(-90deg)"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--warn)" stroke-width="3" stroke-linecap="round" stroke-dasharray="46.2 94.2"/></svg>
+            <div class="v" style="color:var(--warn)">49%<small>SOC</small></div><div class="l">Battery</div>
+          </div>
+          <div class="ringtile">
+            <svg width="70" height="70" viewBox="0 0 36 36" style="transform:rotate(-90deg)"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--accent-2)" stroke-width="3" stroke-linecap="round" stroke-dasharray="40 94.2"/></svg>
+            <div class="v">56<small>KM</small></div><div class="l">Range</div>
+          </div>
+          <div class="ringtile">
+            <svg width="70" height="70" viewBox="0 0 36 36" style="transform:rotate(-90deg)"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--ok)" stroke-width="3" stroke-linecap="round" stroke-dasharray="94.2 94.2"/></svg>
+            <div class="v" style="color:var(--ok)">100<small>SOH %</small></div><div class="l">Health</div>
+          </div>
+        </div>
+
         <div class="tabs">
-          <div class="tab on">Overview</div>
-          <div class="tab">Parameters<span class="n num">374</span></div>
-          <div class="tab">Device</div>
+          <div class="tab on">Overview</div><div class="tab">Parameters<span class="n">374</span></div><div class="tab">Device</div><div class="tab">Events</div>
         </div>
+
         <div class="body">
-          <div class="grid2">
-            <div class="tile">
-              <div class="label">Speed</div>
-              <div class="big num">0<small>km/h</small></div>
-              <div class="meter"><i style="width:0%;background:var(--accent)"></i></div>
-            </div>
-            <div class="tile ring-wrap">
-              <svg width="54" height="54" viewBox="0 0 36 36" style="transform:rotate(-90deg)">
-                <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="3.5"/>
-                <circle cx="18" cy="18" r="15" fill="none" stroke="var(--warn)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="46.2 94.2"/>
-              </svg>
-              <div>
-                <div class="label">Battery</div>
-                <div class="big num" style="color:var(--warn)">49<small>%</small></div>
-              </div>
-            </div>
-            <div class="tile">
-              <div class="label">Range (DTE)</div>
-              <div class="big num">56<small>km</small></div>
-            </div>
-            <div class="tile">
-              <div class="label">Odometer</div>
-              <div class="big num">1,077<small>km</small></div>
-            </div>
-          </div>
-          <div class="tile">
+          <div class="panel speedo">
+            <svg viewBox="0 0 150 100" width="150" height="100" id="speedo"></svg>
             <dl class="kv">
-              <dt>State of health</dt><dd class="num" style="color:var(--ok)">100.0 %</dd>
-              <dt>Motor temperature</dt><dd class="num">17</dd>
-              <dt>Ignition</dt><dd>Off · last on 08 Sep 26 | 08:22</dd>
+              <dt>Odometer</dt><dd>1,077 KM</dd>
+              <dt>Motor speed</dt><dd>0 RPM</dd>
+              <dt>Motor temp</dt><dd>17</dd>
+              <dt>Ignition</dt><dd style="color:var(--muted)">OFF · 08:22</dd>
             </dl>
           </div>
-          <div class="loc">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
-            <span class="mono num" style="color:var(--text)">28.70419, 80.56578</span>
-            <div class="icon-btn" title="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg></div>
+          <div class="panel">
+            <div class="row"><span class="label">Energy · this session</span><span class="spacer"></span><span class="faint" style="font-size:11px">SOC %</span></div>
+            <svg viewBox="0 0 360 80" width="100%" height="80" style="margin-top:6px">
+              <defs><linearGradient id="g2" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#fbbf24" stop-opacity=".35"/><stop offset="1" stop-color="#fbbf24" stop-opacity="0"/></linearGradient></defs>
+              <g stroke="rgba(255,255,255,.05)"><line x1="0" y1="20" x2="360" y2="20"/><line x1="0" y1="45" x2="360" y2="45"/><line x1="0" y1="70" x2="360" y2="70"/></g>
+              <path d="M0 18 L40 20 L80 24 L120 29 L160 33 L200 36 L240 40 L280 42 L320 43 L360 44 L360 80 L0 80Z" fill="url(#g2)"/>
+              <path d="M0 18 L40 20 L80 24 L120 29 L160 33 L200 36 L240 40 L280 42 L320 43 L360 44" fill="none" stroke="#fbbf24" stroke-width="2"/>
+              <circle cx="360" cy="44" r="3.5" fill="#fbbf24"/>
+              <text x="2" y="78" font-family="Doto" font-weight="700" font-size="9" fill="#556072">08:20</text>
+              <text x="160" y="78" font-family="Doto" font-weight="700" font-size="9" fill="#556072">08:55</text>
+              <text x="326" y="78" font-family="Doto" font-weight="700" font-size="9" fill="#556072">NOW</text>
+            </svg>
           </div>
-          <div class="cta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>Share live location</div>
+          <div class="panel">
+            <div class="label" style="margin-bottom:10px">Recent events</div>
+            <div class="timeline">
+              <div class="ev"><div class="t">09:33</div><div class="ic"><span style="background:rgba(251,146,60,.2)"><span class="dot" style="background:var(--st-pullout)"></span></span></div><div class="d"><b>Battery pulled out</b><span>Aux 0.07 V</span></div></div>
+              <div class="ev"><div class="t">08:22</div><div class="ic"><span style="background:rgba(248,113,113,.18)"><span class="dot" style="background:var(--st-stopped)"></span></span></div><div class="d"><b>Ignition off · stopped</b><span>28.70419, 80.56578</span></div></div>
+              <div class="ev"><div class="t">08:20</div><div class="ic"><span style="background:rgba(74,222,128,.18)"><span class="dot" style="background:var(--st-running)"></span></span></div><div class="d"><b>Ignition on · running</b><span>SOC 51%</span></div></div>
+            </div>
+          </div>
+          <div class="cta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>SHARE LIVE LOCATION</div>
         </div>
       </aside>
     </div>
   </div>
-  <p class="caption">Desktop: icon rail · glass search + status chips over the map · glass details card floating on the right · map tools bottom-left.</p>
+  <p class="caption">Desktop: glass HUD over a dark city map · fleet pulse (left) · status pills · selected vehicle with live trail and callout · vehicle tray of what's in view · rich details card (right).</p>
 </section>
 
-<section class="frame twocol">
-  <div>
-    <div class="mini">
-      <aside class="card glass" style="right:14px;left:14px;width:auto">
-        <div class="card-head">
-          <div class="row"><span class="regno">P6DED30BPDC002607</span><span class="spacer"></span>
-            <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></div></div>
-        </div>
-        <div class="tabs">
-          <div class="tab">Overview</div>
-          <div class="tab on">Parameters<span class="n num">374</span></div>
-          <div class="tab">Device</div>
-        </div>
-        <div class="body">
-          <div class="param-search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search 374 parameters</div>
-          <div class="plist">
-            <div class="prow"><span>12V Count</span><span class="mono num">10244</span></div>
-            <div class="prow"><span>5V Fault</span><span class="mono num">0</span></div>
-            <div class="prow"><span>AC Input Status</span><span class="mono num">1</span></div>
-            <div class="prow"><span>AFE Temperature</span><span class="mono num">27</span></div>
-            <div class="prow"><span>Ah Throughput</span><span class="mono num">878</span></div>
-            <div class="prow"><span>Auxiliary Voltage</span><span class="mono num">13.1</span></div>
-            <div class="prow"><span>Battery Voltage</span><span class="mono num">52.6</span></div>
-            <div class="prow"><span>BMS Charging Cycles</span><span class="mono num">17</span></div>
-            <div class="prow"><span>Time To Charge</span><span class="mono na">N/A</span></div>
-            <div class="prow"><span>Cell Voltage 01</span><span class="mono num">…</span></div>
-          </div>
-        </div>
-      </aside>
+<section class="frame grid3">
+  <div class="mini">
+    <div class="row"><span class="label">Parameters</span><span class="spacer"></span><span style="color:var(--accent);font-weight:900">374</span></div>
+    <div class="search glass" style="width:100%;height:38px;margin-top:10px;font-size:12px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>SEARCH 374 PARAMETERS
     </div>
-    <p class="caption">Parameters tab: dense key/value list, monospace values, search, “N/A” for sentinel 65535. Hover shows key + timestamp.</p>
+    <div class="chipf"><span class="on">ALL</span><span>BMS</span><span>MCU</span><span>CELLS</span><span>CHARGER</span><span>FAULTS</span></div>
+    <div class="pgrid">
+      <div class="ptile"><div class="k">Battery voltage</div><div class="v">52.6</div></div>
+      <div class="ptile"><div class="k">BMS cycles</div><div class="v">17</div></div>
+      <div class="ptile"><div class="k">AFE temperature</div><div class="v">27</div></div>
+      <div class="ptile"><div class="k">Ah throughput</div><div class="v">878</div></div>
+    </div>
+    <div style="margin-top:8px">
+      <div class="prow"><span>12V COUNT</span><span>10,244</span></div>
+      <div class="prow"><span>5V FAULT</span><span>0</span></div>
+      <div class="prow"><span>AC INPUT STATUS</span><span>1</span></div>
+      <div class="prow"><span>AUXILIARY VOLTAGE</span><span>13.1</span></div>
+      <div class="prow"><span>TIME TO CHARGE</span><span class="faint">N/A</span></div>
+    </div>
+    <p class="caption">Parameters tab: search + quick group chips (by key prefix), highlights on top, dense list below. Raw values, no units.</p>
+  </div>
+  <div class="mini">
+    <div class="row"><span class="label">Device &amp; comms</span></div>
+    <div class="ptile" style="margin-top:10px"><div class="k">Device ID</div><div class="v" style="font-size:17px">158828DB0439AE67</div></div>
+    <div class="pgrid" style="margin-top:8px">
+      <div class="ptile"><div class="k">Aux battery</div><div class="v" style="color:var(--danger)">0.07 V</div></div>
+      <div class="ptile"><div class="k">Internal</div><div class="v">3.60 V</div></div>
+      <div class="ptile"><div class="k">Signal</div><div class="v">−70 DBM</div></div>
+      <div class="ptile"><div class="k">GPS fix</div><div class="v" style="color:var(--warn)">NONE</div></div>
+    </div>
+    <div class="ptile" style="margin-top:8px">
+      <div class="k">Battery cells · voltage</div>
+      <svg viewBox="0 0 300 70" width="100%" height="70" style="margin-top:6px" id="cells"></svg>
+    </div>
+    <p class="caption">Device tab: comms health + a 20-cell voltage strip (from cell_voltage_01…20) for battery packs.</p>
   </div>
   <div>
-    <div class="mini">
-      <aside class="card glass" style="right:14px;left:14px;width:auto">
-        <div class="card-head">
-          <div class="row"><span class="regno">P6DED30BPDC002607</span><span class="spacer"></span>
-            <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></div></div>
+    <div class="phone">
+      <svg viewBox="0 0 360 720" width="360" height="720" style="position:absolute;inset:0" id="city2"></svg>
+      <div class="search glass" style="position:absolute;top:16px;left:12px;right:12px;width:auto;height:42px;font-size:12px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>SEARCH VEHICLES
+      </div>
+      <div style="position:absolute;top:66px;left:12px;right:0;display:flex;gap:6px;overflow:hidden">
+        <div class="pill on" style="height:30px">ALL <b>1L</b></div>
+        <div class="pill glass" style="height:30px"><span class="dot" style="background:var(--st-running)"></span>34.6K</div>
+        <div class="pill glass" style="height:30px"><span class="dot" style="background:var(--st-stopped)"></span>34.3K</div>
+        <div class="pill glass" style="height:30px"><span class="dot" style="background:var(--st-charging)"></span>7.9K</div>
+      </div>
+      <div class="sel-wrap" style="left:48%;top:30%"><div class="sel-ring"><svg width="16" height="16" viewBox="0 0 20 20"><circle cx="10" cy="10" r="6" fill="var(--st-pullout)" stroke="#07090c" stroke-width="2"/></svg></div></div>
+      <div class="glass" style="position:absolute;left:8px;right:8px;bottom:8px;height:400px;border-radius:26px 26px 30px 30px;padding:10px 14px">
+        <div style="width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);margin:0 auto 10px"></div>
+        <div class="row"><span class="regno" style="font-size:17px">P6DED30BPDC002607</span><span class="spacer"></span><div class="ibtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></div></div>
+        <div class="row" style="margin-top:6px"><span class="status" style="background:rgba(251,146,60,.15);color:var(--st-pullout)"><span class="dot" style="background:var(--st-pullout)"></span>Pullout</span><span class="muted" style="font-size:11px">GPS 31H AGO</span></div>
+        <svg viewBox="0 0 240 120" style="width:170px;display:block;margin:6px auto 0"><use href="#scooter-mini-src"/></svg>
+        <div class="rings" style="padding:0;margin-top:6px">
+          <div class="ringtile"><svg width="56" height="56" viewBox="0 0 36 36" style="transform:rotate(-90deg)"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--warn)" stroke-width="3" stroke-dasharray="46.2 94.2"/></svg><div class="v" style="margin-top:-48px;height:40px;margin-bottom:8px;font-size:14px;color:var(--warn)">49%</div><div class="l">Battery</div></div>
+          <div class="ringtile"><svg width="56" height="56" viewBox="0 0 36 36" style="transform:rotate(-90deg)"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--accent-2)" stroke-width="3" stroke-dasharray="40 94.2"/></svg><div class="v" style="margin-top:-48px;height:40px;margin-bottom:8px;font-size:14px">56</div><div class="l">Range</div></div>
+          <div class="ringtile"><svg width="56" height="56" viewBox="0 0 36 36" style="transform:rotate(-90deg)"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--ok)" stroke-width="3" stroke-dasharray="94.2 94.2"/></svg><div class="v" style="margin-top:-48px;height:40px;margin-bottom:8px;font-size:14px;color:var(--ok)">100</div><div class="l">Health</div></div>
         </div>
-        <div class="tabs">
-          <div class="tab">Overview</div>
-          <div class="tab">Parameters<span class="n num">374</span></div>
-          <div class="tab on">Device</div>
-        </div>
-        <div class="body">
-          <div class="tile">
-            <div class="label">Device ID</div>
-            <div class="row" style="margin-top:6px"><span class="mono" style="font-size:15px">158828DB0439AE67</span><span class="spacer"></span>
-              <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg></div></div>
-          </div>
-          <div class="grid2">
-            <div class="tile"><div class="label">Aux battery</div><div class="big num" style="color:var(--danger)">0.07<small>V</small></div></div>
-            <div class="tile"><div class="label">Internal battery</div><div class="big num">3.60<small>V</small></div></div>
-            <div class="tile"><div class="label">Signal</div><div class="big num">−70<small>dBm</small></div></div>
-            <div class="tile"><div class="label">GPS fix</div><div class="big num" style="color:var(--warn)">None</div></div>
-          </div>
-        </div>
-      </aside>
+      </div>
     </div>
-    <p class="caption">Device tab: comms health at a glance. On phones the card becomes a bottom sheet (35% → 92%).</p>
+    <p class="caption" style="text-align:center">Mobile: map-first, pills scroll, details in a glass bottom sheet.</p>
   </div>
 </section>
 
 <section class="notes">
-  <div class="note">
-    <h3>Palette</h3>
-    <div class="swatches">
-      <span class="sw"><i style="background:#0a0c10;border:1px solid #333"></i>bg</span>
-      <span class="sw"><i style="background:rgba(18,22,29,.9);border:1px solid #333"></i>glass</span>
-      <span class="sw"><i style="background:var(--accent)"></i>accent teal</span>
-      <span class="sw"><i style="background:var(--ok)"></i>ok</span>
-      <span class="sw"><i style="background:var(--warn)"></i>warn</span>
-      <span class="sw"><i style="background:var(--danger)"></i>danger</span>
-    </div>
-  </div>
-  <div class="note">
-    <h3>Status colours (map, chips, pills, table)</h3>
-    <div class="swatches">
-      <span class="sw"><i style="background:var(--st-running)"></i>Running</span>
-      <span class="sw"><i style="background:var(--st-stopped)"></i>Stopped</span>
-      <span class="sw"><i style="background:var(--st-immobilized)"></i>Immobilized</span>
-      <span class="sw"><i style="background:var(--st-noncomm)"></i>Non-comm</span>
-      <span class="sw"><i style="background:var(--st-charging)"></i>Charging</span>
-      <span class="sw"><i style="background:var(--st-pullout)"></i>Pullout</span>
-      <span class="sw"><i style="background:var(--st-nogps)"></i>No GPS</span>
-      <span class="sw"><i style="background:var(--st-gpsnever)"></i>GPS never</span>
-    </div>
-  </div>
-  <div class="note">
-    <h3>Type</h3>
-    <ul>
-      <li>Inter for all UI text; tabular numerals for metrics</li>
-      <li>JetBrains Mono only for IDs (reg no, VIN, device ID) and parameter values</li>
-      <li>Dot-matrix display font retired</li>
-    </ul>
-  </div>
-  <div class="note">
-    <h3>What changes vs. the current app</h3>
-    <ul>
-      <li>Red accent → single teal accent; red reserved for problems</li>
-      <li>Long stacked card → tabbed card (Overview / Parameters / Device)</li>
-      <li>Absolute timestamps → relative freshness (“2 min ago”), absolute on hover</li>
-      <li>Dial gauges → compact metric tiles + battery ring</li>
-      <li>Solid panels → translucent glass over the map</li>
-    </ul>
-  </div>
+  <div class="note"><h3>Look &amp; feel</h3><ul><li>Doto everywhere (heavier weights 600–900 for legibility)</li><li>Glass HUD panels over a dark city map with a vignette</li><li>Teal → sky accent gradient for primary actions; teal glow for selection</li></ul></div>
+  <div class="note"><h3>New visual elements</h3><ul><li>Fleet pulse: total, status stack bar, trend sparkline</li><li>Hero vehicle illustration per asset type, signal and GPS badges</li><li>Ring gauges (battery, range, health) + speedometer arc</li><li>Energy chart (this session) + events timeline</li><li>Selected-vehicle trail, callout and compass</li><li>Vehicle tray: cards for vehicles in view</li></ul></div>
+  <div class="note"><h3>Data honesty</h3><ul><li>Charts only use data we really have: the session buffer since selection plus the mock trail; no invented history</li><li>Events come from status transitions and ignition on/off times</li><li>Parameters stay raw, no units (D-017)</li></ul></div>
 </section>
+
+<svg width="0" height="0" style="position:absolute"><defs><g id="scooter-mini"><circle cx="24" cy="44" r="10" fill="#0b0f14" stroke="#3a4a5c" stroke-width="3"/><circle cx="96" cy="44" r="10" fill="#0b0f14" stroke="#3a4a5c" stroke-width="3"/><path d="M12 40 C 18 30, 34 29, 46 31 L 75 31 C 80 31, 83 28, 85 23 L 91 10 L 96 10 L 98 15 L 92 31 C 100 33, 106 38, 107 44 L 86 44 C 85 38, 80 35, 74 36 L 37 38 C 33 39, 30 42, 29 44 Z" fill="#253241" stroke="#3d5063"/></g></defs></svg>
+
+<script>
+  // procedural dark city (blocks + roads + water) for the mockup backdrop
+  function city(svg, w, h, seed) {
+    let s = seed; const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    const ns = 'http://www.w3.org/2000/svg'; const el = (t, a) => { const e = document.createElementNS(ns, t); for (const k in a) e.setAttribute(k, a[k]); svg.appendChild(e); return e; };
+    el('rect', { width: w, height: h, fill: '#0c1015' });
+    el('path', { d: `M0 ${h*0.78} C ${w*0.2} ${h*0.72}, ${w*0.35} ${h*0.86}, ${w*0.55} ${h*0.8} S ${w*0.85} ${h*0.7}, ${w} ${h*0.76} L ${w} ${h} L 0 ${h}Z`, fill: '#08121b' });
+    for (let y = 0; y < h*0.8; y += 26) for (let x = 0; x < w; x += 26) {
+      if (r() < 0.18) continue;
+      const bw = 10 + r() * 14, bh = 10 + r() * 14, hi = r() < 0.12;
+      el('rect', { x: x + r()*4, y: y + r()*4, width: bw, height: bh, rx: 1.5, fill: hi ? '#18202a' : '#121820' });
+    }
+    const roads = [[0,0.3,1,0.22],[0,0.55,1,0.62],[0.18,0,0.3,1],[0.6,0,0.52,1],[0.82,0,0.9,0.8]];
+    roads.forEach(([x1,y1,x2,y2], i) => el('path', { d: `M${x1*w} ${y1*h} Q ${(x1+x2)/2*w + (i%2?40:-40)} ${(y1+y2)/2*h} ${x2*w} ${y2*h}`, stroke: '#243040', 'stroke-width': i < 2 ? 5 : 3.5, fill: 'none' }));
+    for (let i = 0; i < 14; i++) { const x = r()*w, y = r()*h*0.8; el('path', { d: `M${x} ${y} L ${x + (r()-0.5)*400} ${y + (r()-0.5)*300}`, stroke: '#1a222c', 'stroke-width': 1.6, fill: 'none' }); }
+  }
+  city(document.getElementById('city'), 1252, 860, 7);
+  city(document.getElementById('city2'), 360, 720, 3);
+
+  // speedometer arc with ticks
+  (function () {
+    const svg = document.getElementById('speedo'), ns = 'http://www.w3.org/2000/svg', cx = 75, cy = 78, R = 62;
+    const add = (t, a) => { const e = document.createElementNS(ns, t); for (const k in a) e.setAttribute(k, a[k]); svg.appendChild(e); return e; };
+    for (let i = 0; i <= 24; i++) {
+      const a = Math.PI * (1 + i / 24), big = i % 4 === 0, r1 = R - (big ? 9 : 5);
+      add('line', { x1: cx + R*Math.cos(a), y1: cy + R*Math.sin(a), x2: cx + r1*Math.cos(a), y2: cy + r1*Math.sin(a), stroke: i > 18 ? '#f87171' : '#3a4656', 'stroke-width': big ? 2 : 1 });
+      if (big) { const t = add('text', { x: cx + (R-20)*Math.cos(a), y: cy + (R-20)*Math.sin(a) + 3, 'text-anchor': 'middle', 'font-family': 'Doto', 'font-weight': 800, 'font-size': 8, fill: '#556072' }); t.textContent = i * 5; }
+    }
+    add('path', { d: `M ${cx-R} ${cy} A ${R} ${R} 0 0 1 ${cx-R+2} ${cy-14}`, stroke: '#2dd4bf', 'stroke-width': 4, fill: 'none', 'stroke-linecap': 'round' });
+    const t = add('text', { x: cx, y: cy - 8, 'text-anchor': 'middle', 'font-family': 'Doto', 'font-weight': 900, 'font-size': 30, fill: '#e8edf3' }); t.textContent = '0';
+    const u = add('text', { x: cx, y: cy + 6, 'text-anchor': 'middle', 'font-family': 'Doto', 'font-weight': 800, 'font-size': 9, fill: '#8b96a8' }); u.textContent = 'KM/H';
+  })();
+
+  // cell voltage strip (20 cells)
+  (function () {
+    const svg = document.getElementById('cells'), ns = 'http://www.w3.org/2000/svg';
+    for (let i = 0; i < 20; i++) {
+      const v = 3.28 + Math.sin(i * 1.7) * 0.03 + (i === 13 ? -0.06 : 0), h = 18 + (v - 3.18) * 300;
+      const e = document.createElementNS(ns, 'rect');
+      Object.entries({ x: i * 15, y: 64 - h, width: 11, height: h, rx: 2, fill: i === 13 ? '#fbbf24' : '#2dd4bf', opacity: i === 13 ? 1 : 0.75 }).forEach(([k, val]) => e.setAttribute(k, val));
+      svg.appendChild(e);
+    }
+  })();
+</script>
 </body>
 </html>

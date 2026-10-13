@@ -28,3 +28,9 @@ Some tasks are easier with a list than a map: scanning, sorting and exporting fo
 - The table scrolls smoothly at 1 lakh rows.
 - CSV export of 1 lakh rows completes in ≤ 5 s without freezing the UI.
 - The CSV content matches the table in tests.
+
+## Design note (2026-10-13, mockup v2)
+- Adds a **vehicle tray** along the bottom of the map: glass cards for vehicles in the current viewport, showing regno, model · fleet, two key stats, a mini illustration and a status dot.
+- It scrolls horizontally. Clicking a card selects that vehicle.
+- It shares the worker's viewport query with the table's "current viewport" mode.
+- These are confirmed in the F09 spec.

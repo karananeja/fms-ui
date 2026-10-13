@@ -28,3 +28,8 @@ Operators need to narrow 1 lakh vehicles down to the ones that matter, and find 
 - Search results come back in ≤ 50 ms at 1 lakh vehicles.
 - Counters match the filtered data.
 - e2e tests cover search → jump, chip filters and combined filters.
+
+## Design note (2026-10-13, mockup v2)
+- The status counters render as **glass status pills** across the top of the map, plus a **Fleet pulse** card: total, a stacked status bar, a legend with counts, and a "running · last hour" sparkline.
+- The sparkline uses only counts sampled since page load. No invented history.
+- These are confirmed in the F08 spec.

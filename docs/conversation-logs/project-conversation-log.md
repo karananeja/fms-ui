@@ -116,3 +116,13 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 - Saved feedback memory: reference images are inspiration only.
 
 **Status:** Awaiting sign-off of the mockup, DS1 intent/spec, F07 spec rev 2, and D-051…D-053.
+
+## 2026-10-13 — Session 1 (cont. 12)
+
+**User:** "it still appears simple, refer the images and improvise, also use DOTO font family throughout the app. improve the task completion time right now it is taking about 25 mins"
+
+**Assistant:**
+- Rebuilt the mockup as **v2** (`docs/design/design-direction.html`), drawing on sample-2…5: city-map backdrop, fleet pulse card, status pills, LIVE pill, selected trail + callout + compass, 2D/3D toggle, vehicle tray, hero vehicle illustration, ring gauges, speedometer, session energy chart, events timeline, parameter chips/highlights, cell strip, mobile sheet. Doto everywhere. Verified by screenshot.
+- Updated DS1 intent/spec (Doto only, 2D/3D, LIVE pill, trail layer), F07 spec → rev 3, design notes on F08/F09 intents, D-051/D-052 wording, new D-054 (Doto only) and D-055 (speed plan). Saved feedback memory on turnaround time.
+
+**Status:** Awaiting sign-off of mockup v2, DS1 spec, F07 rev 3, D-051…D-055.
