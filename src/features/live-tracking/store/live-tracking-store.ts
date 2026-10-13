@@ -13,7 +13,12 @@ import type {
   LiveTrackingWorkerApi,
   MapFrame,
   MapViewport,
+  CsvRequest,
+  CsvResult,
   SelectedVehicle,
+  TableQuery,
+  TableResult,
+  TrayCard,
   VehicleSummary,
 } from '../worker/worker-api.ts';
 
@@ -268,6 +273,32 @@ export class LiveTrackingStore {
     } else if (this.state.selectedVehicleId) {
       void this.selectVehicle(null);
     }
+  }
+
+  // ---- F09: table, CSV, tray (worker passthroughs) ----
+
+  /** The map's last settled bbox (null before the map reported one). */
+  get viewportBbox(): Bbox | null {
+    return this.viewport?.bbox ?? null;
+  }
+
+  async setFleetNames(names: Record<string, string>): Promise<void> {
+    await this.api?.setFleetNames(names);
+  }
+
+  async queryTable(query: TableQuery): Promise<TableResult | null> {
+    return (await this.api?.queryTable(query)) ?? null;
+  }
+
+  async exportCsv(
+    req: CsvRequest,
+    onProgress: (done: number, total: number) => void,
+  ): Promise<CsvResult | null> {
+    return (await this.api?.exportCsv(req, proxy(onProgress))) ?? null;
+  }
+
+  async getTray(bbox: Bbox): Promise<TrayCard[]> {
+    return (await this.api?.getTray(bbox)) ?? [];
   }
 
   /** Asks the map to re-measure its container (layout around it changed). */
