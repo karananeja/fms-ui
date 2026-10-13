@@ -1,0 +1,26 @@
+# 02 — Feature Catalogue & Delivery Order
+
+Each feature has its own folder, `docs/features/<id>-<name>/`, which holds:
+- `intent.md`: the why and what. **The user signs this off first.**
+- `spec.md`: requirements, contracts and acceptance tests. Written after the intent is signed off, then signed off too.
+- `conversation-log.md`: the implementation chat log.
+- `test-report.md`: the testing evidence.
+
+A feature is **Done** only when all four are in place: Implemented → Tested → User-accepted → Signed off.
+
+| ID | Feature | Depends on | Intent | Spec | Impl | Test | UAT |
+|---|---|---|---|---|---|---|---|
+| F00 | Project foundation | — | Signed off | Awaiting sign-off | — | — | — |
+| F01 | Mock server & API/WS contract | F00 | Signed off | Awaiting sign-off | — | — | — |
+| F02 | Authentication (sign-in, forgot/reset, accept invite) | F01 | Signed off | — | — | — | — |
+| F03 | Access control (fleet tree, users, invites, permissions) | F02 | Signed off | — | — | — | — |
+| F04 | Live data pipeline (worker, WS, `live-tracking-store.ts`) | F01 | Signed off | — | — | — | — |
+| F05 | Vehicle status derivation | F04 | Signed off | — | — | — | — |
+| F06 | Live map (markers, clusters, zoom-to-fit, city jump, quick locate) | F04, F05 | Signed off | — | — | — | — |
+| F07 | Vehicle details panel & parameters | F06 | Signed off | — | — | — | — |
+| F08 | Status bar: search, status counters, filters | F05, F06 | Signed off | — | — | — | — |
+| F09 | Table view (full / viewport) & CSV export | F08 | Signed off | — | — | — | — |
+| F10 | Share live location (create, manage, public page) | F03, F07 | Signed off | — | — | — | — |
+
+Suggested order: F00 → F01 → F04 → F05 → F06 → F07 → F08 → F09 → F02 → F03 → F10.
+This puts the live-tracking core, the main risk, first. Until F02 lands, auth uses a mock dev session.
