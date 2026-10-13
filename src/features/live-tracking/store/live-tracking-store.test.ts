@@ -3,22 +3,60 @@ import { act, renderHook } from '@testing-library/react';
 import { releaseProxy, type Remote } from 'comlink';
 import { describe, expect, it, vi } from 'vitest';
 import { VEHICLE_STATUSES } from '@shared/domain/vehicle-status.ts';
-import type { LivePush, LiveTrackingWorkerApi } from '../worker/worker-api.ts';
-import { LiveTrackingStore, type LiveTrackingState } from './live-tracking-store.ts';
+import { INDIA_CITIES } from '../config/india-cities.ts';
+import type {
+  Bbox,
+  LivePush,
+  LiveTrackingWorkerApi,
+  MapFrame,
+  VehicleSummary,
+} from '../worker/worker-api.ts';
+import {
+  LiveTrackingStore,
+  selectedPosition,
+  type LiveTrackingState,
+  type MapCommand,
+} from './live-tracking-store.ts';
 import { useLiveTracking } from './use-live-tracking.ts';
 
 const me = { fleetIds: ['f0'] } as unknown as Me;
 const counts = (n = 0) =>
   Object.fromEntries(VEHICLE_STATUSES.map((s) => [s, n])) as LivePush['statusCounts'];
 
+const frame = (version: number, ids: string[] = [], lng = 77, lat = 12): MapFrame => ({
+  version,
+  zoom: 5,
+  points: {
+    lng: Float64Array.from(ids, () => lng),
+    lat: Float64Array.from(ids, () => lat),
+    heading: new Float32Array(ids.length),
+    status: new Uint8Array(ids.length),
+    ids,
+    regnos: ids,
+  },
+  clusters: {
+    lng: new Float64Array(),
+    lat: new Float64Array(),
+    id: new Float64Array(),
+    count: new Uint32Array(),
+    breakdown: new Uint32Array(),
+  },
+});
+
 function fakeWorker() {
+  let frameVersion = 0;
   let onPush: ((p: LivePush) => void) | undefined;
   const api = {
     init: vi.fn(async (_me: Me, cb: (p: LivePush) => void) => {
       onPush = cb;
     }),
     selectVehicle: vi.fn(async (id: string | null) => id !== 'missing'),
-    getVehicleSummary: vi.fn(async () => null),
+    getVehicleSummary: vi.fn<(id: string) => Promise<Partial<VehicleSummary> | null>>(
+      async () => null,
+    ),
+    setViewport: vi.fn(async (): Promise<MapFrame | null> => frame(++frameVersion)),
+    getBounds: vi.fn(async (): Promise<Bbox | null> => [72, 12, 88, 28]),
+    getClusterExpansionZoom: vi.fn<(id: number) => Promise<number | null>>(async () => 9),
     dispose: vi.fn(async () => {}),
     [releaseProxy]: vi.fn(),
   };
@@ -153,5 +191,120 @@ describe('F04-R21: useLiveTracking', () => {
       push({}, { vehicleCount: 12 });
     });
     expect(renders).toBe(n);
+  });
+});
+
+const viewport = { bbox: [68, 6, 98, 36] as Bbox, zoom: 4 };
+const flush = () => new Promise((r) => setTimeout(r, 0));
+
+describe('F06-T4: store map actions', () => {
+  function started() {
+    const t = fakeWorker();
+    const commands: MapCommand[] = [];
+    t.store.onMapCommand((c) => commands.push(c));
+    t.store.start(me);
+    return { ...t, commands };
+  }
+
+  it('setViewport stores the returned frame; newer push frames replace it, older ones do not', async () => {
+    const { store, api, push } = started();
+    await store.setViewport(viewport);
+    expect(api.setViewport).toHaveBeenCalledWith(viewport);
+    expect(store.getSnapshot().mapFrame?.version).toBe(1);
+    push({ mapFrame: frame(5) });
+    expect(store.getSnapshot().mapFrame?.version).toBe(5);
+    push({ mapFrame: frame(3) });
+    expect(store.getSnapshot().mapFrame?.version).toBe(5);
+    await store.setViewport(null);
+    expect(store.getSnapshot().mapFrame).toBeNull();
+    push({ mapFrame: frame(9) });
+    expect(store.getSnapshot().mapFrame).toBeNull();
+  });
+
+  it('locateVehicle selects and flies to the position at zoom 16; no position → toast', async () => {
+    const { store, api, commands } = started();
+    api.getVehicleSummary.mockResolvedValueOnce({ lat: 18.5, lng: 73.8 });
+    await store.locateVehicle('v1');
+    expect(api.selectVehicle).toHaveBeenCalledWith('v1');
+    expect(store.getSnapshot().selectedVehicleId).toBe('v1');
+    expect(commands).toEqual([{ type: 'fly', center: [73.8, 18.5], zoom: 16, duration: 1000 }]);
+
+    api.getVehicleSummary.mockResolvedValueOnce({ lat: 0, lng: 0 });
+    await store.locateVehicle('v2');
+    expect(store.getSnapshot().selectedVehicleId).toBe('v2');
+    expect(commands).toHaveLength(1);
+    const notice = store.getSnapshot().notice!;
+    expect(notice.message).toBe('No location available');
+    store.dismissNotice(notice.id);
+    expect(store.getSnapshot().notice).toBeNull();
+  });
+
+  it('fitToVehicles fits the bounds, flies to a single point, and does nothing when empty', async () => {
+    const { store, api, commands } = started();
+    expect(await store.fitToVehicles()).toBe(true);
+    api.getBounds.mockResolvedValueOnce([73.8, 18.5, 73.8, 18.5]);
+    await store.fitToVehicles();
+    api.getBounds.mockResolvedValueOnce(null);
+    expect(await store.fitToVehicles()).toBe(false);
+    expect(commands).toEqual([
+      { type: 'fit', bounds: [72, 12, 88, 28], padding: 48, maxZoom: 14 },
+      { type: 'fly', center: [73.8, 18.5], zoom: 14, duration: 1000 },
+    ]);
+  });
+
+  it('auto-fits once on the first completed snapshot, not after a reconnect', async () => {
+    const { store, api, push, commands } = started();
+    push({}, { snapshotComplete: true });
+    await flush();
+    expect(commands).toEqual([]); // no map yet
+    await store.setViewport(viewport);
+    await flush();
+    expect(commands.map((c) => c.type)).toEqual(['fit']);
+    expect(store.autoFitDone).toBe(true);
+    push({ connection: 'reconnecting' }, { snapshotComplete: false });
+    push({}, { snapshotComplete: true, reconnects: 1 });
+    await store.setViewport(viewport);
+    await flush();
+    expect(commands).toHaveLength(1);
+    expect(api.getBounds).toHaveBeenCalledTimes(1);
+  });
+
+  it('auto-fits when the snapshot completes after the map is up', async () => {
+    const { store, push, commands } = started();
+    await store.setViewport(viewport);
+    push({}, { snapshotComplete: false });
+    await flush();
+    expect(commands).toEqual([]);
+    push({}, { snapshotComplete: true });
+    await flush();
+    expect(commands).toHaveLength(1);
+  });
+
+  it('cluster click eases to the expansion zoom; city jump fits the city bbox', async () => {
+    const { store, api, commands } = started();
+    await store.zoomToCluster(42, [77, 12], 5);
+    expect(api.getClusterExpansionZoom).toHaveBeenCalledWith(42);
+    api.getClusterExpansionZoom.mockResolvedValueOnce(null);
+    await store.zoomToCluster(43, [77, 12], 6.5);
+    const pune = INDIA_CITIES.find((c) => c.name === 'Pune')!;
+    store.jumpToCity(pune);
+    expect(commands).toEqual([
+      { type: 'ease', center: [77, 12], zoom: 9 },
+      { type: 'ease', center: [77, 12], zoom: 8.5 },
+      { type: 'fit', bounds: pune.bbox, padding: 0 },
+    ]);
+  });
+
+  it('selectedPosition prefers the live payload, then the frame point', async () => {
+    const { store, push } = started();
+    await store.setViewport(viewport);
+    await store.selectVehicle('v7');
+    push({ mapFrame: frame(10, ['v6', 'v7'], 80, 20) });
+    expect(selectedPosition(store.getSnapshot())).toEqual([80, 20]);
+    const combinfo = { latitude: 21, longitude: 81 } as never;
+    push({ selected: { vehicleId: 'v7', found: true, status: null, combinfo, lafparsed: null } });
+    expect(selectedPosition(store.getSnapshot())).toEqual([81, 21]);
+    await store.selectVehicle(null);
+    expect(selectedPosition(store.getSnapshot())).toBeNull();
   });
 });

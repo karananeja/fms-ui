@@ -1,5 +1,6 @@
 import { vehicleListSchema } from '@shared/contract/index.ts';
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './fixtures.ts';
 
 interface FmsLive {
   pushCount: number;
@@ -21,7 +22,7 @@ async function openLive(page: Page) {
   const login = page.waitForResponse((r) => r.url().endsWith('/api/auth/login'), {
     timeout: 10_000,
   });
-  await page.goto('/live-tracking');
+  await page.goto('/live-tracking?debug=1');
   expect((await login).status()).toBe(200);
   await expect(page.getByTestId('live-connection')).toHaveText('Live', { timeout: 10_000 });
   await expect

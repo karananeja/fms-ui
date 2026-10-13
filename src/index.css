@@ -65,3 +65,48 @@
     @apply bg-bg font-sans text-text antialiased;
   }
 }
+
+/* MapLibre controls on the dark theme (F06). Unlayered + `.maplibregl-map` so they beat
+   maplibre-gl.css, which loads later with the map chunk. */
+.maplibregl-map .maplibregl-ctrl-group {
+  background: var(--surface-1);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.4);
+}
+.maplibregl-map .maplibregl-ctrl-group button + button {
+  border-top-color: var(--border);
+}
+.maplibregl-map .maplibregl-ctrl-group .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-attrib {
+  background: rgb(24 24 26 / 0.85);
+  color: var(--text-muted);
+}
+.maplibregl-map .maplibregl-ctrl-attrib a {
+  color: var(--text-muted);
+}
+.maplibregl-map .maplibregl-ctrl-scale {
+  background: rgb(24 24 26 / 0.7);
+  border-color: var(--text-muted);
+  color: var(--text-muted);
+}
+.maplibregl-map .maplibregl-popup-content {
+  background: var(--surface-1);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.5);
+}
+.maplibregl-map .maplibregl-popup-tip {
+  display: none;
+}
+.fms-cluster {
+  cursor: pointer;
+  border-radius: 9999px;
+  padding: 0;
+}
+.fms-cluster:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}

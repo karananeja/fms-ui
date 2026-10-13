@@ -6,7 +6,7 @@ import {
   redirect,
   type RouterHistory,
 } from '@tanstack/react-router';
-import { LiveFeedDiagnostics } from '@/features/live-tracking/components/live-feed-diagnostics';
+import { LiveTrackingPage } from '@/features/live-tracking/components/live-tracking-page';
 import { PlaceholderPage } from '@/shared/ui/placeholder-page';
 import { AppLayout } from './app-layout';
 import { NotFoundPage } from './not-found-page';
@@ -66,7 +66,7 @@ const liveTrackingRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: 'live-tracking',
   staticData: { title: 'Live tracking' },
-  component: LiveFeedDiagnostics,
+  component: LiveTrackingPage,
 });
 
 const adminRoute = createRoute({ getParentRoute: () => appLayoutRoute, path: 'admin' });
