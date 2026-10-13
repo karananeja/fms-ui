@@ -41,3 +41,6 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 **User:** "approved, go ahead with F00" — F00 and F01 specs signed off.
 
 **Assistant:** Marked specs signed off; created branch `feature/f00-project-foundation`; spawned implementation sub-agent for F00 (log: `docs/features/f00-project-foundation/conversation-log.md`).
+- F00 sub-agent finished: all F00-T1…T7 pass; proposed decisions D-019…D-022. Orchestrator independently re-ran `pnpm check` (9/9 unit, lint/typecheck clean), `pnpm build` (OK) and `pnpm e2e` (3/3) — confirmed.
+
+**Status:** F00 awaiting user acceptance (UAT).
