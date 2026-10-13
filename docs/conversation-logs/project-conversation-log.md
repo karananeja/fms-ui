@@ -150,3 +150,27 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 **User:** "approved" — F08 + F09 specs signed off.
 
 **Assistant:** Committed the shared filter contract (match-all `FilterEngine` stub on `engine.filters`) on `feature/f08-search-filters`, branched `feature/f09-table-csv` from it, created worktrees `../fms-ui-f08` (ports 5273/4100) and `../fms-ui-f09` (5373/4200), spawned both agents in parallel. Decision IDs reserved: F08 D-064…D-067, F09 D-068…D-071.
+
+## 2026-10-13 — Session 2 (resume)
+
+**User:** "Resume the existing project" + asked to stop repeated permission prompts.
+
+**Assistant:** Recovered state: F08/F09 agents had been interrupted (F08: uncommitted worker filter engine + search index; F09: only `@tanstack/react-table` / `react-virtual` deps added). Settings self-edit was blocked by auto mode; user added both worktrees via `/add-dir` (session-scoped). Re-spawned F08 and F09 agents in their existing worktrees to continue from the uncommitted work (ports 5273/4100 and 5373/4200).
+
+## 2026-10-14 — Session 3 (resume)
+
+**User:** "Resume the existing project."
+
+**Assistant:** Recovered state: F08 complete on `feature/f08-search-filters` (`pnpm check` 401/401, e2e 24/24). It is ready for UAT, but one item is open: the frame budget when widening a filter back towards 1 lakh is 254–314 ms against a 200 ms budget, and the proposed fix changes the approved R4 approach and the shared F06 MapIndex, so it needs approval. F09 has R1–R12 and T1–T5 committed; spawned an agent in `../fms-ui-f09` to finish T6–T10 (e2e, screenshots, test report). `.recovery/2026-10-14` is the pre-recovery backup; its contents are now committed on both branches.
+
+**User:** approved both F08 frame-budget fixes: status selection applied per frame from the per-status cluster breakdown, and a cached no-filter index served on Clear all. These change F08-R4 and the shared F06 MapIndex; recorded as D-072.
+
+**Assistant:** Spawned an F08 agent in `../fms-ui-f08` to implement both fixes, re-run the perf spec twice and update the test report. The F09 agent continues in parallel.
+
+**Assistant:** F09 finished (T6–T10): `pnpm check` 366/366, e2e 24/24, perf spec passes (scroll longest task 50 ms, borderline; export 584 ms). D-072 fixes landed on F08: the map computes a frame in about 1 ms, but the frame budget still fails at about 250 ms because each change waits for the next 4 Hz push.
+
+**User:** approved fix 3 (a filter change pushes immediately, amends F04-R17 → D-073) and F09's D-068/D-069 (now Accepted on the F09 branch). F08 agent resumed to implement D-073 and re-measure.
+
+**Assistant:** D-073 landed on F08: `pnpm check` 406/406, e2e 24/24. Perf passed both runs: widening 47–97 ms (was 250–314 ms), no long tasks. F08 + F09 both ready for UAT.
+
+**Status:** Awaiting UAT acceptance of F08 and F09. Once both are accepted, merge them on `integration/f08-f09` and run the full perf suite there, including the borderline F09 scroll check.
