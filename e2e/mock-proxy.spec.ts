@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+const wsUrl = (pageUrl: string) => new URL('/ws/live', pageUrl).href.replace(/^http/, 'ws');
+
 test('/ws/live works through the Vite proxy with the session cookie', async ({ page }) => {
   const login = await page.request.post('/api/auth/login', {
     data: { email: 'ops@fms.local', password: 'Ops@1234' },
@@ -9,10 +11,10 @@ test('/ws/live works through the Vite proxy with the session cookie', async ({ p
 
   await page.goto('/');
   const result = await page.evaluate(
-    () =>
+    (url) =>
       new Promise<{ types: string[]; closeCode?: number }>((resolve) => {
         const types: string[] = [];
-        const ws = new WebSocket(`${location.origin.replace(/^http/, 'ws')}/ws/live`);
+        const ws = new WebSocket(url);
         const done = (closeCode?: number) => {
           clearTimeout(timer);
           ws.close();
@@ -39,6 +41,7 @@ test('/ws/live works through the Vite proxy with the session cookie', async ({ p
         };
         ws.onclose = (e) => done(e.code);
       }),
+    wsUrl(page.url()),
   );
   expect(result.closeCode).toBeUndefined();
   expect(result.types[0]).toBe('subscribed');
@@ -48,15 +51,16 @@ test('/ws/live works through the Vite proxy with the session cookie', async ({ p
 test('/ws/live without a session closes with 4401 through the proxy', async ({ page }) => {
   await page.goto('/');
   const code = await page.evaluate(
-    () =>
+    (url) =>
       new Promise<number>((resolve) => {
-        const ws = new WebSocket(`${location.origin.replace(/^http/, 'ws')}/ws/live`);
+        const ws = new WebSocket(url);
         const timer = setTimeout(() => resolve(-1), 10_000);
         ws.onclose = (e) => {
           clearTimeout(timer);
           resolve(e.code);
         };
       }),
+    wsUrl(page.url()),
   );
   expect(code).toBe(4401);
 });
