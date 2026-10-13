@@ -104,3 +104,15 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 **User:** "continue" — interpreted as F06 UAT acceptance + approval of D-041…D-047 (stated back to user).
 
 **Assistant:** D-041…D-047 Accepted; F06 merged into `main` (--no-ff). F07 spec amended with F07-R16 (click empty map to deselect — proposed in the F06 hand-over, user continued). Created `feature/f07-vehicle-details`; spawned F07 implementation sub-agent.
+
+## 2026-10-13 — Session 1 (cont. 11): design correction
+
+**User:** "the cards should not match the existing app, they were for reference. instead i was looking for something different from the reference images i had provided"
+
+**Assistant:**
+- Acknowledged the mistake (specs F00 §2, F06 look and F07 rev 1 had copied the current app). Paused the F07 sub-agent: it finished only design-independent work (view model, humanize-pid, URL sync, permissions, deselect-on-map-click; D-048…D-050 on its branch) and stopped.
+- Asked direction questions → user chose: **Dark ops console**, **floating overlay card**, **whole-app restyle**.
+- Built `docs/design/design-direction.html` (mockup, desktop + mobile verified by screenshot), wrote DS1 intent + spec, F07 spec revision 2 (tabs, tiles, relative freshness; no gauges), proposed D-051…D-053, marked F00 §2 tokens superseded, added DS1 to the catalogue.
+- Saved feedback memory: reference images are inspiration only.
+
+**Status:** Awaiting sign-off of the mockup, DS1 intent/spec, F07 spec rev 2, and D-051…D-053.

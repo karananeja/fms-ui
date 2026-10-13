@@ -1,9 +1,9 @@
 # F07 — Vehicle Details Panel & Parameters · Intent
 
-**Status:** Signed off: 2026-10-13 (user)
+**Status:** Signed off: 2026-10-13 (user). Layout wording amended for the design correction; see spec revision 2.
 
 ## Why
-Operators need the current state of a single vehicle from GPS and CAN data in one place. The layout follows your current app (`reference/current-app-view*.png`).
+Operators need the current state of a single vehicle from GPS and CAN data in one place. The current app's screenshots show which data exists; the **design is new** and follows `docs/design/design-direction.html` (DS1, correction 2026-10-13).
 
 ## What
 - **Header:**
@@ -26,11 +26,11 @@ Operators need the current state of a single vehicle from GPS and CAN data in on
 - **Reports and Analytics are not rendered** (C16).
 
 ## Done when
-- The panel matches the reference layout.
+- The panel matches the approved mockup (`docs/design/design-direction.html`).
 - Live values update while the panel is open.
 - Parameter search filters the grid.
 - The panel works on mobile widths.
 
 ## Resolved
 - Parameters show **raw numbers with no units** (D-017).
-- The fixed cards (speed, SOC, DTE, ODO, voltages) keep the units shown in the reference design.
+- The fixed cards (speed, SOC, DTE, ODO, voltages) show units (km/h, %, km, V).

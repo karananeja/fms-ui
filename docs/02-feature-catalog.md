@@ -17,10 +17,11 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 | F04 | Live data pipeline (worker, WS, `live-tracking-store.ts`) | F01 | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
 | F05 | Vehicle status derivation | F04 | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
 | F06 | Live map (markers, clusters, zoom-to-fit, city jump, quick locate) | F04, F05 | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
-| F07 | Vehicle details panel & parameters | F06 | Signed off | Signed off | In progress | — | — |
+| DS1 | Design refresh ("Dark ops console"; restyles F00 shell + F06 map) | F06 | Awaiting sign-off | Awaiting sign-off | — | — | — |
+| F07 | Vehicle details panel & parameters | DS1 | Signed off (amended) | Rev 2 awaiting sign-off | Paused (logic done; UI waits for DS1) | — | — |
 | F08 | Status bar: search, status counters, filters | F05, F06 | Signed off | — | — | — | — |
 | F09 | Table view (full / viewport) & CSV export | F08 | Signed off | — | — | — | — |
 | F10 | Share live location (create, manage, public page) | F03, F07 | Signed off | — | — | — | — |
 
-Suggested order: F00 → F01 → F04 → F05 → F06 → F07 → F08 → F09 → F02 → F03 → F10.
+Suggested order: F00 → F01 → F04 → F05 → F06 → DS1 → F07 → F08 → F09 → F02 → F03 → F10.
 This puts the live-tracking core, the main risk, first. Until F02 lands, auth uses a mock dev session.

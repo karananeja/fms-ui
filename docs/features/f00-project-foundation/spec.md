@@ -30,7 +30,7 @@
 | F00-R17 | README: prerequisites, setup, scripts, folder map, and links to `docs/`. |
 | F00-R18 | Git: `.gitignore` stays as committed (`reference/` excluded). |
 
-## 2. Design tokens (from `reference/current-app-view*.png`)
+## 2. Design tokens (from `reference/current-app-view*.png`). **Superseded by DS1** (`docs/features/ds1-design-refresh/spec.md`)
 
 | Token | Value | Use |
 |---|---|---|

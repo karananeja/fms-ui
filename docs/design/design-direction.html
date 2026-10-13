@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FMS Design Direction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0c10;
+    --map: #0f1318;
+    --map-road: #1a2029;
+    --map-water: #0b1520;
+    --glass: rgba(18, 22, 29, 0.72);
+    --glass-strong: rgba(18, 22, 29, 0.88);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --tile: rgba(255, 255, 255, 0.035);
+    --tile-border: rgba(255, 255, 255, 0.06);
+    --text: #e6eaf0;
+    --muted: #8a94a6;
+    --faint: #5b6577;
+    --accent: #2dd4bf;
+    --accent-soft: rgba(45, 212, 191, 0.12);
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --st-running: #4ade80;
+    --st-stopped: #f87171;
+    --st-immobilized: #c084fc;
+    --st-noncomm: #64748b;
+    --st-charging: #60a5fa;
+    --st-pullout: #fb923c;
+    --st-nogps: #facc15;
+    --st-gpsnever: #475569;
+    --r-panel: 18px;
+    --r-tile: 12px;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans); }
+  .num { font-variant-numeric: tabular-nums; }
+  .mono { font-family: var(--mono); letter-spacing: 0.02em; }
+  .label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .glass { background: var(--glass); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%); border: 1px solid var(--glass-border); }
+
+  header.intro { max-width: 1200px; margin: 0 auto; padding: 28px 16px 8px; }
+  header.intro h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; }
+  header.intro p { margin: 0; color: var(--muted); max-width: 760px; }
+
+  /* ---------- app frame ---------- */
+  .frame { max-width: 1200px; margin: 20px auto; padding: 0 16px; }
+  .app { position: relative; height: 720px; border-radius: 20px; overflow: hidden; border: 1px solid var(--glass-border); display: grid; grid-template-columns: 64px 1fr; }
+  .rail { background: #0c0f14; border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 0; }
+  .rail .logo { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--accent), #0ea5e9); margin-bottom: 10px; }
+  .rail .it { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; color: var(--muted); }
+  .rail .it.on { background: var(--accent-soft); color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+  .rail svg { width: 20px; height: 20px; }
+
+  .map { position: relative; background: var(--map); overflow: hidden; }
+  .map svg.bg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* top bar over map */
+  .topbar { position: absolute; top: 14px; left: 14px; right: 14px; display: flex; gap: 10px; align-items: center; }
+  .search { flex: 0 1 420px; height: 42px; border-radius: 12px; display: flex; align-items: center; gap: 10px; padding: 0 12px; color: var(--muted); }
+  .search kbd { margin-left: auto; font: 11px var(--mono); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--glass-border); color: var(--faint); }
+  .chips { display: flex; gap: 6px; padding: 5px; border-radius: 12px; overflow: hidden; }
+  .chip { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 8px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .chip b { color: var(--text); font-weight: 600; }
+  .chip.on { background: var(--accent-soft); color: var(--accent); }
+  .chip.on b { color: var(--accent); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  .tools { position: absolute; left: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 12px; }
+  .tool { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); }
+  .tool svg { width: 18px; height: 18px; }
+  .citybtn { position: absolute; left: 66px; bottom: 14px; height: 46px; border-radius: 12px; display: flex; align-items: center; gap: 8px; padding: 0 14px; color: var(--muted); font-size: 13px; }
+  .attrib { position: absolute; right: 8px; bottom: 6px; font-size: 10px; color: var(--faint); }
+
+  /* clusters + markers */
+  .cluster { position: absolute; transform: translate(-50%, -50%); }
+  .cluster .c { position: absolute; inset: 7px; border-radius: 50%; background: var(--glass-strong); display: grid; place-items: center; font: 600 12px var(--sans); border: 1px solid var(--glass-border); }
+  .veh { position: absolute; width: 18px; height: 18px; transform: translate(-50%, -50%); }
+  .veh.sel::after { content: ''; position: absolute; inset: -9px; border-radius: 50%; border: 2px solid var(--accent); box-shadow: 0 0 0 6px var(--accent-soft); }
+
+  /* details card */
+  .card { position: absolute; top: 70px; right: 14px; bottom: 14px; width: 392px; border-radius: var(--r-panel); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,0.45); }
+  .card-head { padding: 16px 16px 12px; border-bottom: 1px solid var(--glass-border); }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .regno { font: 600 18px var(--mono); }
+  .icon-btn { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); border: 1px solid transparent; }
+  .icon-btn:hover { border-color: var(--glass-border); color: var(--text); }
+  .icon-btn svg { width: 16px; height: 16px; }
+  .spacer { flex: 1; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .tag { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--tile-border); color: var(--muted); }
+  .status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 999px; }
+  .fresh { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .fresh span b { color: var(--text); font-weight: 500; }
+
+  .tabs { display: flex; gap: 4px; padding: 10px 16px 0; }
+  .tab { font-size: 13px; padding: 7px 10px; border-radius: 8px; color: var(--muted); }
+  .tab.on { color: var(--text); background: var(--tile); }
+  .tab .n { color: var(--faint); margin-left: 4px; }
+
+  .body { padding: 12px 16px 16px; overflow: auto; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tile { background: var(--tile); border: 1px solid var(--tile-border); border-radius: var(--r-tile); padding: 12px; }
+  .big { font-size: 26px; font-weight: 600; line-height: 1.1; margin-top: 6px; }
+  .big small { font-size: 12px; color: var(--muted); font-weight: 500; margin-left: 3px; }
+  .ring-wrap { display: flex; align-items: center; gap: 12px; }
+  .meter { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.07); margin-top: 10px; overflow: hidden; }
+  .meter i { display: block; height: 100%; border-radius: 2px; }
+  .kv { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; font-size: 13px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; text-align: right; }
+  .loc { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .cta { height: 40px; border-radius: 10px; border: 1px solid rgba(45,212,191,0.35); background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 13px; }
+  .cta svg { width: 16px; height: 16px; }
+
+  /* params panel (second frame) */
+  .param-search { height: 36px; border-radius: 10px; background: var(--tile); border: 1px solid var(--tile-border); display: flex; align-items: center; gap: 8px; padding: 0 10px; color: var(--faint); font-size: 13px; }
+  .plist { display: flex; flex-direction: column; }
+  .prow { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 8px 2px; border-bottom: 1px solid var(--tile-border); font-size: 13px; }
+  .prow span:first-child { color: var(--muted); }
+  .prow .na { color: var(--faint); }
+
+  .notes { max-width: 1200px; margin: 8px auto 40px; padding: 0 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .note { background: #10141a; border: 1px solid var(--glass-border); border-radius: 14px; padding: 16px; }
+  .note h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
+  .note p, .note li { color: var(--muted); font-size: 13px; margin: 0; }
+  .note ul { margin: 0; padding-left: 18px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .sw { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .sw i { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+
+  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .mini { position: relative; height: 560px; border-radius: 20px; overflow: hidden; border: 1px solid var(--glass-border); background: var(--map); }
+  .mini .card { top: 14px; }
+  .caption { color: var(--muted); font-size: 12px; margin: 8px 2px 0; }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; height: 760px; }
+    .rail { display: none; }
+    .chips { display: none; }
+    .card { top: auto; left: 8px; right: 8px; width: auto; height: 52%; border-radius: 18px 18px 14px 14px; }
+    .twocol { grid-template-columns: 1fr; }
+    .citybtn { display: none; }
+    .fresh .abs { display: none; }
+    .tools { display: none; }
+  }
+</style>
+</head>
+<body>
+<header class="intro">
+  <h1>Design direction — “Dark ops console”</h1>
+  <p>A proposal for sign-off. It replaces the look inherited from the current app (red accent, dot-matrix numerals, stacked cards). The data shown is the <span class="mono">caninfo.md</span> / <span class="mono">lafparsed.md</span> sample.</p>
+</header>
+
+<section class="frame">
+  <div class="app">
+    <nav class="rail">
+      <div class="logo"></div>
+      <div class="it on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg></div>
+      <div class="it"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg></div>
+      <div class="it"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M17 11a3 3 0 1 0 0-6M21 20a6 6 0 0 0-4-5.6"/></svg></div>
+    </nav>
+
+    <div class="map">
+      <svg class="bg" viewBox="0 0 1136 720" preserveAspectRatio="xMidYMid slice">
+        <rect width="1136" height="720" fill="var(--map)"/>
+        <path d="M0 520 C 180 470, 260 560, 420 520 S 700 430, 820 470 S 1040 560, 1136 520 L1136 720 L0 720Z" fill="var(--map-water)"/>
+        <g stroke="var(--map-road)" stroke-width="3" fill="none">
+          <path d="M0 160 C 200 180, 420 120, 640 190 S 980 240, 1136 200"/>
+          <path d="M120 0 C 160 200, 260 330, 230 720"/>
+          <path d="M520 0 C 540 160, 480 320, 560 460 S 620 640, 600 720"/>
+          <path d="M0 340 C 300 360, 520 300, 760 340 S 1000 380, 1136 360"/>
+          <path d="M840 0 C 820 200, 900 360, 880 720"/>
+        </g>
+        <g stroke="#141a22" stroke-width="1.2" fill="none">
+          <path d="M60 60 L 400 80 L 460 260 L 300 420"/><path d="M640 60 L 700 260 L 980 300"/>
+          <path d="M300 240 L 700 420 L 760 600"/><path d="M40 420 L 380 600"/>
+        </g>
+      </svg>
+
+      <div class="topbar">
+        <div class="search glass">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          Search VIN, reg no, device ID
+          <kbd>/</kbd>
+        </div>
+        <div class="chips glass">
+          <div class="chip on">All <b class="num">1,00,000</b></div>
+          <div class="chip"><span class="dot" style="background:var(--st-running)"></span>Running <b class="num">34,646</b></div>
+          <div class="chip"><span class="dot" style="background:var(--st-stopped)"></span>Stopped <b class="num">34,342</b></div>
+          <div class="chip"><span class="dot" style="background:var(--st-charging)"></span>Charging <b class="num">7,940</b></div>
+          <div class="chip"><span class="dot" style="background:var(--st-noncomm)"></span>Non-comm <b class="num">8,161</b></div>
+          <div class="chip">+4 more</div>
+        </div>
+      </div>
+
+      <!-- clusters -->
+      <div class="cluster" style="left:23%;top:30%;width:58px;height:58px">
+        <svg width="58" height="58" viewBox="0 0 36 36" style="position:absolute;inset:0;transform:rotate(-90deg)">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-running)" stroke-width="3.2" stroke-dasharray="35 65"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-stopped)" stroke-width="3.2" stroke-dasharray="34 66" stroke-dashoffset="-35"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-charging)" stroke-width="3.2" stroke-dasharray="8 92" stroke-dashoffset="-69"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-noncomm)" stroke-width="3.2" stroke-dasharray="13 87" stroke-dashoffset="-77"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-pullout)" stroke-width="3.2" stroke-dasharray="10 90" stroke-dashoffset="-90"/>
+        </svg>
+        <div class="c num">3.4k</div>
+      </div>
+      <div class="cluster" style="left:46%;top:66%;width:46px;height:46px">
+        <svg width="46" height="46" viewBox="0 0 36 36" style="position:absolute;inset:0;transform:rotate(-90deg)">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-running)" stroke-width="3.2" stroke-dasharray="55 45"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-stopped)" stroke-width="3.2" stroke-dasharray="30 70" stroke-dashoffset="-55"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-immobilized)" stroke-width="3.2" stroke-dasharray="15 85" stroke-dashoffset="-85"/>
+        </svg>
+        <div class="c num">340</div>
+      </div>
+      <div class="cluster" style="left:12%;top:72%;width:38px;height:38px">
+        <svg width="38" height="38" viewBox="0 0 36 36" style="position:absolute;inset:0;transform:rotate(-90deg)">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-stopped)" stroke-width="3.2" stroke-dasharray="70 30"/>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--st-nogps)" stroke-width="3.2" stroke-dasharray="30 70" stroke-dashoffset="-70"/>
+        </svg>
+        <div class="c num">12</div>
+      </div>
+
+      <!-- individual vehicles -->
+      <svg class="veh" style="left:36%;top:44%" viewBox="0 0 20 20"><path d="M10 2 17 17 10 13.5 3 17Z" fill="var(--st-running)" stroke="#0a0c10" stroke-width="1.5" transform="rotate(40 10 10)"/></svg>
+      <svg class="veh" style="left:39%;top:51%" viewBox="0 0 20 20"><path d="M10 2 17 17 10 13.5 3 17Z" fill="var(--st-running)" stroke="#0a0c10" stroke-width="1.5" transform="rotate(200 10 10)"/></svg>
+      <svg class="veh" style="left:33%;top:56%" viewBox="0 0 20 20"><circle cx="10" cy="10" r="5.5" fill="var(--st-charging)" stroke="#0a0c10" stroke-width="2"/></svg>
+      <svg class="veh sel" style="left:42%;top:40%" viewBox="0 0 20 20"><circle cx="10" cy="10" r="5.5" fill="var(--st-pullout)" stroke="#0a0c10" stroke-width="2"/></svg>
+      <svg class="veh" style="left:30%;top:47%" viewBox="0 0 20 20"><circle cx="10" cy="10" r="5.5" fill="var(--st-stopped)" stroke="#0a0c10" stroke-width="2"/></svg>
+      <svg class="veh" style="left:44%;top:50%" viewBox="0 0 20 20"><circle cx="10" cy="10" r="5" fill="none" stroke="var(--st-noncomm)" stroke-width="2" stroke-dasharray="2 2"/></svg>
+
+      <div class="tools glass">
+        <div class="tool" title="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></div>
+        <div class="tool" title="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></div>
+        <div class="tool" title="Fit all vehicles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></div>
+        <div class="tool" title="Table view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg></div>
+      </div>
+      <div class="citybtn glass">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        Jump to city…
+      </div>
+      <div class="attrib">© OpenStreetMap contributors</div>
+
+      <!-- floating details card -->
+      <aside class="card glass">
+        <div class="card-head">
+          <div class="row">
+            <span class="regno">P6DED30BPDC002607</span>
+            <span class="spacer"></span>
+            <div class="icon-btn" title="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg></div>
+            <div class="icon-btn" title="Locate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/></svg></div>
+            <div class="icon-btn" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></div>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <span class="status" style="background:rgba(251,146,60,.14);color:var(--st-pullout)"><span class="dot" style="background:var(--st-pullout)"></span>Pullout</span>
+            <span class="sub" style="margin:0">BGauss · C12 · i Max</span>
+            <span class="tag">EV</span>
+          </div>
+          <div class="fresh">
+            <span><span class="dot" style="background:var(--danger)"></span> GPS <b>31 h ago</b></span>
+            <span><span class="dot" style="background:var(--danger)"></span> CAN <b>31 h ago</b></span>
+            <span style="margin-left:auto" class="num abs">08 Sep 26 | 09:33:42</span>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab on">Overview</div>
+          <div class="tab">Parameters<span class="n num">374</span></div>
+          <div class="tab">Device</div>
+        </div>
+        <div class="body">
+          <div class="grid2">
+            <div class="tile">
+              <div class="label">Speed</div>
+              <div class="big num">0<small>km/h</small></div>
+              <div class="meter"><i style="width:0%;background:var(--accent)"></i></div>
+            </div>
+            <div class="tile ring-wrap">
+              <svg width="54" height="54" viewBox="0 0 36 36" style="transform:rotate(-90deg)">
+                <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="3.5"/>
+                <circle cx="18" cy="18" r="15" fill="none" stroke="var(--warn)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="46.2 94.2"/>
+              </svg>
+              <div>
+                <div class="label">Battery</div>
+                <div class="big num" style="color:var(--warn)">49<small>%</small></div>
+              </div>
+            </div>
+            <div class="tile">
+              <div class="label">Range (DTE)</div>
+              <div class="big num">56<small>km</small></div>
+            </div>
+            <div class="tile">
+              <div class="label">Odometer</div>
+              <div class="big num">1,077<small>km</small></div>
+            </div>
+          </div>
+          <div class="tile">
+            <dl class="kv">
+              <dt>State of health</dt><dd class="num" style="color:var(--ok)">100.0 %</dd>
+              <dt>Motor temperature</dt><dd class="num">17</dd>
+              <dt>Ignition</dt><dd>Off · last on 08 Sep 26 | 08:22</dd>
+            </dl>
+          </div>
+          <div class="loc">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+            <span class="mono num" style="color:var(--text)">28.70419, 80.56578</span>
+            <div class="icon-btn" title="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg></div>
+          </div>
+          <div class="cta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>Share live location</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <p class="caption">Desktop: icon rail · glass search + status chips over the map · glass details card floating on the right · map tools bottom-left.</p>
+</section>
+
+<section class="frame twocol">
+  <div>
+    <div class="mini">
+      <aside class="card glass" style="right:14px;left:14px;width:auto">
+        <div class="card-head">
+          <div class="row"><span class="regno">P6DED30BPDC002607</span><span class="spacer"></span>
+            <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></div></div>
+        </div>
+        <div class="tabs">
+          <div class="tab">Overview</div>
+          <div class="tab on">Parameters<span class="n num">374</span></div>
+          <div class="tab">Device</div>
+        </div>
+        <div class="body">
+          <div class="param-search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search 374 parameters</div>
+          <div class="plist">
+            <div class="prow"><span>12V Count</span><span class="mono num">10244</span></div>
+            <div class="prow"><span>5V Fault</span><span class="mono num">0</span></div>
+            <div class="prow"><span>AC Input Status</span><span class="mono num">1</span></div>
+            <div class="prow"><span>AFE Temperature</span><span class="mono num">27</span></div>
+            <div class="prow"><span>Ah Throughput</span><span class="mono num">878</span></div>
+            <div class="prow"><span>Auxiliary Voltage</span><span class="mono num">13.1</span></div>
+            <div class="prow"><span>Battery Voltage</span><span class="mono num">52.6</span></div>
+            <div class="prow"><span>BMS Charging Cycles</span><span class="mono num">17</span></div>
+            <div class="prow"><span>Time To Charge</span><span class="mono na">N/A</span></div>
+            <div class="prow"><span>Cell Voltage 01</span><span class="mono num">…</span></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+    <p class="caption">Parameters tab: dense key/value list, monospace values, search, “N/A” for sentinel 65535. Hover shows key + timestamp.</p>
+  </div>
+  <div>
+    <div class="mini">
+      <aside class="card glass" style="right:14px;left:14px;width:auto">
+        <div class="card-head">
+          <div class="row"><span class="regno">P6DED30BPDC002607</span><span class="spacer"></span>
+            <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></div></div>
+        </div>
+        <div class="tabs">
+          <div class="tab">Overview</div>
+          <div class="tab">Parameters<span class="n num">374</span></div>
+          <div class="tab on">Device</div>
+        </div>
+        <div class="body">
+          <div class="tile">
+            <div class="label">Device ID</div>
+            <div class="row" style="margin-top:6px"><span class="mono" style="font-size:15px">158828DB0439AE67</span><span class="spacer"></span>
+              <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg></div></div>
+          </div>
+          <div class="grid2">
+            <div class="tile"><div class="label">Aux battery</div><div class="big num" style="color:var(--danger)">0.07<small>V</small></div></div>
+            <div class="tile"><div class="label">Internal battery</div><div class="big num">3.60<small>V</small></div></div>
+            <div class="tile"><div class="label">Signal</div><div class="big num">−70<small>dBm</small></div></div>
+            <div class="tile"><div class="label">GPS fix</div><div class="big num" style="color:var(--warn)">None</div></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+    <p class="caption">Device tab: comms health at a glance. On phones the card becomes a bottom sheet (35% → 92%).</p>
+  </div>
+</section>
+
+<section class="notes">
+  <div class="note">
+    <h3>Palette</h3>
+    <div class="swatches">
+      <span class="sw"><i style="background:#0a0c10;border:1px solid #333"></i>bg</span>
+      <span class="sw"><i style="background:rgba(18,22,29,.9);border:1px solid #333"></i>glass</span>
+      <span class="sw"><i style="background:var(--accent)"></i>accent teal</span>
+      <span class="sw"><i style="background:var(--ok)"></i>ok</span>
+      <span class="sw"><i style="background:var(--warn)"></i>warn</span>
+      <span class="sw"><i style="background:var(--danger)"></i>danger</span>
+    </div>
+  </div>
+  <div class="note">
+    <h3>Status colours (map, chips, pills, table)</h3>
+    <div class="swatches">
+      <span class="sw"><i style="background:var(--st-running)"></i>Running</span>
+      <span class="sw"><i style="background:var(--st-stopped)"></i>Stopped</span>
+      <span class="sw"><i style="background:var(--st-immobilized)"></i>Immobilized</span>
+      <span class="sw"><i style="background:var(--st-noncomm)"></i>Non-comm</span>
+      <span class="sw"><i style="background:var(--st-charging)"></i>Charging</span>
+      <span class="sw"><i style="background:var(--st-pullout)"></i>Pullout</span>
+      <span class="sw"><i style="background:var(--st-nogps)"></i>No GPS</span>
+      <span class="sw"><i style="background:var(--st-gpsnever)"></i>GPS never</span>
+    </div>
+  </div>
+  <div class="note">
+    <h3>Type</h3>
+    <ul>
+      <li>Inter for all UI text; tabular numerals for metrics</li>
+      <li>JetBrains Mono only for IDs (reg no, VIN, device ID) and parameter values</li>
+      <li>Dot-matrix display font retired</li>
+    </ul>
+  </div>
+  <div class="note">
+    <h3>What changes vs. the current app</h3>
+    <ul>
+      <li>Red accent → single teal accent; red reserved for problems</li>
+      <li>Long stacked card → tabbed card (Overview / Parameters / Device)</li>
+      <li>Absolute timestamps → relative freshness (“2 min ago”), absolute on hover</li>
+      <li>Dial gauges → compact metric tiles + battery ring</li>
+      <li>Solid panels → translucent glass over the map</li>
+    </ul>
+  </div>
+</section>
+</body>
+</html>
