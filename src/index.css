@@ -211,3 +211,86 @@ div.maplibregl-map {
     48px 48px;
   background-position: -1px -1px;
 }
+
+/* DS2 / D-108: "live ops" auth screens. The radar sweep, card entrance, staggered fields and
+   button shine; dots and trails are drawn by `auth-backdrop.tsx`. All off for reduced motion. */
+.auth-radar {
+  background:
+    radial-gradient(circle at 50% 50%, var(--accent-halo), transparent 38%),
+    conic-gradient(
+      from 0deg at 50% 50%,
+      transparent 0deg 250deg,
+      var(--accent-soft) 345deg,
+      transparent 360deg
+    );
+  mask-image: radial-gradient(circle at 50% 50%, black 0, black 20%, transparent 55%);
+  animation: auth-sweep 9s linear infinite;
+}
+@keyframes auth-sweep {
+  to {
+    transform: rotate(1turn);
+  }
+}
+@keyframes auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+}
+.auth-card {
+  animation: auth-rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.auth-card > *,
+.auth-card form > * {
+  animation: auth-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.auth-card > :nth-child(1) {
+  animation-delay: 0.12s;
+}
+.auth-card form > :nth-child(1) {
+  animation-delay: 0.2s;
+}
+.auth-card form > :nth-child(2) {
+  animation-delay: 0.28s;
+}
+.auth-card form > :nth-child(3) {
+  animation-delay: 0.36s;
+}
+.auth-card form > :nth-child(4) {
+  animation-delay: 0.44s;
+}
+.auth-card form > :nth-child(n + 5) {
+  animation-delay: 0.52s;
+}
+.auth-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    color-mix(in srgb, var(--text) 35%, transparent) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+  animation: auth-shine 4.5s ease-in-out 1.2s infinite;
+  pointer-events: none;
+}
+@keyframes auth-shine {
+  0% {
+    transform: translateX(-120%);
+  }
+  30%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-radar,
+  .auth-card,
+  .auth-card > *,
+  .auth-card form > *,
+  .auth-shimmer::after {
+    animation: none;
+  }
+}

@@ -349,3 +349,9 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "continue" (F11 UAT acceptance + D-092…D-094 approval).
 
 **Assistant:** Accepted D-092…D-094, marked F11 accepted, merged `feature/f11-driver-data` into `main` (--no-ff), deleted the branch. Starting F12 ∥ F15.
+
+**User:** "upgrade the auth screen, add some animation currently it looks too dull".
+
+**Assistant:** Offered 3 directions (live ops backdrop / split hero / subtle polish); the user chose **live ops backdrop**. Built DS2 on the active branch (auth files + `index.css` only, disjoint from the F12/F15 agents): canvas dots along the grid with trails, a radar sweep, card entrance + staggered fields, brand pulse and button shine, all off under reduced motion. Tuned after a visual check (longer trails, softer sweep). Auth unit 228/228, `auth.spec` e2e 8/8. Proposed D-108.
+
+**Status:** DS2 awaiting UAT (with F12/F15).

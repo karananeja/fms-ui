@@ -2,18 +2,20 @@ import type { ReactNode } from 'react';
 import { CircleAlert, type LucideIcon } from 'lucide-react';
 import { BrandMark } from '@/shared/ui/brand-mark';
 import { cn } from '@/shared/lib/utils';
+import { AuthBackdrop } from './auth-backdrop';
 
 /** Shared backdrop + glass card for every auth screen (spec §4). */
 export function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="relative flex min-h-full items-center justify-center overflow-auto street-grid px-4 py-10">
+      <AuthBackdrop />
       <div aria-hidden className="vignette pointer-events-none fixed inset-0" />
       <main
         aria-labelledby="auth-title"
-        className="relative w-full max-w-[400px] rounded-panel p-6 shadow-[0_24px_60px_var(--shadow)] glass sm:p-8"
+        className="auth-card relative w-full max-w-[400px] rounded-panel p-6 shadow-[0_24px_60px_var(--shadow)] glass sm:p-8"
       >
         <div className="mb-6 flex items-center gap-3">
-          <BrandMark />
+          <BrandMark className="fms-pulse" />
           <h1
             id="auth-title"
             className="text-xs font-extrabold tracking-[0.16em] text-text-muted uppercase"
