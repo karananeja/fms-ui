@@ -386,3 +386,7 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "relax testing and focus on feature completion". **Assistant:** one `pnpm check` (840/841, known F11-T3 flake) + build; targeted e2e only. F06-T6 now fails (auto-fit centre 187 km from India centre vs a 150 km limit, likely from the arterial trips) — left as a follow-up.
 
 **Status:** F13 + F14 awaiting UAT and approval of D-099…D-102, D-109…D-111. Next: F16.
+
+**User:** "continue" (UAT acceptance of F13, F14 + approval of D-099…D-102, D-109…D-111).
+
+**Assistant:** Accepted the decisions, marked F13/F14 accepted, merged `feature/f13-f14` into `main` (--no-ff), deleted the branch. Starting F16.

@@ -1,5 +1,7 @@
 # F13 — Test report
 
+**UAT accepted 2026-10-14**; merged into `main`.
+
 Branch `feature/f13-f14` in the main checkout (with F14). Built by the orchestrator in session 8; testing kept light at the user's request. **Amended mid-build at the user's request:** the three separate request actions became one integrated report flow with incidents (D-109), and the note takes voice input (D-110).
 
 ## Runs (2026-10-14)

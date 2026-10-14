@@ -1,5 +1,7 @@
 # F14 — Test report
 
+**UAT accepted 2026-10-14**; merged into `main`.
+
 Built in the main checkout on `feature/f13-f14`, alongside F13 (disjoint files), ports 5373/4200. **Awaiting UAT.**
 
 ## How it was delivered
