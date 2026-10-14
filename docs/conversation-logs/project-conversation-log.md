@@ -221,3 +221,9 @@ F02 only touched `tableViewStore.reset()`.
 **User:** "Resume the existing project."
 
 **Assistant:** Recovered state: the F03 spec is signed off (catalogue updated, not yet committed). The F09 hardening agent in `../fms-ui-f09h` has its fix and test-report write-up uncommitted and is still finishing verification. Committed the F03 sign-off. Building the F03 shared contract commit (spec §5) on `feature/f03-contract` (worktree `../fms-ui-f03c`); F03a and F03b branch from it.
+
+**Assistant:** F09 hardening finished on `fix/f09-table-scroll`: `pnpm check` 521/521, e2e setup + chromium 36/36, perf 2 runs with no scroll long tasks (export 540–581 ms).
+
+**User:** "approve" (D-079).
+
+**Assistant:** Accepted D-079 and merged `fix/f09-table-scroll` into `main` (--no-ff). Removed the worktree and branch. Post-merge `pnpm check` 521/521. The F03 contract agent is still running.
