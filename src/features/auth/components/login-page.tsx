@@ -62,7 +62,10 @@ export function LoginPage() {
     setPending(true);
     try {
       await session.login(parsed.data.email, parsed.data.password);
-      await navigate({ href: safeRedirect(redirect), replace: true });
+      const target = safeRedirect(redirect);
+      // F13: `/driver` boots its own entry (not an app route), so it needs a full page load.
+      if (/^\/driver\/?(\?|#|$)/.test(target)) location.replace(target);
+      else await navigate({ href: target, replace: true });
     } catch (err) {
       setPending(false);
       // Never say which field was wrong (F02-R7).

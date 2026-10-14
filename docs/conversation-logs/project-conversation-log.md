@@ -374,3 +374,15 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "continue" (UAT acceptance of F12, F15, DS2 + approval of D-095…D-098, D-108).
 
 **Assistant:** Accepted the decisions, marked F12/F15/DS2 accepted, merged `feature/f12-f15` into `main` (--no-ff), deleted the branch. Starting F13 ∥ F14.
+
+**Assistant:** F13 (driver page) built in the main session; F14 (request desk, no-GPS insight, auto-assign) built by one agent in parallel (ports 5373/4200, disjoint files), on `feature/f13-f14`.
+
+**User:** "in the driver app, make the breakdown, replacement and rsa as a integrated workflow than having as independent steps". **Assistant:** one "Report a problem" flow (what happened → help needed, suggested from the reason → confirm) sending the breakdown plus the help asked for; requests shown as incidents with one merged timeline and "Also need …" (D-109; no contract change).
+
+**User:** "add voice support as well while explaining the issue in the driver app". **Assistant:** Web Speech API dictation into the note, English (India) / Hindi, no new dependency (D-110).
+
+**User:** "make the vehicle path realistic than generating arbitary path and what does fleet pulse mean with a graph below it?" **Assistant:** mock paths now follow per-city street grids (closed block loops + arterial out-and-back trips, D-111). Answered Fleet Pulse: the filtered fleet's status breakdown, plus a sparkline of the running count sampled every 10 s since the page opened (last hour), with the % change.
+
+**User:** "relax testing and focus on feature completion". **Assistant:** one `pnpm check` (840/841, known F11-T3 flake) + build; targeted e2e only. F06-T6 now fails (auto-fit centre 187 km from India centre vs a 150 km limit, likely from the arterial trips) — left as a follow-up.
+
+**Status:** F13 + F14 awaiting UAT and approval of D-099…D-102, D-109…D-111. Next: F16.

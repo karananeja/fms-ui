@@ -2,6 +2,7 @@ import type { Fleet, VehicleMeta } from '@shared/contract/index.ts';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Loader2, MoveRight, Search } from 'lucide-react';
 import { memo, useEffect, useRef, useState } from 'react';
+import { FleetAutoAssignToggle } from '@/features/requests/components/fleet-auto-assign-toggle';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import { FleetDialog } from './fleet-dialog';
@@ -168,6 +169,10 @@ export function FleetVehicles({
             </dd>
           </div>
         </dl>
+        {/* F14-R4: replacement auto-assign for this fleet (with inheritance). */}
+        {!fleet.id.startsWith('tmp-') && (
+          <FleetAutoAssignToggle key={fleet.id} fleetId={fleet.id} className="mt-3" />
+        )}
         <label className="mt-3 flex h-9 items-center gap-2 rounded-md border border-tile-border bg-tile px-3 focus-within:border-accent/60">
           <Search className="size-4 shrink-0 text-text-muted" aria-hidden />
           <input

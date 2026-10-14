@@ -11,6 +11,7 @@ import lafparsedSample from '../fixtures/lafparsed-sample.json' with { type: 'js
 import { CENTRES, MODELS } from './catalogue.ts';
 import type { FleetTree } from './fleet-tree.ts';
 import { hash32, unit } from './random.ts';
+import { RoadRoutes } from './road-routes.ts';
 
 /**
  * Behaviour profile. The generator only produces raw fields from it; status is
@@ -138,10 +139,8 @@ export class VehicleSim {
   readonly model: Uint8Array;
   readonly persona: Uint8Array;
   readonly centre: Uint8Array;
-  readonly radiusKm: Float32Array;
-  readonly lobes: Uint8Array;
-  readonly lobeAmp: Float32Array;
-  readonly pathRot: Float32Array;
+  /** Street-grid routes (D-111): one closed route per vehicle around its centre. */
+  readonly routes: RoadRoutes;
   readonly speedKmh: Float32Array;
   readonly cycleMs: Float32Array;
   readonly cyclePhase: Float32Array;
@@ -151,6 +150,7 @@ export class VehicleSim {
   readonly socDrop: Uint8Array;
   readonly odoBase: Float32Array;
   private readonly scratch = {} as LiveState;
+  private readonly routePoint = { x: 0, y: 0, heading: 0 };
   private readonly devicePrefix: string;
 
   constructor(
@@ -163,10 +163,7 @@ export class VehicleSim {
     this.model = new Uint8Array(count);
     this.persona = new Uint8Array(count);
     this.centre = new Uint8Array(count);
-    this.radiusKm = new Float32Array(count);
-    this.lobes = new Uint8Array(count);
-    this.lobeAmp = new Float32Array(count);
-    this.pathRot = new Float32Array(count);
+    this.routes = new RoadRoutes(count);
     this.speedKmh = new Float32Array(count);
     this.cycleMs = new Float32Array(count);
     this.cyclePhase = new Float32Array(count);
@@ -201,10 +198,7 @@ export class VehicleSim {
       const city = node.city >= 0 ? node.city : node.region * 5 + Math.floor(r(S.centre, 1) * 5);
       this.centre[i] = city * 2 + (r(S.centre) < 0.6 ? 0 : 1);
 
-      this.radiusKm[i] = 1.5 + r(S.path) * 12;
-      this.lobes[i] = 2 + Math.floor(r(S.path, 1) * 4);
-      this.lobeAmp[i] = 0.05 + r(S.path, 2) * 0.3;
-      this.pathRot[i] = r(S.path, 3) * Math.PI * 2;
+      this.routes.build(seed + S.path, i, this.centre[i]!);
       const [lo, hi] = MODELS[mi]!.speedKmh;
       this.speedKmh[i] = lo + r(S.speed) * (hi - lo);
       this.cycleMs[i] = Math.round((60 + r(S.cycle) * 120) * MIN);
@@ -432,22 +426,14 @@ export class VehicleSim {
     return s;
   }
 
-  /** Position along the vehicle's seeded closed loop around its city centre. */
+  /** Position along the vehicle's street-grid route around its city centre (D-111). */
   private position(i: number, distKm: number, out: LiveState): void {
     const c = CENTRES[this.centre[i]!]!;
-    const R = this.radiusKm[i]!;
-    const k = this.lobes[i]!;
-    const a = this.lobeAmp[i]!;
-    const th = distKm / R + this.pathRot[i]!;
-    const rad = R * (1 + a * Math.sin(k * th));
-    const dRad = R * a * k * Math.cos(k * th);
-    const x = rad * Math.cos(th);
-    const y = rad * Math.sin(th);
-    const dx = dRad * Math.cos(th) - rad * Math.sin(th);
-    const dy = dRad * Math.sin(th) + rad * Math.cos(th);
-    out.lat = round(c.lat + y / KM_PER_DEG, 6);
-    out.lng = round(c.lng + x / (KM_PER_DEG * Math.cos((c.lat * Math.PI) / 180)), 6);
-    out.heading = round(((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360, 2);
+    const p = this.routePoint;
+    this.routes.at(i, distKm, p);
+    out.lat = round(c.lat + p.y / KM_PER_DEG, 6);
+    out.lng = round(c.lng + p.x / (KM_PER_DEG * Math.cos((c.lat * Math.PI) / 180)), 6);
+    out.heading = round(p.heading, 2);
   }
 
   /** F05 status of the vehicle at `t` (same rules and thresholds as the client deriver). */

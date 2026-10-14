@@ -11,6 +11,7 @@ import {
   firstAllowedPath,
   ROUTE_PERMISSIONS,
   type PermissionCheck,
+  type PermissionHolder,
 } from '@/features/access/permissions/can';
 import { sessionStore, type SessionStore } from '@/features/auth/session/session-store';
 import { LiveTrackingPage } from '@/features/live-tracking/components/live-tracking-page';
@@ -26,6 +27,10 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: Outlet,
   notFoundComponent: NotFoundPage,
 });
+
+/** F13: the Driver role (only `driver.self`, no staff page). */
+export const isDriverOnly = (me: PermissionHolder | null | undefined) =>
+  !!me && me.permissions.includes('driver.self') && firstAllowedPath(me) === null;
 
 const optionalString = (v: unknown) => (typeof v === 'string' && v !== '' ? v : undefined);
 
@@ -108,6 +113,11 @@ const appLayoutRoute = createRoute({
     if (context.session.getSnapshot().status !== 'authenticated') {
       throw redirect({ to: '/login', search: { redirect: location.href } });
     }
+    // F13-R1 / D-099: a Driver never sees the staff app; `/driver` is its own entry (full load).
+    if (isDriverOnly(context.session.getSnapshot().me)) {
+      window.location.replace('/driver');
+      await new Promise(() => {}); // keep the shell from rendering while the page unloads
+    }
   },
   component: AppLayout,
 });
@@ -132,6 +142,31 @@ const liveTrackingRoute = createRoute({
   staticData: { title: 'Live tracking', permission: ROUTE_PERMISSIONS['/live-tracking'] },
   validateSearch: parseLiveTrackingSearch,
   component: LiveTrackingPage,
+});
+
+// F14: the request desk; `/requests/$requestId` opens the drawer over it (one lazy chunk).
+const requestsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: 'requests',
+  staticData: { title: 'Requests', permission: ROUTE_PERMISSIONS['/requests'] },
+  component: lazyRouteComponent(
+    () => import('@/features/requests/pages/request-desk-page'),
+    'RequestDeskPage',
+  ),
+});
+const requestsIndexRoute = createRoute({
+  getParentRoute: () => requestsRoute,
+  path: '/',
+  staticData: { title: 'Requests', permission: ROUTE_PERMISSIONS['/requests'] },
+});
+const requestDetailRoute = createRoute({
+  getParentRoute: () => requestsRoute,
+  path: '$requestId',
+  staticData: { title: 'Requests', permission: ROUTE_PERMISSIONS['/requests'] },
+  component: lazyRouteComponent(
+    () => import('@/features/requests/pages/request-desk-page'),
+    'RequestDrawerRoute',
+  ),
 });
 
 // Admin pages are a separate chunk each (no map code); F03a / F03b own the page files.
@@ -200,6 +235,7 @@ const routeTree = rootRoute.addChildren([
   appLayoutRoute.addChildren([
     indexRoute,
     liveTrackingRoute,
+    requestsRoute.addChildren([requestsIndexRoute, requestDetailRoute]),
     adminRoute.addChildren([
       adminIndexRoute,
       adminFleetsRoute,
