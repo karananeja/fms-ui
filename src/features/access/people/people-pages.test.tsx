@@ -155,13 +155,14 @@ describe('F03-T4: Users page (F03-R8)', () => {
 
   it('a fleet scope change is saved without a confirmation', async () => {
     const user = userEvent.setup();
-    vi.mocked(api.updateUser).mockResolvedValue({ ...users[1]!, fleetIds: ['f2', 'f3'] });
+    vi.mocked(api.updateUser).mockResolvedValue({ ...users[1]!, fleetIds: ['f3', 'f4'] });
     await renderPage(<UsersPage />);
     await user.click(await row('Users', 'Ops User'));
     const panel = await screen.findByRole('dialog', { name: 'Ops User' });
-    await user.click(within(panel).getByRole('checkbox', { name: /Delhi/ }));
+    // Delhi is implied by North (F03-R7), so deselect North itself.
+    await user.click(within(panel).getByRole('checkbox', { name: /North/ }));
     await user.click(within(panel).getByRole('button', { name: 'Save changes' }));
-    expect(api.updateUser).toHaveBeenCalledWith('u-2', { fleetIds: ['f2', 'f3'] });
+    expect(api.updateUser).toHaveBeenCalledWith('u-2', { fleetIds: ['f3', 'f4'] });
   });
 });
 
