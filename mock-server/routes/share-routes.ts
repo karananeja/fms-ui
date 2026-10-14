@@ -48,6 +48,7 @@ export async function shareRoutes(app: FastifyInstance) {
     const link = shares.open(req.params.token);
     const m = MODELS[sim.model[sim.indexOf(link.vehicleId)]!]!;
     return {
+      vehicleId: link.vehicleId,
       vehicle: {
         regno: sim.regno(sim.indexOf(link.vehicleId)),
         make: m.make,

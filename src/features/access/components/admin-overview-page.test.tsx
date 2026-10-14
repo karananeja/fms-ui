@@ -10,9 +10,11 @@ import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionContext } from '@/features/auth/session/use-session';
 import { fakeApi, fakeMe, sessionAs } from '@/features/auth/testing/fake-session';
+import * as shareApi from '@/features/share/api/share-api';
 import * as api from '../api/access-api';
 import { AdminOverviewPage } from './admin-overview-page';
 
+vi.mock('@/features/share/api/share-api', () => ({ listShareLinks: vi.fn() }));
 vi.mock('../api/access-api', () => ({
   listUsers: vi.fn(),
   listFleets: vi.fn(),
@@ -74,6 +76,27 @@ describe('F03-T4: admin overview (F03-R11)', () => {
     expect(screen.queryByRole('link', { name: 'Fleets' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Pending invites' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Roles' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Share links' })).toBeNull();
     expect(api.listFleets).not.toHaveBeenCalled();
+  });
+
+  it('F10-R7: share.revoke shows the Share links card with the active count', async () => {
+    const now = Date.now();
+    const base = {
+      vehicleId: 'v',
+      createdBy: 'u',
+      createdAt: now - 1000,
+      show: { drivingEnergy: false, device: false },
+      trail: { enabled: false, windowMinutes: 60 },
+    };
+    vi.mocked(shareApi.listShareLinks).mockResolvedValue([
+      { ...base, id: 'a', token: 'a', url: '/share/a', expiresAt: now + 3_600_000 },
+      { ...base, id: 'b', token: 'b', url: '/share/b', expiresAt: now - 1 },
+      { ...base, id: 'c', token: 'c', url: '/share/c', expiresAt: now + 1e6, revokedAt: now },
+    ]);
+    await renderOverview(['share.revoke']);
+    const card = await screen.findByRole('link', { name: 'Share links' });
+    expect(card).toHaveAttribute('href', '/admin/share-links');
+    await vi.waitFor(() => expect(card).toHaveTextContent('1 active'));
   });
 });

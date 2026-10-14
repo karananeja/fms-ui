@@ -16,6 +16,12 @@ import type {
 } from '../worker/worker-api';
 import { VehicleDetailsPanel } from './vehicle-details-panel';
 
+vi.mock('@/features/share/api/share-api', () => ({
+  createShareLink: vi.fn(),
+  listShareLinks: vi.fn(async () => []),
+  revokeShareLink: vi.fn(),
+}));
+
 const combinfo = combinfoSample as Combinfo;
 const lafparsed = lafparsedSample as Lafparsed;
 const ID = combinfo.vehicleid;
@@ -264,6 +270,26 @@ describe('F07-T5: vehicle details panel', () => {
     await act(() => other.store.selectVehicle(ID));
     other.payloads();
     expect(screen.queryByRole('region')).toBeNull();
+  });
+
+  it('F10-R1: the Share CTA shows only with share.create and opens the Share dialog', async () => {
+    const user = userEvent.setup();
+    const { store, payloads } = setup([...ALL, 'share.create']);
+    render(<VehicleDetailsPanel store={store} />);
+    await act(() => store.selectVehicle(ID));
+    payloads();
+    await user.click(screen.getByRole('button', { name: 'Share live location' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Share live location' });
+    expect(dialog).toHaveTextContent('P6DED30BPDC002607');
+    expect(within(dialog).getByRole('button', { name: 'Create link' })).toBeInTheDocument();
+  });
+
+  it('F10-R1: no Share CTA without share.create', async () => {
+    const { store, payloads } = setup();
+    render(<VehicleDetailsPanel store={store} />);
+    await act(() => store.selectVehicle(ID));
+    payloads();
+    expect(screen.queryByTestId('share-cta')).toBeNull();
   });
 
   it('below 1024 px it renders a bottom sheet at 35% without the absolute time', async () => {

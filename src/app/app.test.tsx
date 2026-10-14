@@ -110,6 +110,7 @@ describe('F03-R1/R2: permission guards and nav', () => {
       ['/admin/users', 'Users'],
       ['/admin/invites', 'Invites'],
       ['/admin/roles', 'Roles'],
+      ['/admin/share-links', 'Share links'],
     ]) {
       renderAt(path!, session);
       expect(await screen.findByRole('heading', { level: 1, name })).toBeInTheDocument();
@@ -120,6 +121,7 @@ describe('F03-R1/R2: permission guards and nav', () => {
         'Users',
         'Invites',
         'Roles',
+        'Share links',
       ]);
       cleanup();
     }

@@ -45,6 +45,7 @@ const selectOffset = (s: LiveTrackingState) => s.stats.serverOffsetMs;
 const selectHidden = (s: LiveTrackingState) => s.selectedHidden;
 const selectCanView = (s: LiveTrackingState) => hasPermission(s, 'vehicle.details.view');
 const selectCanParams = (s: LiveTrackingState) => hasPermission(s, 'vehicle.parameters.view');
+const selectCanShare = (s: LiveTrackingState) => hasPermission(s, 'share.create');
 
 interface PanelProps {
   store?: LiveTrackingStore;
@@ -125,6 +126,7 @@ function DetailsBody({
   const summary = useLiveTracking(selectSummary, Object.is, store);
   const offset = useLiveTracking(selectOffset, Object.is, store);
   const canParams = useLiveTracking(selectCanParams, Object.is, store);
+  const canShare = useLiveTracking(selectCanShare, Object.is, store);
   const hidden = useLiveTracking(selectHidden, Object.is, store);
   const now = useNow(NOW_TICK_MS) + offset;
   const [tab, setTab] = useState<TabId>('overview');
@@ -154,6 +156,11 @@ function DetailsBody({
   const filtered = useMemo(
     () => params && filterParameters(params, query, group),
     [params, query, group],
+  );
+  const regno = ownSummary?.regno ?? c?.regno ?? null;
+  const share = useMemo(
+    () => (canShare && regno ? { vehicleId, regno } : null),
+    [canShare, regno, vehicleId],
   );
 
   const close = () => void store.selectVehicle(null);
@@ -202,7 +209,7 @@ function DetailsBody({
           className="flex flex-col gap-2.5 px-4 pt-3 pb-4"
         >
           {active === 'overview' && (
-            <OverviewTab overview={overview} chart={chart} events={events} />
+            <OverviewTab overview={overview} chart={chart} events={events} share={share} />
           )}
           {active === 'parameters' && (
             <ParametersTab

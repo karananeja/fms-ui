@@ -1,6 +1,16 @@
 import { Link } from '@tanstack/react-router';
-import { ArrowRight, Building2, KeyRound, MailPlus, Users, type LucideIcon } from 'lucide-react';
+import {
+  ArrowRight,
+  Building2,
+  KeyRound,
+  Link2,
+  MailPlus,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
+import { listShareLinks } from '@/features/share/api/share-api';
+import { countActive } from '@/features/share/lib/share-link-model';
 import { listFleets, listInvites, listRoles, listUsers } from '../api/access-api';
 import { useResource } from '../lib/use-resource';
 import { useCan } from '../permissions/can';
@@ -14,7 +24,7 @@ function OverviewCard({
   label,
   load,
 }: {
-  to: '/admin/fleets' | '/admin/users' | '/admin/invites' | '/admin/roles';
+  to: '/admin/fleets' | '/admin/users' | '/admin/invites' | '/admin/roles' | '/admin/share-links';
   icon: LucideIcon;
   label: string;
   load: (signal: AbortSignal) => Promise<ReactNode>;
@@ -56,8 +66,9 @@ export function AdminOverviewPage() {
   const users = useCan('users.manage');
   const invites = useCan('users.invite');
   const roles = useCan('roles.manage');
+  const shares = useCan('share.revoke');
   return (
-    <AdminLayout title="Admin" description="Fleets, users, invites and roles.">
+    <AdminLayout title="Admin" description="Fleets, users, invites, roles and share links.">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {fleets && (
           <OverviewCard
@@ -118,6 +129,21 @@ export function AdminOverviewPage() {
               return (
                 <>
                   <Big>{count.format(list.length)}</Big> roles
+                </>
+              );
+            }}
+          />
+        )}
+        {shares && (
+          <OverviewCard
+            to="/admin/share-links"
+            icon={Link2}
+            label="Share links"
+            load={async (signal) => {
+              const list = await listShareLinks({}, { signal });
+              return (
+                <>
+                  <Big>{count.format(countActive(list))}</Big> active
                 </>
               );
             }}

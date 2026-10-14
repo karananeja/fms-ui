@@ -256,3 +256,24 @@ F02 only touched `tableViewStore.reset()`.
 **User:** "Resume the existing project."
 
 **Assistant:** Recovered state: the F10 spec is signed off. Worktrees `../fms-ui-f10a` and `../fms-ui-f10b` exist at `806f643` with no commits and no edits: both agents were interrupted before writing anything. Re-spawned both agents with the same branches, ports and decision IDs.
+
+## 2026-10-14 — Session 6 (F10 delivery)
+
+**User:** "Finish F10 (Share live location) per CLAUDE.md and spec.md, following the SDLC process" (baseline check, F10a ∥ F10b agents, integration + T9, full verification, then stop for UAT).
+
+**Assistant:**
+- Baseline: `pnpm check` on `main` first failed with 287 TS errors. Cause: a corrupted `node_modules` (dereferenced copies instead of pnpm links, plus a stray typescript@7). `rm -rf node_modules && pnpm install --frozen-lockfile` → 619/619.
+- Removed this repo's stale records of `../fms-ui-f10a`/`f10b` (those folders belong to the older `../fms-ui` clone and were left untouched). Started F10a and F10b agents in `.worktrees/`.
+- **User:** asked for no permission prompts on code lookups in this folder, then had the project `.claude/` folder deleted.
+- **User:** "going forward dont create the worktrees … do it in the same working directory". Stopped both agents, moved their uncommitted work onto `integration/f10` in the main checkout (router.tsx merged cleanly), removed the worktrees and branches, and resumed both agents there with disjoint files and their own ports. CLAUDE.md working style updated.
+- **User:** work autonomously and ask only for critical steps. **User:** remove `test-results*` folders (done).
+- F10a: R1–R7, T1–T3 (D-086…D-088). F10b: R8–R13, T4–T7 (D-089…D-091), including a `vehicleId` addition to the public share response (the hub requires it) and a `main.tsx` entry split. Orchestrator: F10-T9 `e2e/share-flow.spec.ts`.
+- Final runs: `pnpm check` 679/679; build clean; e2e setup + chromium 55/55; clock 4/4. `/share/*` chunk check passes (no live-tracking, access, auth, app or worker code). Perf: load avg 8–14 from other apps. Paired runs vs `main` show the same F04/F08 numbers, so no F10 regression.
+
+**Status:** F10 Impl Done, Test Passed, awaiting UAT and approval of D-086…D-091 and the spec deviations listed in `test-report.md`.
+
+**User:** "continue" (F10 UAT acceptance + D-086…D-091 and spec deviations approved).
+
+**Assistant:** Accepted D-086…D-091, marked F10 accepted in the catalog and CLAUDE.md, merged `integration/f10` into `main` (--no-ff) and deleted the branch.
+
+**Status:** F10 Done, accepted. All catalogued features are complete.
