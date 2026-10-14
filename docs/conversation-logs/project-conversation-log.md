@@ -390,3 +390,9 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "continue" (UAT acceptance of F13, F14 + approval of D-099…D-102, D-109…D-111).
 
 **Assistant:** Accepted the decisions, marked F13/F14 accepted, merged `feature/f13-f14` into `main` (--no-ff), deleted the branch. Starting F16.
+
+**User:** "driver details on vehicle card keeps duplicating". **Assistant:** reproduced (the Driver section count grew every few seconds): `DriverSection`, `ShareCta` and `NoGpsInsight` were sibling children keyed by the same `vehicleId`, so React cloned them on each live update. Prefixed the keys; verified the count stays at 1 (commit `c56d40e`).
+
+**Assistant:** Built F16 (performance dashboard) on `feature/f16-dashboard`: URL-synced filters, KPI tiles with deltas + sparklines, in-house SVG charts, ranking (top/bottom 10, up to 500), drill-down sheet, CSV export. `pnpm check` 858/858, build clean (chunk 8.9 kB gzip), e2e 4/4. Proposed D-103, D-104.
+
+**Status:** F16 (+ the duplicate fix) awaiting UAT. Next: F17 (assistant).

@@ -1,8 +1,7 @@
 import type { Assignment, Driver, DriverStatus, Fleet } from '@shared/contract/index.ts';
 import { Link } from '@tanstack/react-router';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ChevronDown, Plus, Search, X } from 'lucide-react';
-import { Popover } from 'radix-ui';
+import { Plus, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { listFleets } from '@/features/access/api/access-api';
 import { AdminLayout } from '@/features/access/components/admin-layout';
@@ -13,7 +12,7 @@ import {
   Segmented,
   SidePanel,
 } from '@/features/access/components/admin-ui';
-import { FleetPicker } from '@/features/access/fleets/fleet-picker';
+import { FleetFilter } from '@/features/access/fleets/fleet-filter';
 import { buildFleetIndex, isInSubtree } from '@/features/access/fleets/fleet-tree-model';
 import { errorText } from '@/features/access/lib/access-format';
 import { useResource } from '@/features/access/lib/use-resource';
@@ -228,62 +227,6 @@ export function DriversPage() {
         )}
       </SidePanel>
     </AdminLayout>
-  );
-}
-
-/** F03 fleet picker in a popover (the inline tree is too tall for the toolbar). */
-function FleetFilter({
-  fleets,
-  value,
-  onChange,
-  label,
-}: {
-  fleets: readonly Fleet[];
-  value: string | null;
-  onChange: (fleetId: string | null) => void;
-  label: string;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <span className="inline-flex items-center gap-1">
-      <Popover.Root open={open} onOpenChange={setOpen}>
-        <Popover.Trigger asChild>
-          <Button variant="outline" className="h-10 max-w-56" aria-label="Filter by fleet">
-            <span className="truncate">{label}</span>
-            <ChevronDown aria-hidden />
-          </Button>
-        </Popover.Trigger>
-        <Popover.Portal>
-          <Popover.Content
-            align="start"
-            sideOffset={6}
-            className="z-50 w-[min(320px,calc(100vw-32px))] rounded-tile border border-glass-border bg-surface-solid shadow-[0_16px_40px_var(--shadow)]"
-          >
-            <FleetPicker
-              mode="single"
-              aria-label="Fleet filter"
-              placeholder="All fleets"
-              fleets={fleets}
-              value={value}
-              onChange={(id) => {
-                onChange(id);
-                setOpen(false);
-              }}
-            />
-          </Popover.Content>
-        </Popover.Portal>
-      </Popover.Root>
-      {value && (
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Clear fleet filter"
-          onClick={() => onChange(null)}
-        >
-          <X />
-        </Button>
-      )}
-    </span>
   );
 }
 

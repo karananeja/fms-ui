@@ -169,6 +169,23 @@ const requestDetailRoute = createRoute({
   ),
 });
 
+// F16: performance dashboard; filters live in the URL so views can be shared (D-104).
+const analyticsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: 'analytics',
+  staticData: { title: 'Analytics', permission: ROUTE_PERMISSIONS['/analytics'] },
+  validateSearch: (s: Record<string, unknown>): Record<string, string | undefined> =>
+    Object.fromEntries(
+      ['tab', 'range', 'from', 'to', 'fleet', 'vehicle', 'driver']
+        .map((k) => [k, optionalString(s[k] === undefined ? undefined : String(s[k]))])
+        .filter(([, v]) => v !== undefined),
+    ),
+  component: lazyRouteComponent(
+    () => import('@/features/analytics/pages/analytics-page'),
+    'AnalyticsPage',
+  ),
+});
+
 // Admin pages are a separate chunk each (no map code); F03a / F03b own the page files.
 const adminRoute = createRoute({ getParentRoute: () => appLayoutRoute, path: 'admin' });
 const adminIndexRoute = createRoute({
@@ -236,6 +253,7 @@ const routeTree = rootRoute.addChildren([
     indexRoute,
     liveTrackingRoute,
     requestsRoute.addChildren([requestsIndexRoute, requestDetailRoute]),
+    analyticsRoute,
     adminRoute.addChildren([
       adminIndexRoute,
       adminFleetsRoute,

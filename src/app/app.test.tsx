@@ -117,6 +117,7 @@ describe('F03-R1/R2: permission guards and nav', () => {
       expect(navLabels()).toEqual([
         'Live tracking',
         'Requests',
+        'Analytics',
         'Admin',
         'Fleets',
         'Users',

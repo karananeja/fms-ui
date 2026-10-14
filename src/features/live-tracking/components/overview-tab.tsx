@@ -102,8 +102,8 @@ export function OverviewTab({
       ) : (
         <Skeleton className="h-[124px]" label="overview" />
       )}
-      {noGps && <NoGpsInsight key={noGps.vehicleId} {...noGps} />}
-      {driver && <DriverSection key={driver.vehicleId} {...driver} />}
+      {noGps && <NoGpsInsight key={`no-gps-${noGps.vehicleId}`} {...noGps} />}
+      {driver && <DriverSection key={`driver-${driver.vehicleId}`} {...driver} />}
       <Tile>
         <div className="mb-1.5 flex items-center">
           <SectionLabel>Energy · this session</SectionLabel>
@@ -115,7 +115,7 @@ export function OverviewTab({
         <SectionLabel className="mb-2.5 block">Recent events</SectionLabel>
         <EventsTimeline items={events.slice(0, RECENT)} />
       </Tile>
-      {share && <ShareCta key={share.vehicleId} target={share} />}
+      {share && <ShareCta key={`share-${share.vehicleId}`} target={share} />}
     </>
   );
 }
