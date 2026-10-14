@@ -3,7 +3,11 @@ import { useEffect } from 'react';
 import { cn } from '@/shared/lib/utils';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useLiveView } from '../hooks/use-live-view';
-import { liveTrackingStore, type LiveTrackingState } from '../store/live-tracking-store';
+import {
+  hasPermission,
+  liveTrackingStore,
+  type LiveTrackingState,
+} from '../store/live-tracking-store';
 import { useLiveTracking } from '../store/use-live-tracking';
 import { useSelectionUrlSync } from '../hooks/use-selection-url-sync';
 import { ActiveFilterChips } from './active-filter-chips';
@@ -22,6 +26,7 @@ import { VehicleTray } from './vehicle-tray';
 
 const NOTICE_MS = 3000;
 const selectNotice = (s: LiveTrackingState) => s.notice;
+const selectCanTable = (s: LiveTrackingState) => hasPermission(s, 'table.view');
 
 function MapNotice() {
   const notice = useLiveTracking(selectNotice);
@@ -74,7 +79,9 @@ export function LiveTrackingPage() {
   useSelectionUrlSync();
   const [view, setView] = useLiveView();
   const desktop = useMediaQuery(DESKTOP_QUERY);
-  const table = view === 'table';
+  // F03-R2: `table.view` gates the table button and `?view=table` (which then shows the map).
+  const canTable = useLiveTracking(selectCanTable);
+  const table = canTable && view === 'table';
   /** F09-R9: Locate from a table row returns to the map and flies to the vehicle. */
   const locate = (vehicleId: string) => {
     setView('map');
@@ -120,7 +127,7 @@ export function LiveTrackingPage() {
           <ActiveFilterChips />
         </div>
       )}
-      <MapToolbar onTable={() => setView('table')} />
+      <MapToolbar onTable={canTable ? () => setView('table') : undefined} />
       {desktop && !table && <VehicleTray />}
       {debug && <DebugOverlay />}
       <VehicleDetailsPanel />

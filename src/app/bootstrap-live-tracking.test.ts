@@ -60,4 +60,21 @@ describe('F02-R4: live tracking follows the session', () => {
     expect(session.getSnapshot()).toMatchObject({ status: 'anonymous', notice: 'expired' });
     expect(live.stop).toHaveBeenCalledTimes(1);
   });
+
+  it('F03-R2: a user without `live.view` never starts the worker; caches still reset', async () => {
+    const api = fakeApi();
+    const session = new SessionStore(api);
+    const live = fakeLive();
+    const resetCaches = vi.fn();
+    bootstrapLiveTracking({ session, live: live as unknown as LiveTrackingStore, resetCaches });
+    vi.mocked(api.login).mockResolvedValueOnce(fakeMe('u-3', 'Admin only', ['users.manage']));
+    await session.login('a', 'b');
+    expect(live.start).not.toHaveBeenCalled();
+    await session.logout();
+    expect(live.stop).not.toHaveBeenCalled();
+    expect(resetCaches).toHaveBeenCalledTimes(1);
+    // The next user with `live.view` gets the worker as before (F02-R4).
+    await session.login('c', 'd');
+    expect(live.start).toHaveBeenCalledWith(fakeMe());
+  });
 });
