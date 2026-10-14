@@ -1,6 +1,6 @@
 # F11 — Driver Data & Mock Contract · Intent
 
-**Status:** Draft (awaiting user sign-off)
+**Status:** Signed off: 2026-10-14 (user)
 
 ## Why
 Every driver-monitoring feature (F12–F16) and the chatbot (F17) need the same new data: drivers, who drives what, the problems drivers report, and history for analytics. Like F01, a shared contract and mock first lets the later features run in parallel without guessing.

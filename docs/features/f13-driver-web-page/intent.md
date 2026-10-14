@@ -1,6 +1,6 @@
 # F13 — Driver Web Page · Intent
 
-**Status:** Draft (awaiting user sign-off)
+**Status:** Signed off: 2026-10-14 (user)
 
 ## Why
 Drivers need a simple way to tell the fleet operator when their vehicle breaks down, to ask for a replacement, and to ask for roadside assistance (RSA), so they don't sit idle.

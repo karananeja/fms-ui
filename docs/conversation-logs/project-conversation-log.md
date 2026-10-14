@@ -291,3 +291,17 @@ F02 only touched `tableViewStore.reset()`.
 **Assistant:** Recorded the answers in `00-requirements-analysis.md` §5, added F11–F17 to the catalog and wrote intents F11–F17 (Draft).
 
 **Status:** Awaiting user sign-off of the F11–F17 intents.
+
+**User:** "approved" (F11–F17 intents signed off).
+
+**Assistant:** Marked the intents signed off. Wrote the F11 spec draft:
+- contract, REST and the WS `events` topic;
+- driver and history generators;
+- request state machines and the replacement engine;
+- no-GPS insight and the 24 h job;
+- permissions and the Driver role;
+- budgets, and decisions D-092…D-094.
+
+Found that the mock's no-GPS vehicles are at most 3 h stale, so the spec widens that to about 30 % older than 24 h.
+
+**Status:** Awaiting F11 spec sign-off.

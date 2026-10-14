@@ -1,6 +1,6 @@
 # F16 — Performance Dashboard · Intent
 
-**Status:** Draft (awaiting user sign-off)
+**Status:** Signed off: 2026-10-14 (user)
 
 ## Why
 Fleet operators want to analyse how vehicles and drivers perform over time, not only where they are now.

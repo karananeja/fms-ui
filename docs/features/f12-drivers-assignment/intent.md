@@ -1,6 +1,6 @@
 # F12 — Drivers & Assignment · Intent
 
-**Status:** Draft (awaiting user sign-off)
+**Status:** Signed off: 2026-10-14 (user)
 
 ## Why
 Operators need to know which driver is assigned to which vehicle and to change it.

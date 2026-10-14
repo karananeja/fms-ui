@@ -1,6 +1,6 @@
 # F15 — In-App Notifications · Intent
 
-**Status:** Draft (awaiting user sign-off)
+**Status:** Signed off: 2026-10-14 (user)
 
 ## Why
 Operators must notice problems without watching the map: vehicles in no-GPS for more than 24 h, new driver requests, and waiting replacements.

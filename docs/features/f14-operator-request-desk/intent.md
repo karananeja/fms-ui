@@ -1,6 +1,6 @@
 # F14 — Operator Request Desk & No-GPS Insight · Intent
 
-**Status:** Draft (awaiting user sign-off)
+**Status:** Signed off: 2026-10-14 (user)
 
 ## Why
 Fleet operators need one place to act on driver problems, and to understand **why** a vehicle shows no GPS.

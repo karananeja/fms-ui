@@ -1,6 +1,6 @@
 # F17 — Fleet Assistant (Chatbot) · Intent
 
-**Status:** Draft (awaiting user sign-off)
+**Status:** Signed off: 2026-10-14 (user)
 
 ## Why
 Users want to ask questions in plain language ("which vehicles have been offline since yesterday?", "who drove MH12AB1234 last week?") and download reports without going through several screens.
