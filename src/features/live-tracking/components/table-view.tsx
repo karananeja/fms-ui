@@ -1,13 +1,7 @@
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type ColumnDef,
-  type Row,
-} from '@tanstack/react-table';
+import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowDown, ArrowUp, LocateFixed } from 'lucide-react';
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { formatIst } from '@/shared/lib/format-date';
 import { cn } from '@/shared/lib/utils';
@@ -49,8 +43,8 @@ const DASH = '—';
 const n0 = (v: number | null) => (v === null ? DASH : grouped.format(v));
 
 /** IST time; the relative age is computed on hover, so no per-cell timers or periodic re-renders. */
-function TimeCell({ at }: { at: number | null }) {
-  if (at === null) return <>{DASH}</>;
+function timeCell(at: number | null): ReactNode {
+  if (at === null) return DASH;
   return (
     <span onPointerEnter={(e) => (e.currentTarget.title = formatRelative(at, Date.now()))}>
       {formatIst(at)}
@@ -58,66 +52,87 @@ function TimeCell({ at }: { at: number | null }) {
   );
 }
 
-function Cell({
-  id,
-  row,
-  fleets,
-}: {
-  id: TableColumnId;
-  row: TableRow;
-  fleets: Readonly<Record<string, string>>;
-}) {
+/**
+ * Cell content as plain strings where possible: a plain call, not a component, so a row mounts
+ * few React elements (scroll renders whole windows of new rows, F09-T7 budget).
+ */
+function cellContent(
+  id: TableColumnId,
+  row: TableRow,
+  fleets: Readonly<Record<string, string>>,
+): ReactNode {
   switch (id) {
     case 'regno':
       return <span className="font-extrabold">{row.regno || DASH}</span>;
     case 'vin':
     case 'deviceId':
-      return <>{row[id] || DASH}</>;
+      return row[id] || DASH;
     case 'fleet':
-      return <>{fleets[row.fleetId] ?? row.fleetId}</>;
+      return fleets[row.fleetId] ?? row.fleetId;
     case 'status':
-      return row.status ? <StatusPill status={row.status} /> : <>{DASH}</>;
+      return row.status ? <StatusPill status={row.status} /> : DASH;
     case 'speed':
     case 'soc':
     case 'dte':
-      return <>{n0(row[id])}</>;
+      return n0(row[id]);
     case 'odometer':
-      return <>{row.odometer === null ? DASH : grouped.format(Math.floor(row.odometer))}</>;
+      return row.odometer === null ? DASH : grouped.format(Math.floor(row.odometer));
     case 'ignition':
-      return <>{row.ignition === 1 ? 'On' : row.ignition === 0 ? 'Off' : DASH}</>;
+      return row.ignition === 1 ? 'On' : row.ignition === 0 ? 'Off' : DASH;
     case 'gpstime':
     case 'canutctime':
-      return <TimeCell at={row[id]} />;
+      return timeCell(row[id]);
     case 'location':
-      return (
-        <>
-          {row.lat === null || row.lng === null
-            ? DASH
-            : `${row.lat.toFixed(5)}, ${row.lng.toFixed(5)}`}
-        </>
-      );
+      return row.lat === null || row.lng === null
+        ? DASH
+        : `${row.lat.toFixed(5)}, ${row.lng.toFixed(5)}`;
   }
 }
 
-/** One virtual row; memoised so scrolling only renders rows that entered the window. */
+type RowProps = {
+  index: number;
+  start: number;
+  row: TableRow | undefined;
+  columns: TableColumnId[];
+  fleets: Readonly<Record<string, string>>;
+  selected: boolean;
+  onSelect: (vehicleId: string) => void;
+  onLocate: (vehicleId: string) => void;
+};
+
+/** Field-wise row equality: the worker sends fresh objects for every window, mostly unchanged. */
+function sameRow(a: TableRow | undefined, b: TableRow | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  for (const k in a) if (a[k as keyof TableRow] !== b[k as keyof TableRow]) return false;
+  return true;
+}
+
+const sameRowProps = (a: RowProps, b: RowProps) =>
+  a.index === b.index &&
+  a.start === b.start &&
+  a.columns === b.columns &&
+  a.fleets === b.fleets &&
+  a.selected === b.selected &&
+  a.onSelect === b.onSelect &&
+  a.onLocate === b.onLocate &&
+  sameRow(a.row, b.row);
+
+/**
+ * One virtual row. Memoised on the row's values (not its object identity), so a window response
+ * or live push only re-renders rows that entered the window or whose values changed.
+ */
 const VehicleRow = memo(function VehicleRow({
   index,
   start,
   row: r,
   columns,
+  fleets,
   selected,
   onSelect,
   onLocate,
-}: {
-  index: number;
-  start: number;
-  row: Row<TableRow> | undefined;
-  columns: TableColumnId[];
-  selected: boolean;
-  onSelect: (vehicleId: string) => void;
-  onLocate: (vehicleId: string) => void;
-}) {
-  const id = r?.original.vehicleId;
+}: RowProps) {
+  const id = r?.vehicleId;
   return (
     <div
       role="row"
@@ -132,14 +147,14 @@ const VehicleRow = memo(function VehicleRow({
       style={{ height: ROW_H, transform: `translateY(${start}px)` }}
     >
       {r
-        ? r.getVisibleCells().map((c, k) => (
+        ? columns.map((cid, k) => (
             <div
-              key={c.id}
+              key={cid}
               role="cell"
-              style={{ width: c.column.getSize() }}
+              style={{ width: WIDTH[cid] }}
               className={cn(
                 'flex shrink-0 items-center px-3',
-                COLUMN_BY_ID[c.column.id as TableColumnId].numeric && 'justify-end tabular-nums',
+                COLUMN_BY_ID[cid].numeric && 'justify-end tabular-nums',
                 // The sticky cell is opaque (rows scroll under it) and carries the row tint on top.
                 k === 0 &&
                   'sticky left-0 z-[1] bg-map-bg group-hover:bg-[image:linear-gradient(var(--tile),var(--tile))] lg:bg-surface-solid',
@@ -148,9 +163,7 @@ const VehicleRow = memo(function VehicleRow({
                   'bg-[image:linear-gradient(var(--accent-soft),var(--accent-soft))] group-hover:bg-[image:linear-gradient(var(--accent-soft),var(--accent-soft))]',
               )}
             >
-              <span className="min-w-0 truncate">
-                {flexRender(c.column.columnDef.cell, c.getContext())}
-              </span>
+              <span className="min-w-0 truncate">{cellContent(cid, r, fleets)}</span>
             </div>
           ))
         : columns.map((cid) => (
@@ -167,7 +180,7 @@ const VehicleRow = memo(function VehicleRow({
         {id && (
           <button
             type="button"
-            aria-label={`Locate ${r.original.regno || id}`}
+            aria-label={`Locate ${r.regno || id}`}
             onClick={(e) => {
               e.stopPropagation();
               onLocate(id);
@@ -180,7 +193,7 @@ const VehicleRow = memo(function VehicleRow({
       </div>
     </div>
   );
-});
+}, sameRowProps);
 
 const selectSelected = (s: LiveTrackingState) => s.selectedVehicleId;
 
@@ -223,15 +236,15 @@ export function TableView({
 
   const total = result?.total ?? 0;
   const rows = result?.rows ?? [];
+  // TanStack Table drives the header; rows render straight from the worker window (VehicleRow).
   const defs = useMemo<ColumnDef<TableRow>[]>(
     () =>
       columns.map((id) => ({
         id,
         header: COLUMN_BY_ID[id].label,
         size: WIDTH[id],
-        cell: ({ row }) => <Cell id={id} row={row.original} fleets={fleets} />,
       })),
-    [columns, fleets],
+    [columns],
   );
   // TanStack Table (approved F09 dependency) is not React-compiler compatible; this component
   // is left uncompiled and passes none of its functions to memoised children.
@@ -243,13 +256,13 @@ export function TableView({
     manualSorting: true,
     getRowId: (r) => r.vehicleId,
   });
-  const model = table.getRowModel().rows;
 
   const virtualizer = useVirtualizer({
     count: total,
     getScrollElement: () => scroller.current,
     estimateSize: () => ROW_H,
-    overscan: 8,
+    // Small overscan: a wheel step or scrollbar jump mounts a whole window of new rows (F09-T7).
+    overscan: 4,
     // Let React batch scroll renders instead of a synchronous render per scroll event (F09 budget).
     useFlushSync: false,
     // Until the scroller is measured (and in jsdom): a typical viewport.
@@ -329,8 +342,8 @@ export function TableView({
           </div>
           <div role="rowgroup" className="relative" style={{ height: virtualizer.getTotalSize() }}>
             {items.map((v) => {
-              const r = model[v.index - offset];
-              const id = r?.original.vehicleId;
+              const r = rows[v.index - offset];
+              const id = r?.vehicleId;
               return (
                 <VehicleRow
                   key={v.index}
@@ -338,6 +351,7 @@ export function TableView({
                   start={v.start}
                   row={r}
                   columns={columns}
+                  fleets={fleets}
                   selected={!!id && id === selected}
                   onSelect={select}
                   onLocate={locate}
