@@ -321,3 +321,14 @@ Found that the mock's no-GPS vehicles are at most 3 h stale, so the spec widens 
 **Assistant:** Wrote F16 (performance dashboard, in-house SVG charts, no chart library) and F17 (fleet assistant: server-side `claude-opus-5-5` with `fallbacks: "default"`, read-only tools as the user, CSV/PDF reports via `pdf-lib`, fake Messages endpoint for tests) spec drafts.
 
 **User:** "approved" (F16 and F17 specs signed off). All Part 2 specs (F11–F17) are now signed off.
+
+## 2026-10-14 — Session 7 (resume)
+
+**User:** "Resume the existing project."
+
+**Assistant:** Recovered state:
+- On `feature/f11-driver-data`. All F11–F17 intents and specs are signed off.
+- The F11 agent is still running (≈13 min in). It has written the contracts, the driver/history/no-GPS generators, the stores, the permissions/roles and the WS `events` work in progress. Routes, tests and docs aren't there yet; everything is uncommitted.
+- Did not restart or duplicate it. Updated CLAUDE.md (it still said "no pending work") with the Part 2 status, order and decision IDs.
+
+**Status:** Waiting for the F11 agent. Then full verification → F11 UAT.
