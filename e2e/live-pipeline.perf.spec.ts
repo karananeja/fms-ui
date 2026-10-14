@@ -17,13 +17,14 @@ test.describe.configure({ mode: 'serial' });
 const metrics = (page: Page) =>
   page.evaluate(() => (globalThis as unknown as Win).__fmsLive ?? null);
 
-/** Opens /live-tracking and waits (bounded) until the full snapshot is in. */
+/**
+ * Opens /live-tracking (already signed in by the F02 setup project, so the session check is one
+ * `GET /api/auth/me` where the dev auto sign-in used to be) and waits until the snapshot is in.
+ */
 async function openLive(page: Page) {
-  const login = page.waitForResponse((r) => r.url().endsWith('/api/auth/login'), {
-    timeout: 10_000,
-  });
+  const me = page.waitForResponse((r) => r.url().endsWith('/api/auth/me'), { timeout: 10_000 });
   await page.goto('/live-tracking?debug=1');
-  expect((await login).status()).toBe(200);
+  expect((await me).status()).toBe(200);
   await expect(page.getByTestId('live-connection')).toHaveText('Live', { timeout: 10_000 });
   await expect
     .poll(async () => (await metrics(page))?.snapshotCompleteAt ?? 0, { timeout: 10_000 })
@@ -31,7 +32,7 @@ async function openLive(page: Page) {
   return (await metrics(page))!;
 }
 
-test('F04-T9: dev sign-in, Live with 1 lakh vehicles within budget, selection shows regno', async ({
+test('F04-T9: signed in, Live with 1 lakh vehicles within budget, selection shows regno', async ({
   page,
 }) => {
   const m = await openLive(page);

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, SIGNED_OUT, test } from './fixtures.ts';
 
 const wsUrl = (pageUrl: string) => new URL('/ws/live', pageUrl).href.replace(/^http/, 'ws');
 
@@ -48,20 +48,25 @@ test('/ws/live works through the Vite proxy with the session cookie', async ({ p
   expect(result.types).toContain('snapshot');
 });
 
-test('/ws/live without a session closes with 4401 through the proxy', async ({ page }) => {
-  // A same-origin page that does not boot the app (which signs in automatically in dev).
-  await page.goto('/api/health');
-  const code = await page.evaluate(
-    (url) =>
-      new Promise<number>((resolve) => {
-        const ws = new WebSocket(url);
-        const timer = setTimeout(() => resolve(-1), 10_000);
-        ws.onclose = (e) => {
-          clearTimeout(timer);
-          resolve(e.code);
-        };
-      }),
-    wsUrl(page.url()),
-  );
-  expect(code).toBe(4401);
+test.describe('signed out', () => {
+  // Projects start signed in (F02 setup project); this one needs no session cookie.
+  test.use({ storageState: SIGNED_OUT });
+
+  test('/ws/live without a session closes with 4401 through the proxy', async ({ page }) => {
+    // A same-origin page that does not boot the app.
+    await page.goto('/api/health');
+    const code = await page.evaluate(
+      (url) =>
+        new Promise<number>((resolve) => {
+          const ws = new WebSocket(url);
+          const timer = setTimeout(() => resolve(-1), 10_000);
+          ws.onclose = (e) => {
+            clearTimeout(timer);
+            resolve(e.code);
+          };
+        }),
+      wsUrl(page.url()),
+    );
+    expect(code).toBe(4401);
+  });
 });

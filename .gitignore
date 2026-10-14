@@ -10,3 +10,6 @@ test-results/
 .env.*
 !.env.example
 .DS_Store
+
+# Playwright signed-in state (F02 setup project)
+e2e/.auth/
