@@ -215,3 +215,9 @@ F02 only touched `tableViewStore.reset()`.
 **Assistant:** Spawned the F09 hardening agent in `../fms-ui-f09h` (branch `fix/f09-table-scroll`; D-079 reserved). Wrote the F03 spec draft. Changes: one permission check (`can`) with a gating matrix, the Fleets admin pages (tree, create/rename/move/delete, vehicle moves, a shared fleet picker), and the Users, Invites, Roles and overview pages. `users.invite` and `roles.manage` are locked to Super Admin, with one mock change (R14). Scope e2e uses `ops@fms.local`. Delivery: F03a Fleets ∥ F03b People from a shared contract commit (D-080…D-085).
 
 **Status:** Awaiting F03 spec sign-off; F09 hardening running.
+
+## 2026-10-14 — Session 4 (resume)
+
+**User:** "Resume the existing project."
+
+**Assistant:** Recovered state: the F03 spec is signed off (catalogue updated, not yet committed). The F09 hardening agent in `../fms-ui-f09h` has its fix and test-report write-up uncommitted and is still finishing verification. Committed the F03 sign-off. Building the F03 shared contract commit (spec §5) on `feature/f03-contract` (worktree `../fms-ui-f03c`); F03a and F03b branch from it.

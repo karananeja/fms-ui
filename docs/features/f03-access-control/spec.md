@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Draft: awaiting user sign-off** |
+| Status | **Signed off: 2026-10-14 (user)** |
 | Intent | `intent.md` (signed off 2026-10-13; admin screens in scope, D-016) |
 | Visual source of truth | DS1 tokens + Doto. Admin screens are new surfaces; §4 proposes their look, and UAT screenshots confirm it (as for F02). |
 | Server contract | Built in F01: `/api/fleets`, `/api/vehicles`, `/api/fleets/:id/vehicles`, `/api/users`, `/api/invites`, `/api/roles`, `/api/permissions` (`shared/contract/access.ts`, `permissions.ts`). One mock change: R14. |
