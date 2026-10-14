@@ -194,3 +194,16 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 **User:** "approved" (F02 spec signed off).
 
 **Assistant:** Created `feature/f02-authentication` and worktree `../fms-ui-f02` (ports 5273/4100), and spawned the F02 agent.
+
+## 2026-10-14 — Session 3 (cont. 3)
+
+**Assistant:** F02 agent finished (about 4.3 h, mostly repeated full e2e runs): `pnpm check` 521/521, e2e 36/36 + clock 3/3, perf 5/5. Proposed D-075…D-078.
+
+**User:** "continue" (F02 UAT acceptance + D-075…D-078 approval). Also chose to discard uncommitted formatter edits on main (decision-log and conversation-log).
+
+**Assistant:** Discarded the edits, merged F02 into `main` (--no-ff), removed the worktree and branch. Post-merge: `pnpm check` 521/521, build clean (no dev sign-in leaks), e2e setup+chromium 35/36, perf 4/5, clock 3/3. The 2 failures are F09 tests that fail only under load (load avg 7.5) and pass when run alone:
+- F09-T9 export screenshot: at 6× CPU throttle the export takes over 30 s.
+- F09-T7 table scroll: longest tasks 54 and 74 ms in two failing runs, none in the third; budget 50 ms.
+F02 only touched `tableViewStore.reset()`.
+
+**Next:** F09 hardening (scroll headroom, T9 export wait) and the F03 spec.
