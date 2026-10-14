@@ -235,3 +235,12 @@ F02 only touched `tableViewStore.reset()`.
 **Assistant:** F03a and F03b finished. Merged both on `integration/f03`; only the docs logs conflicted. One integration fix: a T4 test clicked an implied (disabled) child in the real picker. Results: `pnpm check` 619/619, build clean, e2e 48/48, clock 3/3. Perf was load-sensitive (load avg 5–15, editor using about one core). F04, F06 and F09 passed on re-run. The fleets budget had one 64 ms task in 1 of 4 runs, and the root's empty vehicle page took 323 ms once. F08 long tasks while filtering were 58–84 ms, but `main` fails the same check at the same load, so this is not an F03 regression. Could not stop a leftover mock server and Vite server from the removed `../fms-ui-f09h` worktree (ports 4100 and 5174); the auto-mode classifier blocked the kill.
 
 **Status:** F03 awaiting UAT and approval of D-080…D-085.
+
+**User:** "continue" (F03 UAT acceptance + D-080…D-085 approval).
+
+**Assistant:** Accepted D-080…D-085 and merged `integration/f03` into `main` (--no-ff). Removed the worktrees and branches. Post-merge `pnpm check` 619/619, build clean. Wrote the F10 spec draft:
+- In-app share dialog (expiry presets + custom IST date/time, ≤ 30 days; visible-data groups; trail window), result URL with copy, Links tab with revoke, and an admin `/admin/share-links` page (`share.revoke` joins the admin permissions).
+- Public `/share/$token` page: light theme, main-thread single-vehicle socket, follow/recenter, metrics per allowed group, and unavailable / not-found screens.
+- No mock changes. Delivery: F10a ∥ F10b with no contract commit (D-086…D-091); the orchestrator adds the cross e2e (T9) on integration.
+
+**Status:** Awaiting F10 spec sign-off.

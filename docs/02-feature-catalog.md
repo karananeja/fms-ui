@@ -21,7 +21,7 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 | F07 | Vehicle details panel & parameters | DS1 tokens | Signed off (amended) | Rev 3 signed off | Done | Passed | Accepted 2026-10-13 |
 | F08 | Status bar: search, status counters, filters | F05, F06 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
 | F09 | Table view (full / viewport) & CSV export | F08 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
-| F10 | Share live location (create, manage, public page) | F03, F07 | Signed off | — | — | — | — |
+| F10 | Share live location (create, manage, public page) | F03, F07 | Signed off | Draft | — | — | — |
 
 Suggested order: F00 → F01 → F04 → F05 → F06 → (DS1 ∥ F07)  → F08 → F09 → F02 → F03 → F10.
 This puts the live-tracking core, the main risk, first. Until F02 lands, auth uses a mock dev session.
