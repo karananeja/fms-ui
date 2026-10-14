@@ -190,3 +190,7 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 **Assistant:** Deleted `.recovery/`, whose contents had already been committed. Wrote the F02 spec draft: `SessionStore` + `api-client`, route guards, 401 → `/login`, live tracking started and stopped by the session, safe redirect, dev auto-sign-in removed, four screens plus the user menu, a Playwright auth setup project, and tests T1–T12. Auth look proposed in spec §4. D-075…D-078 reserved.
 
 **Status:** Awaiting F02 spec sign-off.
+
+**User:** "approved" (F02 spec signed off).
+
+**Assistant:** Created `feature/f02-authentication` and worktree `../fms-ui-f02` (ports 5273/4100), and spawned the F02 agent.

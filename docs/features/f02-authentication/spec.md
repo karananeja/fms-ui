@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Draft: awaiting user sign-off** |
+| Status | **Signed off: 2026-10-14 (user)** |
 | Intent | `intent.md` (signed off 2026-10-13) |
 | Visual source of truth | DS1 tokens + Doto (D-054). The auth screens are new surfaces, so §4 proposes their look. |
 | Server contract | Already built in F01: `/api/auth/*`, `shared/contract/auth.ts`, `password-policy.ts` (D-018). F02 adds **no** server changes. |
