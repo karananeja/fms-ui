@@ -24,7 +24,7 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F12, F15 | Drivers & assignment, in-app notifications (+ DS2 auth backdrop) | Done, accepted |
 | F13, F14 | Driver page (integrated report + voice), request desk (+ street-grid mock routes) | Done, accepted |
 | F16 | Performance dashboard | Done, accepted |
-| F17 | Fleet assistant | Done on `feature/f17-assistant`, awaiting UAT (D-105…D-107 proposed). Real-key smoke test pending |
+| F17 | Fleet assistant | Done, accepted. Real-key smoke test pending |
 
 Last `main` baseline: `pnpm check` 716/716, build clean, e2e 54/55 (F09-T8 tray flake, pre-existing, also fails on the pre-F11 `main`), clock 4/4. Last decision: **D-111** (F12/F15 D-095…D-098; F13/F14 D-099…D-102; F16 D-103…D-104; F17 D-105…D-107; D-109…D-111 driver report, voice, mock routes).
 
@@ -32,7 +32,7 @@ Last `main` baseline: `pnpm check` 716/716, build clean, e2e 54/55 (F09-T8 tray 
 - All intents and specs are signed off (2026-10-14); see `docs/02-feature-catalog.md` and `docs/features/f11-…`–`f17-…/spec.md`.
 - Known flakes to fix: F09-T8 (tray after a pan) and F11-T3 replacement engine (`mock-server/store/requests.test.ts`) are time-of-day dependent; F06-T6 auto-fit centre tolerance after D-111 street-grid routes.
 - Seed driver: `driver@fms.local` / `Drive@1234` (F11).
-- Order: F11–F16 (done) → F17 (F17a server ∥ F17b client). Stop for UAT after each step.
+- Order: F11–F17 all done → F17 (F17a server ∥ F17b client). Stop for UAT after each step.
 - Decision IDs: F11 D-092…D-094, F12 D-095…D-096, F15 D-097…D-098, F13 D-099…D-100, F14 D-101…D-102, F16 D-103…D-104, F17 D-105…D-107.
 - Approved dependencies (still need their decision rows): `@anthropic-ai/sdk` and `pdf-lib` (server only, F17). No chart library (F16 uses in-house SVG).
 

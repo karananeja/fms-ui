@@ -406,3 +406,9 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Incident:** the server agent's `pkill -f "mock-server/index.ts"` also stopped the user's own `pnpm dev`. Added a working-style rule to CLAUDE.md.
 
 **Status:** F17 awaiting UAT; real-key smoke test pending (needs the user's `ANTHROPIC_API_KEY`).
+
+**User:** "continue" (UAT acceptance of F17 + approval of D-105…D-107).
+
+**Assistant:** Accepted D-105…D-107, merged `feature/f17-assistant` into `main` (--no-ff), deleted the branch. Part 2 (F11–F17) is complete.
+
+**Status/Next:** open items — real-key assistant smoke test; flakes F09-T8, F11-T3 (time-of-day) and F06-T6 (auto-fit tolerance after D-111); one full e2e + perf run on `main` was skipped during Part 2 at the user's request.

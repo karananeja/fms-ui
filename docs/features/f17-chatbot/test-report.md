@@ -1,6 +1,6 @@
 # F17 — Test report
 
-Branch `feature/f17-assistant` (main checkout). Built by two agents in parallel (F17a server on 5273/4101, F17b client on 5373/4200); the orchestrator wrote the shared contract first and integrated. Testing kept light at the user's request. **Awaiting UAT.** Details: `test-report-server.md`, `test-report-client.md`.
+Branch `feature/f17-assistant` (main checkout). Built by two agents in parallel (F17a server on 5273/4101, F17b client on 5373/4200); the orchestrator wrote the shared contract first and integrated. Testing kept light at the user's request. **UAT accepted 2026-10-14**; merged into `main`. Details: `test-report-server.md`, `test-report-client.md`.
 
 ## Runs (2026-10-14)
 | Command | Result |
