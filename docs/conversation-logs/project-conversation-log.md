@@ -305,3 +305,7 @@ F02 only touched `tableViewStore.reset()`.
 Found that the mock's no-GPS vehicles are at most 3 h stale, so the spec widens that to about 30 % older than 24 h.
 
 **Status:** Awaiting F11 spec sign-off.
+
+**User:** "approved" (F11 spec signed off).
+
+**Assistant:** Started the F11 agent in the main checkout on `feature/f11-driver-data` (ports 5273/4101, D-092…D-094). Drafting the F12 and F15 specs in parallel.

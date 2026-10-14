@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Draft: awaiting user sign-off** |
+| Status | **Signed off: 2026-10-14 (user)** |
 | Intent | `intent.md` (signed off 2026-10-14) |
 | Builds on | F01 contract style (zod in `shared/contract/`, Fastify mock, D-005 worker untouched), F03 permissions/`can()`, D-038 mock clock |
 | Delivery | One agent in the main checkout (no worktrees), branch `feature/f11-driver-data`, ports 5273/4101, decisions **D-092…D-094**. No UI in this feature. |
