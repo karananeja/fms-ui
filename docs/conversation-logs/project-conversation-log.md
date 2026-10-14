@@ -227,3 +227,5 @@ F02 only touched `tableViewStore.reset()`.
 **User:** "approve" (D-079).
 
 **Assistant:** Accepted D-079 and merged `fix/f09-table-scroll` into `main` (--no-ff). Removed the worktree and branch. Post-merge `pnpm check` 521/521. The F03 contract agent is still running.
+
+**Assistant:** F03 contract finished (`pnpm check` 562/562, e2e 36/36) and merged into `main`. The contract puts guards in `staticData.permission` + AppLayout, and `/` now lands on the first page the user can open. Created worktrees `../fms-ui-f03a` (`feature/f03a-fleets`, ports 5273/4100, D-080…D-082) and `../fms-ui-f03b` (`feature/f03b-people`, ports 5373/4200, D-083…D-085) and spawned both agents in parallel. Left for F03b: gate `table.view`, and don't start the live worker without `live.view`.
