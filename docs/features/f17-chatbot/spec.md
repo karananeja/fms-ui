@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Draft: awaiting user sign-off** |
+| Status | **Signed off: 2026-10-14 (user)** |
 | Intent | `intent.md` (signed off 2026-10-14) |
 | Server | The Fastify mock server is the backend: `POST /api/chat` (SSE stream), `GET /api/chat/reports/:id`. Tools call the existing REST handlers **in-process as the signed-in user**. |
 | New dependencies (decisions) | `@anthropic-ai/sdk` (server only, D-105); `pdf-lib` for PDF reports (server only, pure JS, D-106). None in the browser bundle. |

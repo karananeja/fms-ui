@@ -317,3 +317,7 @@ Found that the mock's no-GPS vehicles are at most 3 h stale, so the spec widens 
 **Assistant:** Wrote F13 (driver web page, new look proposed in §4) and F14 (request desk + no-GPS insight) spec drafts.
 
 **User:** "approved" (F13 and F14 specs signed off, including the driver page look proposal; final confirmation via UAT screenshots).
+
+**Assistant:** Wrote F16 (performance dashboard, in-house SVG charts, no chart library) and F17 (fleet assistant: server-side `claude-opus-5-5` with `fallbacks: "default"`, read-only tools as the user, CSV/PDF reports via `pdf-lib`, fake Messages endpoint for tests) spec drafts.
+
+**User:** "approved" (F16 and F17 specs signed off). All Part 2 specs (F11–F17) are now signed off.

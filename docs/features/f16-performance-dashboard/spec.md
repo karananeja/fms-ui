@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Draft: awaiting user sign-off** |
+| Status | **Signed off: 2026-10-14 (user)** |
 | Intent | `intent.md` (signed off 2026-10-14) |
 | Server contract | F11: `GET /api/analytics/summary\|vehicles\|drivers\|series` (IST days, ≤ 90 days, fleet-scoped, `analytics.view`). **No mock changes.** |
 | Charts | **No chart library.** Small in-house SVG components, following the F07 `session-chart.tsx` approach (D-103). Alternative if rejected: `uplot` (≈ 50 kB, needs a dependency decision). |
