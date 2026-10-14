@@ -6,14 +6,17 @@ import { useLiveTracking } from '../store/use-live-tracking';
 export interface LiveTrackingSearch {
   vehicle?: string;
   debug?: string;
+  /** F09-R1: `table` shows the table view; absent = map. */
+  view?: 'table';
 }
 
 /** `validateSearch` for `/live-tracking`: ids stay strings even when they look numeric. */
 export function parseLiveTrackingSearch(search: Record<string, unknown>): LiveTrackingSearch {
-  const { vehicle, debug } = search;
+  const { vehicle, debug, view } = search;
   return {
     ...(vehicle != null && vehicle !== '' && { vehicle: String(vehicle) }),
     ...(debug != null && { debug: String(debug) }),
+    ...(view === 'table' && { view: 'table' as const }),
   };
 }
 

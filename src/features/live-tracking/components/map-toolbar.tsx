@@ -1,4 +1,4 @@
-import { Building2, Maximize, Minus, Plus } from 'lucide-react';
+import { Building2, Maximize, Minus, Plus, Table2 } from 'lucide-react';
 import { Popover } from 'radix-ui';
 import { useState, useSyncExternalStore, type ComponentProps, type FormEvent } from 'react';
 import { cn } from '@/shared/lib/utils';
@@ -89,8 +89,11 @@ function Tool({ className, ...props }: ComponentProps<'button'>) {
   );
 }
 
-/** Bottom-left map tools (DS1-R7/R10): zoom, fit, 2D/3D (desktop only) and the city jump. */
-export function MapToolbar() {
+/**
+ * Bottom-left map tools (DS1-R7/R10): zoom, fit, 2D/3D (desktop only), the table view (F09-R1)
+ * and the city jump.
+ */
+export function MapToolbar({ onTable }: { onTable?: () => void }) {
   const hasVehicles = useLiveTracking(selectHasVehicles);
   const is3d = useSyncExternalStore(mapView.subscribe, mapView.get3d);
   return (
@@ -124,6 +127,11 @@ export function MapToolbar() {
         >
           3D
         </Tool>
+        {onTable && (
+          <Tool aria-label="Table view" title="Show as a table" onClick={onTable}>
+            <Table2 aria-hidden />
+          </Tool>
+        )}
       </div>
       <CitySelect />
     </div>

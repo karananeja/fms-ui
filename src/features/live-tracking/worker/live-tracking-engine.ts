@@ -15,11 +15,14 @@ import {
   type SearchField,
   type VehicleFilter,
 } from './filter-engine.ts';
+import { exportCsv, type CsvRequest, type CsvResult } from './csv-exporter.ts';
 import { frameBuffers, MapIndex } from './map-index.ts';
 import { SearchIndex, type Suggestion } from './search-index.ts';
 import { SelectedHistory } from './selected-history.ts';
 import { detailsConfig } from '../config/details-config.ts';
 import { StatusTracker } from './status-deriver.ts';
+import { TableQueryEngine, type TableQuery, type TableResult } from './table-query.ts';
+import { trayQuery, type TrayCard } from './tray-query.ts';
 import type {
   Bbox,
   ConnectionState,
@@ -71,6 +74,9 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   readonly filters: FilterEngine;
   readonly search: SearchIndex;
   readonly map: MapIndex;
+  /** F09: sorted windows over matching vehicles (table + CSV). */
+  readonly table: TableQueryEngine;
+  private fleetNames: Record<string, string> = {};
   pushCount = 0;
   private readonly clock: Clock;
   private me: Me | null = null;
@@ -117,6 +123,12 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     this.filters = new FilterEngine(this.state);
     this.search = new SearchIndex(this.state, (task) => this.clock.setTimeout(task, 0));
     this.map = new MapIndex(this.state, deps.map, this.filters);
+    this.table = new TableQueryEngine(
+      this.state,
+      (i) => this.filters.matches(i),
+      () => this.state.version + this.statusEpoch + this.filters.version,
+      () => this.clock.now(),
+    );
     this.client = new WsClient({
       url: deps.url,
       createSocket: deps.createSocket,
@@ -180,6 +192,28 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
 
   getBounds(): Bbox | null {
     return this.map.bounds();
+  }
+
+  // ---- F09: table, CSV, tray ----
+
+  setFleetNames(names: Record<string, string>): void {
+    this.fleetNames = names;
+    this.table.setFleetNames(names);
+  }
+
+  queryTable(query: TableQuery): TableResult {
+    return this.table.query(query);
+  }
+
+  exportCsv(
+    req: CsvRequest,
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<CsvResult> {
+    return exportCsv(req, this.state, this.table, this.fleetNames, onProgress);
+  }
+
+  getTray(bbox: Bbox, limit?: number): TrayCard[] {
+    return trayQuery(this.state, (i) => this.filters.matches(i), this.rules.priority, bbox, limit);
   }
 
   get connection(): ConnectionState {
