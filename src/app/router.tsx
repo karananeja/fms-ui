@@ -11,6 +11,7 @@ import {
   firstAllowedPath,
   ROUTE_PERMISSIONS,
   type PermissionCheck,
+  type PermissionHolder,
 } from '@/features/access/permissions/can';
 import { sessionStore, type SessionStore } from '@/features/auth/session/session-store';
 import { LiveTrackingPage } from '@/features/live-tracking/components/live-tracking-page';
@@ -26,6 +27,10 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: Outlet,
   notFoundComponent: NotFoundPage,
 });
+
+/** F13: the Driver role (only `driver.self`, no staff page). */
+export const isDriverOnly = (me: PermissionHolder | null | undefined) =>
+  !!me && me.permissions.includes('driver.self') && firstAllowedPath(me) === null;
 
 const optionalString = (v: unknown) => (typeof v === 'string' && v !== '' ? v : undefined);
 
@@ -107,6 +112,11 @@ const appLayoutRoute = createRoute({
     await context.session.load();
     if (context.session.getSnapshot().status !== 'authenticated') {
       throw redirect({ to: '/login', search: { redirect: location.href } });
+    }
+    // F13-R1 / D-099: a Driver never sees the staff app; `/driver` is its own entry (full load).
+    if (isDriverOnly(context.session.getSnapshot().me)) {
+      window.location.replace('/driver');
+      await new Promise(() => {}); // keep the shell from rendering while the page unloads
     }
   },
   component: AppLayout,
