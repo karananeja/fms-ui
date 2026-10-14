@@ -144,6 +144,31 @@ const liveTrackingRoute = createRoute({
   component: LiveTrackingPage,
 });
 
+// F14: the request desk; `/requests/$requestId` opens the drawer over it (one lazy chunk).
+const requestsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: 'requests',
+  staticData: { title: 'Requests', permission: ROUTE_PERMISSIONS['/requests'] },
+  component: lazyRouteComponent(
+    () => import('@/features/requests/pages/request-desk-page'),
+    'RequestDeskPage',
+  ),
+});
+const requestsIndexRoute = createRoute({
+  getParentRoute: () => requestsRoute,
+  path: '/',
+  staticData: { title: 'Requests', permission: ROUTE_PERMISSIONS['/requests'] },
+});
+const requestDetailRoute = createRoute({
+  getParentRoute: () => requestsRoute,
+  path: '$requestId',
+  staticData: { title: 'Requests', permission: ROUTE_PERMISSIONS['/requests'] },
+  component: lazyRouteComponent(
+    () => import('@/features/requests/pages/request-desk-page'),
+    'RequestDrawerRoute',
+  ),
+});
+
 // Admin pages are a separate chunk each (no map code); F03a / F03b own the page files.
 const adminRoute = createRoute({ getParentRoute: () => appLayoutRoute, path: 'admin' });
 const adminIndexRoute = createRoute({
@@ -210,6 +235,7 @@ const routeTree = rootRoute.addChildren([
   appLayoutRoute.addChildren([
     indexRoute,
     liveTrackingRoute,
+    requestsRoute.addChildren([requestsIndexRoute, requestDetailRoute]),
     adminRoute.addChildren([
       adminIndexRoute,
       adminFleetsRoute,

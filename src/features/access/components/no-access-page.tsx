@@ -5,6 +5,7 @@ import { firstAllowedPath } from '../permissions/can';
 
 const LABELS = {
   '/live-tracking': 'Go to live tracking',
+  '/requests': 'Go to requests',
   '/admin': 'Go to admin',
   '/admin/fleets': 'Go to fleets',
   '/admin/users': 'Go to users',

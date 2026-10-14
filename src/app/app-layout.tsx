@@ -57,16 +57,17 @@ export function AppLayout() {
       <aside className="hidden w-16 shrink-0 flex-col items-center gap-2 border-r border-glass-border bg-surface-solid py-4 lg:flex">
         <BrandMark />
         <nav aria-label="Main navigation" className="mt-3.5 flex flex-col gap-2">
-          {navItems.map(({ to, label, icon: Icon }) => (
+          {navItems.map(({ to, label, icon: Icon, badge: Badge }) => (
             <Link
               key={to}
               to={to}
               activeOptions={activeOptions}
               title={label}
               aria-label={label}
-              className={`flex size-11 items-center justify-center rounded-tile ${navLink}`}
+              className={`relative flex size-11 items-center justify-center rounded-tile ${navLink}`}
             >
               <Icon className="size-5" />
+              {Badge && <Badge variant="rail" />}
             </Link>
           ))}
         </nav>
@@ -90,7 +91,7 @@ export function AppLayout() {
               </SheetTitle>
               <SheetDescription className="sr-only">Main navigation</SheetDescription>
               <nav aria-label="Drawer navigation" className="flex flex-col gap-1 px-2">
-                {navItems.map(({ to, label, icon: Icon }) => (
+                {navItems.map(({ to, label, icon: Icon, badge: Badge }) => (
                   <Link
                     key={to}
                     to={to}
@@ -100,6 +101,7 @@ export function AppLayout() {
                   >
                     <Icon className="size-4" />
                     {label}
+                    {Badge && <Badge variant="drawer" />}
                   </Link>
                 ))}
               </nav>

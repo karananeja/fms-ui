@@ -165,6 +165,13 @@ function DetailsBody({
 
   const fleetId = ownSummary?.fleetId ?? null;
   const driver = useMemo(() => ({ vehicleId, regno, fleetId }), [vehicleId, regno, fleetId]);
+  // F14-R5: "Why no GPS?" only while the vehicle is in no-GPS.
+  const devbattery = c?.devbattery ?? null;
+  const rxdbm = c?.rxdbm ?? null;
+  const noGps = useMemo(
+    () => (status === 'no-gps' ? { vehicleId, devbattery, rxdbm } : null),
+    [status, vehicleId, devbattery, rxdbm],
+  );
 
   const close = () => void store.selectVehicle(null);
   if (own?.found === false) return <NotFound onClose={close} />;
@@ -218,6 +225,7 @@ function DetailsBody({
               events={events}
               share={share}
               driver={driver}
+              noGps={noGps}
             />
           )}
           {active === 'parameters' && (

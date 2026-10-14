@@ -9,6 +9,7 @@ describe('F03-R2: nav filtered by permission', () => {
   it('the super admin sees every item', () => {
     expect(labels(...PERMISSIONS)).toEqual([
       'Live tracking',
+      'Requests',
       'Admin',
       'Fleets',
       'Users',
@@ -33,6 +34,11 @@ describe('F03-R2: nav filtered by permission', () => {
     ['share.revoke', 'Share links'],
   ])('%s alone: Admin + %s only', (permission, label) => {
     expect(labels(permission)).toEqual(['Admin', label]);
+  });
+
+  it('F14: Requests only with requests.manage', () => {
+    expect(labels('requests.manage')).toEqual(['Requests']);
+    expect(labels('live.view', 'requests.manage')).toEqual(['Live tracking', 'Requests']);
   });
 
   it('live tracking only with live.view', () => {

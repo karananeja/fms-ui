@@ -116,6 +116,7 @@ describe('F03-R1/R2: permission guards and nav', () => {
       expect(await screen.findByRole('heading', { level: 1, name })).toBeInTheDocument();
       expect(navLabels()).toEqual([
         'Live tracking',
+        'Requests',
         'Admin',
         'Fleets',
         'Users',
@@ -154,6 +155,13 @@ describe('F03-R1/R2: permission guards and nav', () => {
     expect(router.state.location.pathname).toBe('/live-tracking');
     expect(screen.getByText('Ask your administrator for access.')).toBeInTheDocument();
     expect(navLabels()).toEqual([]);
+  });
+
+  it('F14: requests.manage alone lands on /requests', async () => {
+    const router = renderAt('/', await signedInAs('requests.manage'));
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/requests'));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Requests' })).toBeInTheDocument();
+    expect(navLabels()).toEqual(['Requests']);
   });
 
   it('/admin needs any admin permission', async () => {

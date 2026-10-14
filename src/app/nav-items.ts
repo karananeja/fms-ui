@@ -1,6 +1,7 @@
 import {
   Building2,
   IdCard,
+  Inbox,
   KeyRound,
   Link2,
   MailPlus,
@@ -9,6 +10,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
+import type { ComponentType } from 'react';
 import {
   can,
   ROUTE_PERMISSIONS as P,
@@ -16,6 +18,7 @@ import {
   type PermissionCheck,
   type PermissionHolder,
 } from '@/features/access/permissions/can';
+import { RequestsNavBadge } from '@/features/requests/components/requests-nav-badge';
 
 export interface NavItem {
   to: AppPath;
@@ -23,6 +26,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Shown only with this permission (any of a list); the route guard checks the same one. */
   permission: PermissionCheck;
+  /** A live count shown on the item (rail: corner dot; drawer: right-aligned). */
+  badge?: ComponentType<{ variant: 'rail' | 'drawer' }>;
 }
 
 export const navItems: NavItem[] = [
@@ -31,6 +36,13 @@ export const navItems: NavItem[] = [
     label: 'Live tracking',
     icon: MapPinned,
     permission: P['/live-tracking'],
+  },
+  {
+    to: '/requests',
+    label: 'Requests',
+    icon: Inbox,
+    permission: P['/requests'],
+    badge: RequestsNavBadge,
   },
   { to: '/admin', label: 'Admin', icon: ShieldCheck, permission: P['/admin'] },
   { to: '/admin/fleets', label: 'Fleets', icon: Building2, permission: P['/admin/fleets'] },

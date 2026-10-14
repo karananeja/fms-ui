@@ -5,6 +5,7 @@ import type { EventItem, Overview, SessionChart as Chart } from '../lib/vehicle-
 import { SectionLabel, Skeleton, Tile } from './details-ui';
 import { DriverSection, type DriverSectionProps } from './driver-section';
 import { EventsTimeline } from './events-tab';
+import { NoGpsInsight, type NoGpsInsightProps } from './no-gps-insight';
 import { SessionChart } from './session-chart';
 import { Speedometer } from './speedometer';
 
@@ -61,6 +62,7 @@ export function OverviewTab({
   events,
   share,
   driver,
+  noGps,
 }: {
   overview: Overview | null;
   chart: Chart | null;
@@ -68,6 +70,8 @@ export function OverviewTab({
   share?: ShareTarget | null;
   /** F12-R5: the Driver section's vehicle (omitted in tests that don't cover it). */
   driver?: DriverSectionProps | null;
+  /** F14-R5: set only while the vehicle's status is `no-gps` ("Why no GPS?"). */
+  noGps?: NoGpsInsightProps | null;
 }) {
   return (
     <>
@@ -98,6 +102,7 @@ export function OverviewTab({
       ) : (
         <Skeleton className="h-[124px]" label="overview" />
       )}
+      {noGps && <NoGpsInsight key={noGps.vehicleId} {...noGps} />}
       {driver && <DriverSection key={driver.vehicleId} {...driver} />}
       <Tile>
         <div className="mb-1.5 flex items-center">

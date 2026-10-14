@@ -18,11 +18,12 @@ export const ADMIN_PERMISSIONS = [
 ] as const satisfies readonly Permission[];
 
 /**
- * F03-R1/R2: what each signed-in page needs, in landing order (live tracking, then the admin
- * pages in nav order). The router guards and the nav both read it.
+ * F03-R1/R2: what each signed-in page needs, in landing order (live tracking, requests, then the
+ * admin pages in nav order). The router guards and the nav both read it.
  */
 export const ROUTE_PERMISSIONS = {
   '/live-tracking': 'live.view',
+  '/requests': 'requests.manage',
   '/admin': ADMIN_PERMISSIONS,
   '/admin/fleets': 'fleets.manage',
   '/admin/users': 'users.manage',
