@@ -86,7 +86,7 @@ export function AcceptInvitePage() {
     setPending(true);
     try {
       await session.acceptInvite(token, name.trim(), pw.password);
-      await navigate({ to: '/live-tracking', replace: true });
+      await navigate({ to: '/', replace: true });
     } catch (err) {
       setPending(false);
       if (isStatus(err, 409)) return setView({ kind: 'accepted' });

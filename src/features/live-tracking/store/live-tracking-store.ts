@@ -1,6 +1,7 @@
 import type { Fleet, Me, Permission } from '@shared/contract/index.ts';
 import { VEHICLE_STATUSES, type VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import { proxy, releaseProxy, wrap, type Remote } from 'comlink';
+import { can } from '@/features/access/permissions/can';
 import { apiFetch } from '@/shared/api/api-client';
 import type { IndiaCity } from '../config/india-cities.ts';
 import { detailsConfig } from '../config/details-config.ts';
@@ -167,8 +168,9 @@ export function normalizeFilter(f: VehicleFilter): VehicleFilter {
 const scopeChanged = (a: VehicleFilter, b: VehicleFilter) =>
   JSON.stringify({ ...a, statuses: undefined }) !== JSON.stringify({ ...b, statuses: undefined });
 
+/** F03-R3: the live store's permissions (from `me`) go through the one check, `can`. */
 export const hasPermission = (state: LiveTrackingState, permission: Permission): boolean =>
-  state.permissions.includes(permission);
+  can(state, permission);
 
 /** Live position of the selected vehicle: its payload, else its point in the current frame. */
 export function selectedPosition(state: LiveTrackingState): LngLat | null {

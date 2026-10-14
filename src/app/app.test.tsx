@@ -1,6 +1,6 @@
-import type { Me } from '@shared/contract/index.ts';
+import type { Me, Permission } from '@shared/contract/index.ts';
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router';
-import { act, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SessionContext } from '@/features/auth/session/use-session';
 import { fakeApi, fakeMe, sessionAs } from '@/features/auth/testing/fake-session';
@@ -89,5 +89,73 @@ describe('F02-R2: route guards', () => {
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/login');
     expect(router.state.location.search).toEqual({ redirect: '/admin/users' });
+  });
+});
+
+describe('F03-R1/R2: permission guards and nav', () => {
+  const signedInAs = (...permissions: Permission[]) =>
+    sessionAs('authenticated', fakeApi(), fakeMe('u-2', 'Limited', permissions));
+  const noAccess = { name: "You don't have access to this page." };
+  const navLabels = () =>
+    screen
+      .queryAllByRole('link')
+      .filter((a) => a.closest('nav'))
+      .map((a) => a.getAttribute('aria-label'));
+
+  it('the super admin opens every admin page and sees every nav item', async () => {
+    const session = await sessionAs('authenticated');
+    for (const [path, name] of [
+      ['/admin', 'Admin'],
+      ['/admin/fleets', 'Fleets'],
+      ['/admin/users', 'Users'],
+      ['/admin/invites', 'Invites'],
+      ['/admin/roles', 'Roles'],
+    ]) {
+      renderAt(path!, session);
+      expect(await screen.findByRole('heading', { level: 1, name })).toBeInTheDocument();
+      expect(navLabels()).toEqual([
+        'Live tracking',
+        'Admin',
+        'Fleets',
+        'Users',
+        'Invites',
+        'Roles',
+      ]);
+      cleanup();
+    }
+  });
+
+  it('a direct URL to a page without its permission shows No access', async () => {
+    renderAt('/admin/roles', await signedInAs('live.view', 'users.invite'));
+    expect(await screen.findByRole('heading', noAccess)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Go to live tracking' })).toBeInTheDocument();
+    expect(navLabels()).toEqual(['Live tracking', 'Admin', 'Invites']);
+  });
+
+  it('without live.view: / lands on admin and /live-tracking shows No access', async () => {
+    const session = await signedInAs('users.manage');
+    const router = renderAt('/', session);
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/admin'));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Admin' })).toBeInTheDocument();
+    expect(navLabels()).toEqual(['Admin', 'Users']);
+    cleanup();
+
+    renderAt('/live-tracking', session);
+    expect(await screen.findByRole('heading', noAccess)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Go to admin' })).toHaveAttribute('href', '/admin');
+  });
+
+  it('no page allowed: / shows No access with no link and an empty nav', async () => {
+    const router = renderAt('/', await signedInAs('table.view'));
+    expect(await screen.findByRole('heading', noAccess)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/live-tracking');
+    expect(screen.getByText('Ask your administrator for access.')).toBeInTheDocument();
+    expect(navLabels()).toEqual([]);
+  });
+
+  it('/admin needs any admin permission', async () => {
+    renderAt('/admin', await signedInAs('live.view', 'table.view'));
+    expect(await screen.findByRole('heading', noAccess)).toBeInTheDocument();
+    expect(navLabels()).toEqual(['Live tracking']);
   });
 });
