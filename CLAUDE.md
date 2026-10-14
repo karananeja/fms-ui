@@ -20,7 +20,7 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F08 | Status bar: search, counters, filters | Done, accepted |
 | F09 | Table view & CSV export (+ D-079 hardening) | Done, accepted |
 | F10 | Share live location | Done, accepted |
-| **F11** | **Driver data & mock contract** | **Spec signed off. In progress on `feature/f11-driver-data`** |
+| **F11** | **Driver data & mock contract** | **Implemented + tested on `feature/f11-driver-data`. Awaiting UAT** |
 | F12–F17 | Drivers, driver page, request desk, notifications, dashboard, assistant | Intents + specs signed off. Not started |
 
 Last `main` baseline: `pnpm check` 679/679, build clean, e2e 55/55, clock 4/4. Last decision: **D-091**.

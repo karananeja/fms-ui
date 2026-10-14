@@ -22,7 +22,7 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 | F08 | Status bar: search, status counters, filters | F05, F06 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
 | F09 | Table view (full / viewport) & CSV export | F08 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
 | F10 | Share live location (create, manage, public page) | F03, F07 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
-| F11 | Driver data & mock contract (drivers, assignments, requests, notifications, history) | F01, F03 | Signed off | Signed off | — | — | — |
+| F11 | Driver data & mock contract (drivers, assignments, requests, notifications, history) | F01, F03 | Signed off | Signed off | Done | Passed | — |
 | F12 | Drivers & assignment (admin page, assign/unassign, driver on card) | F11 | Signed off | Signed off | — | — | — |
 | F13 | Driver web page (breakdown, replacement, RSA requests) | F11, F02 | Signed off | Signed off | — | — | — |
 | F14 | Operator request desk & no-GPS insight (incl. replacement suggest/auto-assign) | F11, F13 | Signed off | Signed off | — | — | — |
