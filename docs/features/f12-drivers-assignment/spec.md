@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Draft: awaiting user sign-off** |
+| Status | **Signed off: 2026-10-14 (user)** |
 | Intent | `intent.md` (signed off 2026-10-14) |
 | Server contract | F11: `/api/drivers*`, `/api/assignments`, `/api/vehicles/:id/driver`, WS `events` (`kind:'assignment'`). **No mock changes.** |
 | Visual source of truth | DS1 tokens + Doto; admin pages reuse the F03 `admin-ui.tsx` table/toolbar/dialog patterns; the vehicle card reuses the F07 card style. No new look. |

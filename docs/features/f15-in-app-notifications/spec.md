@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Draft: awaiting user sign-off** |
+| Status | **Signed off: 2026-10-14 (user)** |
 | Intent | `intent.md` (signed off 2026-10-14) |
 | Server contract | F11: `GET /api/notifications`, `POST /api/notifications/read`, WS `events` (`kind:'notification'`), the 24 h no-GPS job, visibility rules (F11 §3). **No mock changes.** |
 | Visual source of truth | DS1 tokens + Doto; the bell sits in the existing app header actions area; the panel uses the F07 card/sheet style; toasts reuse the app's existing toaster. No new look. |

@@ -309,3 +309,7 @@ Found that the mock's no-GPS vehicles are at most 3 h stale, so the spec widens 
 **User:** "approved" (F11 spec signed off).
 
 **Assistant:** Started the F11 agent in the main checkout on `feature/f11-driver-data` (ports 5273/4101, D-092…D-094). Drafting the F12 and F15 specs in parallel.
+
+**Assistant:** Wrote F12 (drivers & assignment) and F15 (in-app notifications) spec drafts while F11 runs.
+
+**User:** "approved" (F12 and F15 specs signed off). They start in parallel once F11 is merged.
