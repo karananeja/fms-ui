@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Draft: awaiting user sign-off** |
+| Status | **Signed off: 2026-10-14 (user)** |
 | Intent | `intent.md` (signed off 2026-10-13) |
 | Visual source of truth | In-app parts: DS1 tokens + Doto (the F07 card's "Share live location" gradient CTA, F07-R8). Public page: a **light** variant of DS1 proposed in §4 and confirmed by UAT screenshots. |
 | Server contract | Built in F01, **no mock changes**: `POST/GET /api/share-links`, `DELETE /api/share-links/:id`, `GET /api/public/share/:token` (+ `/trail`), WS `/ws/live?share=<token>` (`shared/contract/share-links.ts`, `payloads.ts` `SHARE_GROUP_KEYS`, D-026/D-027). Unknown token → 404 / WS close 4401; expired or revoked → 410 / WS close 4410. |

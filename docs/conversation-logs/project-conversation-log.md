@@ -244,3 +244,9 @@ F02 only touched `tableViewStore.reset()`.
 - No mock changes. Delivery: F10a ∥ F10b with no contract commit (D-086…D-091); the orchestrator adds the cross e2e (T9) on integration.
 
 **Status:** Awaiting F10 spec sign-off.
+
+**User:** asked for the user names and passwords in the system to be listed in docs. Wrote `docs/03-dev-accounts.md`: the seeded mock accounts and roles, the e2e-created account patterns and passwords, and how to invite your own user.
+
+**User:** "approved" (F10 spec signed off).
+
+**Assistant:** Created worktrees `../fms-ui-f10a` (`feature/f10a-share-manage`, ports 5273/4101, D-086…D-088) and `../fms-ui-f10b` (`feature/f10b-share-public`, ports 5373/4200, D-089…D-091) and spawned both agents.
