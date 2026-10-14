@@ -1,5 +1,6 @@
 import type { Fleet } from '@shared/contract/index.ts';
 import { toast } from 'sonner';
+import { apiFetch } from '@/shared/api/api-client';
 import {
   DEFAULT_SORT,
   TABLE_COLUMNS,
@@ -91,10 +92,7 @@ function downloadBlob(blob: Blob, filename: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-async function fetchFleets(): Promise<Fleet[]> {
-  const res = await fetch('/api/fleets', { credentials: 'include' });
-  return res.ok ? ((await res.json()) as Fleet[]) : [];
-}
+const fetchFleets = () => apiFetch<Fleet[]>('/api/fleets').catch((): Fleet[] => []);
 
 const initial: TableViewState = {
   open: false,
@@ -261,6 +259,13 @@ export class TableViewStore {
     this.set({ ...this.state, fleetNames });
     await this.live.setFleetNames(fleetNames);
     void this.refresh(true);
+  }
+
+  /** Sign-out / expiry (F02-R4): closes and forgets the previous user's fleet names. */
+  reset(): void {
+    this.close();
+    this.namesLoaded = false;
+    this.set(initial);
   }
 
   private set(state: TableViewState): void {

@@ -14,9 +14,24 @@ type Doc = {
 
 const panel = (page: Page) => page.getByRole('region', { name: 'Vehicle details' });
 
-/** Lists vehicles once the app's dev session exists (opens the page first if needed). */
+/**
+ * Lists vehicles once the worker's first snapshot is complete (opens the page first if needed):
+ * the worker only selects vehicles it knows (D-033). Before F02 the dev auto sign-in made the
+ * 401 → 200 poll below wait about that long; with the signed-in setup state it returns at once.
+ */
 async function vehicles(page: Page, limit = 20): Promise<VehicleMeta[]> {
   if (!page.url().includes('/live-tracking')) await page.goto('/live-tracking');
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            (globalThis as { __fmsLive?: { snapshotCompleteAt: number } }).__fmsLive
+              ?.snapshotCompleteAt ?? 0,
+        ),
+      { timeout: 15_000 },
+    )
+    .toBeGreaterThan(0);
   const get = () => page.request.get(`/api/vehicles?limit=${limit}`);
   await expect.poll(async () => (await get()).status(), { timeout: 15_000 }).toBe(200);
   return vehicleListSchema.parse(await (await get()).json()).items;

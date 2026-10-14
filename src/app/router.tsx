@@ -1,18 +1,24 @@
 import {
-  createRootRoute,
+  createRootRouteWithContext,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   Outlet,
   redirect,
   type RouterHistory,
 } from '@tanstack/react-router';
+import { sessionStore, type SessionStore } from '@/features/auth/session/session-store';
 import { LiveTrackingPage } from '@/features/live-tracking/components/live-tracking-page';
 import { parseLiveTrackingSearch } from '@/features/live-tracking/hooks/use-selection-url-sync';
 import { PlaceholderPage } from '@/shared/ui/placeholder-page';
 import { AppLayout } from './app-layout';
 import { NotFoundPage } from './not-found-page';
 
-const rootRoute = createRootRoute({
+export interface RouterContext {
+  session: SessionStore;
+}
+
+const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: Outlet,
   notFoundComponent: NotFoundPage,
 });
@@ -25,30 +31,63 @@ const indexRoute = createRoute({
   },
 });
 
-// Auth and public routes render without the app shell.
+const optionalString = (v: unknown) => (typeof v === 'string' && v !== '' ? v : undefined);
+
+/** F02-R2: `/login` and `/forgot-password` are for signed-out users only. */
+async function signedOutOnly({ context }: { context: RouterContext }) {
+  await context.session.load();
+  if (context.session.getSnapshot().status === 'authenticated') {
+    throw redirect({ to: '/live-tracking', replace: true });
+  }
+}
+
+// Auth and public routes render without the app shell. Auth screens are a separate chunk
+// (forms + zod), so the signed-in shell doesn't carry them.
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'login',
   staticData: { title: 'Sign in' },
-  component: PlaceholderPage,
+  validateSearch: (s: Record<string, unknown>): { redirect?: string } => {
+    const redirect = optionalString(s.redirect);
+    return redirect ? { redirect } : {};
+  },
+  beforeLoad: signedOutOnly,
+  component: lazyRouteComponent(() => import('@/features/auth/components/login-page'), 'LoginPage'),
 });
 const forgotPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'forgot-password',
   staticData: { title: 'Forgot password' },
-  component: PlaceholderPage,
+  beforeLoad: signedOutOnly,
+  component: lazyRouteComponent(
+    () => import('@/features/auth/components/forgot-password-page'),
+    'ForgotPasswordPage',
+  ),
 });
+// Reset, accept-invite and share links work signed in or not (no guard, no session probe).
+const tokenSearch = (s: Record<string, unknown>): { token?: string } => {
+  const token = optionalString(s.token);
+  return token ? { token } : {};
+};
 const resetPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'reset-password',
   staticData: { title: 'Reset password' },
-  component: PlaceholderPage,
+  validateSearch: tokenSearch,
+  component: lazyRouteComponent(
+    () => import('@/features/auth/components/reset-password-page'),
+    'ResetPasswordPage',
+  ),
 });
 const acceptInviteRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'accept-invite',
   staticData: { title: 'Accept invite' },
-  component: PlaceholderPage,
+  validateSearch: tokenSearch,
+  component: lazyRouteComponent(
+    () => import('@/features/auth/components/accept-invite-page'),
+    'AcceptInvitePage',
+  ),
 });
 const shareRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -57,9 +96,19 @@ const shareRoute = createRoute({
   component: PlaceholderPage,
 });
 
+/**
+ * F02-R2: the app shell waits for the session (nothing renders meanwhile) and sends signed-out
+ * users to `/login?redirect=<path + search>`.
+ */
 const appLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'app',
+  beforeLoad: async ({ context, location }) => {
+    await context.session.load();
+    if (context.session.getSnapshot().status !== 'authenticated') {
+      throw redirect({ to: '/login', search: { redirect: location.href } });
+    }
+  },
   component: AppLayout,
 });
 
@@ -122,8 +171,8 @@ const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
-export function createAppRouter(history?: RouterHistory) {
-  return createRouter({ routeTree, history, defaultPreload: 'intent' });
+export function createAppRouter(history?: RouterHistory, session: SessionStore = sessionStore) {
+  return createRouter({ routeTree, history, context: { session }, defaultPreload: 'intent' });
 }
 
 declare module '@tanstack/react-router' {
