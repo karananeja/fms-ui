@@ -24,9 +24,9 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F12, F15 | Drivers & assignment, in-app notifications (+ DS2 auth backdrop) | Done, accepted |
 | F13, F14 | Driver page (integrated report + voice), request desk (+ street-grid mock routes) | Done, accepted |
 | F16 | Performance dashboard | Done, accepted |
-| F17 | Fleet assistant | Intent + spec signed off. Not started |
+| F17 | Fleet assistant | Done on `feature/f17-assistant`, awaiting UAT (D-105…D-107 proposed). Real-key smoke test pending |
 
-Last `main` baseline: `pnpm check` 716/716, build clean, e2e 54/55 (F09-T8 tray flake, pre-existing, also fails on the pre-F11 `main`), clock 4/4. Last decision: **D-111** (F12/F15 D-095…D-098; F13/F14 D-099…D-102; F16 D-103…D-104; D-109…D-111 driver report, voice, mock routes).
+Last `main` baseline: `pnpm check` 716/716, build clean, e2e 54/55 (F09-T8 tray flake, pre-existing, also fails on the pre-F11 `main`), clock 4/4. Last decision: **D-111** (F12/F15 D-095…D-098; F13/F14 D-099…D-102; F16 D-103…D-104; F17 D-105…D-107; D-109…D-111 driver report, voice, mock routes).
 
 ### Pending work: Part 2 (`requirement-part-2.md`), F11–F17
 - All intents and specs are signed off (2026-10-14); see `docs/02-feature-catalog.md` and `docs/features/f11-…`–`f17-…/spec.md`.
@@ -57,6 +57,7 @@ Last `main` baseline: `pnpm check` 716/716, build clean, e2e 54/55 (F09-T8 tray 
 - **No git worktrees** (user, 2026-10-14). Do all work, including parallel agents, in this checkout on one branch. Give agents disjoint files and their own `VITE_PORT`/`MOCK_PORT`. Agents don't commit; the orchestrator does.
 - Work autonomously. Ask the user only before critical steps (merge to `main`, deletes, pushes, new deps, spec/contract changes).
 - Use the Read/Grep/Edit tools and simple single Bash commands.
+- Agents stop only processes they started (by PID). Never `pkill -f` a pattern that can match the user's own `pnpm dev` (5173/4000).
 - Under load, perf e2e can be flaky (load avg > 5). Re-run the single failing spec before calling it a regression, and compare against `main`.
 
 ## Commands

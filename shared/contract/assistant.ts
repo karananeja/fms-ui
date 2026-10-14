@@ -23,9 +23,12 @@ export const chatRequestSchema = z.object({
     .array(chatTurnSchema)
     .min(1)
     .max(CHAT_MAX_TURNS)
-    .refine((m) => m.at(-1)!.role === 'user', { message: 'The last turn must be from the user' })
+    .refine((m) => m.at(-1)?.role === 'user', { message: 'The last turn must be from the user' })
     .refine(
-      (m) => m.at(-1)!.content.trim().length > 0 && m.at(-1)!.content.length <= CHAT_MAX_CHARS,
+      (m) => {
+        const q = m.at(-1)?.content ?? '';
+        return q.trim().length > 0 && q.length <= CHAT_MAX_CHARS;
+      },
       {
         message: `The question must be 1–${CHAT_MAX_CHARS} characters`,
       },
