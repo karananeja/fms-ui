@@ -27,3 +27,5 @@ Merged `feature/f03a-fleets`, then `feature/f03b-people`. Only the decision log 
 | F08 budgets | Frames after a filter change: 81–167 ms, with one 203 ms "clear" at load ~9. **Long tasks while typing/filtering: 58–84 ms**, failing. **`main` without F03 fails the same check at the same load (62 ms)**, so this is load sensitivity, not an F03 regression. Same pattern as F09 before D-079. |
 
 UAT screenshots: `screenshots/`. People screens were retaken on `integration/f03`, so the invite dialog and user panel show the real fleet picker. The fleets screens are from F03a's fresh-mock run.
+
+UAT accepted 2026-10-14 (user); D-080…D-085 accepted.
