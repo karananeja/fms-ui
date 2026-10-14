@@ -1,6 +1,6 @@
 # F16 — Test report
 
-Branch `feature/f16-dashboard` (main checkout). Built by the orchestrator in session 8; testing kept light at the user's request. **Awaiting UAT.**
+Branch `feature/f16-dashboard` (main checkout). Built by the orchestrator in session 8; testing kept light at the user's request. **UAT accepted 2026-10-14**; merged into `main`.
 
 ## Runs (2026-10-14)
 | Command | Result |

@@ -396,3 +396,7 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Assistant:** Built F16 (performance dashboard) on `feature/f16-dashboard`: URL-synced filters, KPI tiles with deltas + sparklines, in-house SVG charts, ranking (top/bottom 10, up to 500), drill-down sheet, CSV export. `pnpm check` 858/858, build clean (chunk 8.9 kB gzip), e2e 4/4. Proposed D-103, D-104.
 
 **Status:** F16 (+ the duplicate fix) awaiting UAT. Next: F17 (assistant).
+
+**User:** "continue" (UAT acceptance of F16 + the duplicate fix; approval of D-103, D-104).
+
+**Assistant:** Accepted D-103/D-104, merged `feature/f16-dashboard` into `main` (--no-ff), deleted the branch. Starting F17.
