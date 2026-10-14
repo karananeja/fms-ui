@@ -1,6 +1,6 @@
 # F11 — Test report
 
-Branch `feature/f11-driver-data` in the main checkout. **Ready for UAT.** Not merged; nothing here is accepted until UAT.
+Branch `feature/f11-driver-data` in the main checkout. **UAT accepted 2026-10-14**; merged into `main`.
 
 ## How it was delivered
 The F11 agent wrote the contract, generators, stores, routes and WS changes, then stopped when the account hit its weekly usage limit (resets 2026-10-19). The orchestrator finished it in session 7: wrote the F11 tests (T1–T8), fixed two defects the tests found (below), formatted the files and ran the final verification.
