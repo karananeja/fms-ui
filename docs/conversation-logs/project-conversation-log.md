@@ -182,3 +182,11 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 **Assistant:** Merged F08 + F09 on `integration/f08-f09`. Conflicts: imports, page layout, decision log. D-074: in table view the status bar sits above the table. The table-view test fixture needed the new F08 `LivePush` fields. F09-T8 now drags right, because the F08 pulse card was intercepting the drag. Results: `pnpm check` 440/440, build clean, e2e 29/29, perf 5/5. F08 filter frames 25–118 ms. F09 scroll had no long tasks; export took 678 ms. Merged into `main`; worktrees and branches removed.
 
 **Next:** F02 Authentication. Intent signed off; spec to write.
+
+## 2026-10-14 — Session 3 (cont. 2)
+
+**User:** "continue and delete the recovery folder"
+
+**Assistant:** Deleted `.recovery/`, whose contents had already been committed. Wrote the F02 spec draft: `SessionStore` + `api-client`, route guards, 401 → `/login`, live tracking started and stopped by the session, safe redirect, dev auto-sign-in removed, four screens plus the user menu, a Playwright auth setup project, and tests T1–T12. Auth look proposed in spec §4. D-075…D-078 reserved.
+
+**Status:** Awaiting F02 spec sign-off.
