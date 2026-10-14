@@ -19,14 +19,12 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F07 | Vehicle details panel | Done, accepted |
 | F08 | Status bar: search, counters, filters | Done, accepted |
 | F09 | Table view & CSV export (+ D-079 hardening) | Done, accepted |
-| **F10** | **Share live location** | **Implemented + tested on `integration/f10`. Awaiting UAT** |
+| F10 | Share live location | Done, accepted |
 
-Last `main` baseline: `pnpm check` 619/619, build clean, e2e 48/48, clock 3/3. Last decision: **D-085**.
+Last `main` baseline: `pnpm check` 679/679, build clean, e2e 55/55, clock 4/4. Last decision: **D-091**.
 
-### Pending work: F10 UAT only
-- All of F10 is on branch `integration/f10` (F10a create/manage + F10b public page + F10-T9). Results: `docs/features/f10-share-live-location/test-report.md`. Decisions D-086…D-091 are **Proposed**.
-- When the user says "continue": mark D-086…D-091 Accepted, merge `integration/f10` into `main` with `--no-ff`, delete the branch, mark F10 accepted in the catalog and here.
-- Spec deviations awaiting confirmation: `vehicleId` added to the public share response (contract + mock); `lafparsed` never subscribed; the `main.tsx` entry split; the first-marker budget measured warm.
+### Pending work
+None. All catalogued features (F00–F10, DS1) are done and accepted.
 
 ## SDLC process (follow strictly)
 - Each feature folder `docs/features/<id>-<name>/` holds `intent.md` → `spec.md` (each signed off by the user) → `conversation-log.md` → `test-report.md` (+ `screenshots/`).

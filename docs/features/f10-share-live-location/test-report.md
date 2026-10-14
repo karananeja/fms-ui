@@ -1,6 +1,6 @@
 # F10 — Test report
 
-Branch `integration/f10` in the main checkout (no worktrees, per the user's 2026-10-14 instruction). **Ready for UAT.** Not merged; nothing here is accepted until UAT. Per-agent details are in `test-report-f10a.md` and `test-report-f10b.md`.
+Branch `integration/f10` in the main checkout (no worktrees, per the user's 2026-10-14 instruction). **UAT accepted 2026-10-14**; merged into `main`. Per-agent details are in `test-report-f10a.md` and `test-report-f10b.md`.
 
 ## Final runs (2026-10-14, orchestrator, once)
 | Command | Result |

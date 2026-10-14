@@ -271,3 +271,9 @@ F02 only touched `tableViewStore.reset()`.
 - Final runs: `pnpm check` 679/679; build clean; e2e setup + chromium 55/55; clock 4/4. `/share/*` chunk check passes (no live-tracking, access, auth, app or worker code). Perf: load avg 8–14 from other apps. Paired runs vs `main` show the same F04/F08 numbers, so no F10 regression.
 
 **Status:** F10 Impl Done, Test Passed, awaiting UAT and approval of D-086…D-091 and the spec deviations listed in `test-report.md`.
+
+**User:** "continue" (F10 UAT acceptance + D-086…D-091 and spec deviations approved).
+
+**Assistant:** Accepted D-086…D-091, marked F10 accepted in the catalog and CLAUDE.md, merged `integration/f10` into `main` (--no-ff) and deleted the branch.
+
+**Status:** F10 Done, accepted. All catalogued features are complete.

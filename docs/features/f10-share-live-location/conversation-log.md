@@ -24,3 +24,5 @@
 
 ## Orchestrator — integration (2026-10-14)
 Both agents' work merged on `integration/f10` in the main checkout (worktrees removed at the user's request). Wrote F10-T9 `e2e/share-flow.spec.ts`. Full runs: check 679/679, build clean, chromium 55/55, clock 4/4, `/share/*` chunk check pass, perf no regression vs `main` (both miss F04/F08 budgets equally at load avg 8–10). Report: `test-report.md`. Awaiting UAT.
+
+**UAT accepted 2026-10-14** (user: "continue"); D-086…D-091 accepted; merged into `main` with --no-ff.
