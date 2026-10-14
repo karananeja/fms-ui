@@ -81,7 +81,7 @@ export function UsersPage() {
               You
             </span>
           )}
-          <div className="truncate text-xs text-text-muted md:hidden">{u.email}</div>
+          <div className="max-w-[42vw] truncate text-xs text-text-muted md:hidden">{u.email}</div>
         </div>
       ),
     },

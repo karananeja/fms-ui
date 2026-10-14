@@ -1,5 +1,5 @@
 import type { Invite, User } from '@shared/contract/index.ts';
-import { Lock, X } from 'lucide-react';
+import { ChevronDown, Lock, X } from 'lucide-react';
 import { AlertDialog, Dialog } from 'radix-ui';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { inputClass } from '@/features/auth/components/text-field';
@@ -147,13 +147,13 @@ export function SidePanel({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none" />
         <Dialog.Content
           data-side-panel={desktop ? 'card' : 'sheet'}
           className={cn(
-            'fixed z-50 flex flex-col overflow-hidden border border-glass-border bg-surface-solid shadow-[0_30px_80px_rgb(0_0_0/0.55)] outline-none data-[state=open]:animate-in',
+            'fixed z-50 flex flex-col overflow-hidden border border-glass-border bg-surface-solid shadow-[0_30px_80px_rgb(0_0_0/0.55)] outline-none data-[state=open]:animate-in motion-reduce:animate-none',
             desktop
-              ? 'top-[72px] right-3.5 bottom-3.5 w-[420px] rounded-[var(--radius-panel)] data-[state=open]:slide-in-from-right-8'
+              ? 'top-[72px] right-3.5 bottom-3.5 w-[420px] rounded-[var(--radius-panel)]'
               : 'inset-x-0 bottom-0 max-h-[88dvh] rounded-t-[var(--radius-panel)] data-[state=open]:slide-in-from-bottom',
           )}
         >
@@ -206,8 +206,8 @@ export function Modal({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 flex max-h-[90dvh] w-[min(480px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid shadow-[0_30px_80px_rgb(0_0_0/0.55)] outline-none data-[state=open]:animate-in data-[state=open]:zoom-in-95">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 flex max-h-[90dvh] w-[min(480px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid shadow-[0_30px_80px_rgb(0_0_0/0.55)] outline-none data-[state=open]:animate-in data-[state=open]:zoom-in-95 motion-reduce:animate-none">
           <div className="flex items-start gap-3 p-5 pb-2">
             <div className="min-w-0 flex-1">
               <Dialog.Title className="text-lg font-extrabold">{title}</Dialog.Title>
@@ -280,7 +280,14 @@ export function ConfirmDialog({
   );
 }
 
-const selectClass = cn(inputClass, 'h-10 appearance-none pr-8');
+const selectClass = cn(inputClass, 'h-10 appearance-none pr-9');
+
+const Chevron = () => (
+  <ChevronDown
+    aria-hidden
+    className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-text-muted"
+  />
+);
 
 /** Unlabelled filter select (named by `aria-label`). */
 export function FilterSelect({
@@ -295,18 +302,21 @@ export function FilterSelect({
   options: readonly { value: string; label: string }[];
 }) {
   return (
-    <select
-      aria-label={label}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={cn(selectClass, 'w-auto min-w-36')}
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <span className="relative inline-flex">
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn(selectClass, 'w-auto min-w-36')}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <Chevron />
+    </span>
   );
 }
 
@@ -337,21 +347,26 @@ export function SelectField({
       <label htmlFor={id} className="mb-1.5 block text-xs font-bold text-text-muted">
         {label}
       </label>
-      <select
-        id={id}
-        value={value}
-        disabled={disabled}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={[hint && hintId, error && errorId].filter(Boolean).join(' ') || undefined}
-        onChange={(e) => onChange(e.target.value)}
-        className={cn(selectClass, 'disabled:opacity-60')}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      <div className="relative">
+        <select
+          id={id}
+          value={value}
+          disabled={disabled}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={
+            [hint && hintId, error && errorId].filter(Boolean).join(' ') || undefined
+          }
+          onChange={(e) => onChange(e.target.value)}
+          className={cn(selectClass, 'disabled:opacity-60')}
+        >
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <Chevron />
+      </div>
       {hint && <LockedNote id={hintId}>{hint}</LockedNote>}
       {error && (
         <p id={errorId} className="mt-1.5 text-xs text-danger">
