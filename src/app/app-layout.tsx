@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { Link, Outlet, useMatches } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
+import { Link, Outlet, useMatches, useRouter } from '@tanstack/react-router';
 import { Menu } from 'lucide-react';
+import { UserMenu } from '@/features/auth/components/user-menu';
+import { selectStatus, useSession, useSessionStore } from '@/features/auth/session/use-session';
+import { BrandMark } from '@/shared/ui/brand-mark';
 import { Button } from '@/shared/ui/button';
 import { Toaster } from '@/shared/ui/sonner';
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/shared/ui/sheet';
@@ -9,29 +12,39 @@ import { PageActionsSlotContext } from './page-actions-context';
 
 const activeOptions = { exact: true } as const;
 
-function Brand() {
-  return (
-    <span
-      aria-label="FMS"
-      className="grid size-[38px] place-items-center rounded-tile bg-linear-135 from-accent to-accent-2 text-[15px] font-black text-accent-ink shadow-[0_0_24px_var(--accent-glow)]"
-    >
-      F
-    </span>
-  );
-}
-
 const navLink =
   'text-text-faint outline-none hover:bg-tile hover:text-text focus-visible:ring-2 focus-visible:ring-ring data-[status=active]:bg-accent-soft data-[status=active]:text-accent data-[status=active]:shadow-[inset_2px_0_0_var(--accent)]';
 
+/**
+ * F02-R3/R11: when the session ends while the shell is shown (sign-out, any 401, WS
+ * `unauthenticated`), go to `/login`; an expiry keeps the current page as `?redirect=`.
+ */
+function useLeaveWhenSignedOut(): boolean {
+  const session = useSessionStore();
+  const status = useSession(selectStatus);
+  const router = useRouter();
+  const signedOut = status !== 'authenticated';
+  useEffect(() => {
+    if (!signedOut) return;
+    const expired = session.getSnapshot().notice === 'expired';
+    const redirect = router.state.location.href;
+    void router.navigate({ to: '/login', search: expired ? { redirect } : {}, replace: expired });
+  }, [signedOut, session, router]);
+  return signedOut;
+}
+
 export function AppLayout() {
+  const signedOut = useLeaveWhenSignedOut();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [actionsSlot, setActionsSlot] = useState<HTMLDivElement | null>(null);
   const title = useMatches({ select: (ms) => ms.at(-1)?.staticData.title });
+  // No shell (and no live data) once signed out, not even for the frame before navigating.
+  if (signedOut) return null;
 
   return (
     <div className="flex h-full">
       <aside className="hidden w-16 shrink-0 flex-col items-center gap-2 border-r border-glass-border bg-surface-solid py-4 lg:flex">
-        <Brand />
+        <BrandMark />
         <nav aria-label="Main navigation" className="mt-3.5 flex flex-col gap-2">
           {navItems.map(({ to, label, icon: Icon }) => (
             <Link
@@ -46,6 +59,9 @@ export function AppLayout() {
             </Link>
           ))}
         </nav>
+        <div className="mt-auto">
+          <UserMenu variant="rail" />
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -56,9 +72,9 @@ export function AppLayout() {
                 <Menu />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-72 border-glass-border bg-surface-solid">
+            <SheetContent side="left" className="w-72 gap-3 border-glass-border bg-surface-solid">
               <SheetTitle className="flex items-center gap-3 px-4 pt-4 text-sm font-black tracking-[0.12em]">
-                <Brand />
+                <BrandMark />
                 FMS
               </SheetTitle>
               <SheetDescription className="sr-only">Main navigation</SheetDescription>
@@ -76,6 +92,9 @@ export function AppLayout() {
                   </Link>
                 ))}
               </nav>
+              <div className="mt-auto pb-4">
+                <UserMenu variant="drawer" />
+              </div>
             </SheetContent>
           </Sheet>
           <span className="truncate text-xs font-extrabold tracking-[0.12em] text-text-muted uppercase">

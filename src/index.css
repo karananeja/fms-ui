@@ -195,3 +195,22 @@ div.maplibregl-map {
     transition: none !important;
   }
 }
+
+/* F02 auth backdrop: the mockup's faint street grid and vignette, pure CSS (no map tiles). */
+@utility street-grid {
+  background-color: var(--map-bg);
+  background-image:
+    linear-gradient(var(--tile-border) 2px, var(--transparent) 2px),
+    linear-gradient(90deg, var(--tile-border) 2px, var(--transparent) 2px),
+    linear-gradient(var(--tile) 1px, var(--transparent) 1px),
+    linear-gradient(90deg, var(--tile) 1px, var(--transparent) 1px);
+  background-size:
+    240px 240px,
+    240px 240px,
+    48px 48px,
+    48px 48px;
+  background-position: -1px -1px;
+}
+@utility vignette {
+  background: radial-gradient(ellipse at 50% 45%, var(--transparent) 35%, var(--vignette) 100%);
+}
