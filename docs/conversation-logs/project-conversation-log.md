@@ -250,3 +250,9 @@ F02 only touched `tableViewStore.reset()`.
 **User:** "approved" (F10 spec signed off).
 
 **Assistant:** Created worktrees `../fms-ui-f10a` (`feature/f10a-share-manage`, ports 5273/4101, D-086…D-088) and `../fms-ui-f10b` (`feature/f10b-share-public`, ports 5373/4200, D-089…D-091) and spawned both agents.
+
+## 2026-10-14 — Session 5 (resume)
+
+**User:** "Resume the existing project."
+
+**Assistant:** Recovered state: the F10 spec is signed off. Worktrees `../fms-ui-f10a` and `../fms-ui-f10b` exist at `806f643` with no commits and no edits: both agents were interrupted before writing anything. Re-spawned both agents with the same branches, ports and decision IDs.
