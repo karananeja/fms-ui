@@ -10,7 +10,7 @@ export function SubmitButton({ pending, children }: { pending: boolean; children
       size="lg"
       disabled={pending}
       aria-busy={pending}
-      className="mt-2 h-11 w-full rounded-tile"
+      className="auth-shimmer relative mt-2 h-11 w-full overflow-hidden rounded-tile"
     >
       {pending && <LoaderCircle className="animate-spin" aria-hidden />}
       {children}

@@ -5,17 +5,35 @@ import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { cn } from '@/shared/lib/utils';
 import { STATUS_META } from '../config/status-meta';
 import { liveTrackingStore, type LiveTrackingStore } from '../store/live-tracking-store';
-import type { SearchField, Suggestion } from '../worker/worker-api';
+import type { Suggestion, SuggestField } from '../worker/worker-api';
 import { DESKTOP_QUERY } from './vehicle-details-panel';
 
 export const SEARCH_DEBOUNCE_MS = 120;
 
-const FIELDS: { id: SearchField; label: string }[] = [
+const FIELDS: { id: SuggestField; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'vin', label: 'VIN' },
   { id: 'regno', label: 'Reg' },
   { id: 'deviceId', label: 'Device' },
+  { id: 'driver', label: 'Driver' },
 ];
+
+/** The matched prefix of a driver name: its start, else the first word it starts. */
+function DriverHighlight({ name, prefix }: { name: string; prefix: string }) {
+  const p = prefix.toUpperCase();
+  const upper = name.toUpperCase();
+  let at = upper.startsWith(p) ? 0 : -1;
+  for (let k = upper.indexOf(' '); at < 0 && k >= 0; k = upper.indexOf(' ', k + 1))
+    if (upper.startsWith(p, k + 1)) at = k + 1;
+  if (at < 0 || !p) return <span>{name}</span>;
+  return (
+    <span>
+      {name.slice(0, at)}
+      <mark className="bg-transparent text-accent">{name.slice(at, at + p.length)}</mark>
+      {name.slice(at + p.length)}
+    </span>
+  );
+}
 
 /** The matched prefix of `value`, emphasised. */
 function Highlight({ value, prefix, on }: { value: string; prefix: string; on: boolean }) {
@@ -30,6 +48,19 @@ function Highlight({ value, prefix, on }: { value: string; prefix: string; on: b
 
 function SuggestionRow({ s, prefix }: { s: Suggestion; prefix: string }) {
   const color = s.status ? STATUS_META[s.status].color : 'var(--text-faint)';
+  if (s.matchedField === 'driver')
+    return (
+      <>
+        <span className="size-2 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-extrabold">
+            <DriverHighlight name={s.driverName ?? ''} prefix={prefix} />
+            <span className="text-text-muted"> · {s.regno || '—'}</span>
+          </span>
+          <span className="block truncate text-[11px] text-text-muted">{s.vin}</span>
+        </span>
+      </>
+    );
   return (
     <>
       <span className="size-2 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
@@ -54,7 +85,7 @@ function SuggestionRow({ s, prefix }: { s: Suggestion; prefix: string }) {
 export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingStore }) {
   const desktop = useMediaQuery(DESKTOP_QUERY);
   const [text, setText] = useState('');
-  const [field, setField] = useState<SearchField>('all');
+  const [field, setField] = useState<SuggestField>('all');
   const [items, setItems] = useState<Suggestion[]>([]);
   /** The prefix + field `items` answer (the reply may lag the text). */
   const [answered, setAnswered] = useState('');
@@ -114,6 +145,11 @@ export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingS
   const applyPrefix = () => {
     const prefix = text.trim();
     if (!prefix) return;
+    // F12-R6: driver search only suggests; Enter opens the first match.
+    if (field === 'driver') {
+      if (items[0] && answeredNow) choose(items[0]);
+      return;
+    }
     store.patchFilter({ search: { field, prefix } });
     reset();
   };
@@ -163,7 +199,13 @@ export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingS
           aria-autocomplete="list"
           aria-activedescendant={showList && active >= 0 ? `${listId}-${active}` : undefined}
           value={text}
-          placeholder={desktop ? 'VIN · REG NO · DEVICE ID' : 'Search vehicles'}
+          placeholder={
+            field === 'driver'
+              ? 'Driver name'
+              : desktop
+                ? 'VIN · REG NO · DEVICE ID'
+                : 'Search vehicles'
+          }
           onChange={(e) => {
             setText(e.target.value);
             setActive(-1);
@@ -198,7 +240,7 @@ export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingS
             >
               <DropdownMenu.RadioGroup
                 value={field}
-                onValueChange={(v) => setField(v as SearchField)}
+                onValueChange={(v) => setField(v as SuggestField)}
               >
                 {FIELDS.map((f) => (
                   <DropdownMenu.RadioItem
@@ -241,7 +283,9 @@ export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingS
           ))}
           {!items.length && (
             <li role="presentation" className="px-2.5 py-2 text-xs text-text-muted">
-              No vehicles match. Press Enter to filter by “{text.trim()}”.
+              {field === 'driver'
+                ? 'No assigned driver matches.'
+                : `No vehicles match. Press Enter to filter by “${text.trim()}”.`}
             </li>
           )}
         </ul>

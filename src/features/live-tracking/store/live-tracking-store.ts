@@ -1,7 +1,8 @@
-import type { Fleet, Me, Permission } from '@shared/contract/index.ts';
+import type { Assignment, Fleet, Me, Permission } from '@shared/contract/index.ts';
 import { VEHICLE_STATUSES, type VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import { proxy, releaseProxy, wrap, type Remote } from 'comlink';
 import { can } from '@/features/access/permissions/can';
+import { subscribeAssignmentEvents } from '@/features/drivers/use-assignment-events';
 import { apiFetch } from '@/shared/api/api-client';
 import type { IndiaCity } from '../config/india-cities.ts';
 import { detailsConfig } from '../config/details-config.ts';
@@ -19,9 +20,9 @@ import type {
   MapViewport,
   CsvRequest,
   CsvResult,
-  SearchField,
   SelectedVehicle,
   Suggestion,
+  SuggestField,
   TableQuery,
   TableResult,
   TrayCard,
@@ -93,6 +94,8 @@ export interface LiveTrackingStoreDeps {
   fetchFleets?: () => Promise<Fleet[]>;
   /** Wall clock for pulse samples (ms). Defaults to `Date.now`. */
   now?: () => number;
+  /** F12: WS `assignment` events to forward to the worker's driver index (none in tests). */
+  subscribeAssignments?: (listener: (a: Assignment) => void) => () => void;
 }
 
 /** `GET /api/vehicles/:id/trail` (F07-R12); failures leave the trail to live positions only. */
@@ -193,6 +196,7 @@ export class LiveTrackingStore {
   private viewport: MapViewport | null = null;
   private autoFit = false;
   private noticeSeq = 0;
+  private offAssignments: (() => void) | null = null;
 
   constructor(private readonly deps: LiveTrackingStoreDeps) {}
 
@@ -207,6 +211,9 @@ export class LiveTrackingStore {
       proxy((push: LivePush) => this.receive(push)),
     );
     void this.loadFleets();
+    const api = this.api;
+    this.offAssignments =
+      this.deps.subscribeAssignments?.((a) => void api.applyAssignment(a)) ?? null;
   }
 
   private async loadFleets(): Promise<void> {
@@ -249,8 +256,19 @@ export class LiveTrackingStore {
     this.patchFilter({ statuses });
   }
 
-  async suggest(prefix: string, field: SearchField): Promise<Suggestion[]> {
+  async suggest(prefix: string, field: SuggestField): Promise<Suggestion[]> {
+    if (field === 'driver') return (await this.api?.suggestDriver(prefix, 8)) ?? [];
     return (await this.api?.suggest(prefix, field, 8)) ?? [];
+  }
+
+  /** F12: the selected vehicle's summary (regno, fleet) from the worker; null if not running. */
+  async vehicleSummary(vehicleId: string): Promise<VehicleSummary | null> {
+    return (await this.api?.getVehicleSummary(vehicleId)) ?? null;
+  }
+
+  /** True while the worker runs (the user has `live.view`). */
+  get running(): boolean {
+    return this.api !== null;
   }
 
   /** Refreshes the distinct values offered by the filter panel. */
@@ -263,6 +281,8 @@ export class LiveTrackingStore {
     const api = this.api;
     if (!api) return;
     this.api = null;
+    this.offAssignments?.();
+    this.offAssignments = null;
     void api.dispose();
     api[releaseProxy]();
     this.autoFit = false;
@@ -496,4 +516,7 @@ const createWorkerApi = () =>
     new Worker(new URL('../worker/live-tracking-worker.ts', import.meta.url), { type: 'module' }),
   );
 
-export const liveTrackingStore = new LiveTrackingStore({ createWorkerApi });
+export const liveTrackingStore = new LiveTrackingStore({
+  createWorkerApi,
+  subscribeAssignments: subscribeAssignmentEvents,
+});

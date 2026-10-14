@@ -26,6 +26,7 @@ export const ROUTE_PERMISSIONS = {
   '/admin': ADMIN_PERMISSIONS,
   '/admin/fleets': 'fleets.manage',
   '/admin/users': 'users.manage',
+  '/admin/drivers': 'drivers.manage',
   '/admin/invites': 'users.invite',
   '/admin/roles': 'roles.manage',
   '/admin/share-links': 'share.revoke',

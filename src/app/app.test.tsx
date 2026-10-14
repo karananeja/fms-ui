@@ -119,6 +119,7 @@ describe('F03-R1/R2: permission guards and nav', () => {
         'Admin',
         'Fleets',
         'Users',
+        'Drivers',
         'Invites',
         'Roles',
         'Share links',

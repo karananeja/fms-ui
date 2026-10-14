@@ -21,7 +21,8 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F09 | Table view & CSV export (+ D-079 hardening) | Done, accepted |
 | F10 | Share live location | Done, accepted |
 | F11 | Driver data & mock contract | Done, accepted |
-| F12–F17 | Drivers, driver page, request desk, notifications, dashboard, assistant | Intents + specs signed off. Not started |
+| F12, F15 | Drivers & assignment, in-app notifications | Done on `feature/f12-f15`, awaiting UAT (D-095…D-098 proposed) |
+| F13, F14, F16, F17 | Driver page, request desk, dashboard, assistant | Intents + specs signed off. Not started |
 
 Last `main` baseline: `pnpm check` 716/716, build clean, e2e 54/55 (F09-T8 tray flake, pre-existing, also fails on the pre-F11 `main`), clock 4/4. Last decision: **D-094**.
 

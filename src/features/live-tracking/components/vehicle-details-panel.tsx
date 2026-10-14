@@ -163,6 +163,9 @@ function DetailsBody({
     [canShare, regno, vehicleId],
   );
 
+  const fleetId = ownSummary?.fleetId ?? null;
+  const driver = useMemo(() => ({ vehicleId, regno, fleetId }), [vehicleId, regno, fleetId]);
+
   const close = () => void store.selectVehicle(null);
   if (own?.found === false) return <NotFound onClose={close} />;
 
@@ -209,7 +212,13 @@ function DetailsBody({
           className="flex flex-col gap-2.5 px-4 pt-3 pb-4"
         >
           {active === 'overview' && (
-            <OverviewTab overview={overview} chart={chart} events={events} share={share} />
+            <OverviewTab
+              overview={overview}
+              chart={chart}
+              events={events}
+              share={share}
+              driver={driver}
+            />
           )}
           {active === 'parameters' && (
             <ParametersTab

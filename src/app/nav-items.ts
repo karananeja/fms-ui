@@ -1,5 +1,6 @@
 import {
   Building2,
+  IdCard,
   KeyRound,
   Link2,
   MailPlus,
@@ -34,6 +35,7 @@ export const navItems: NavItem[] = [
   { to: '/admin', label: 'Admin', icon: ShieldCheck, permission: P['/admin'] },
   { to: '/admin/fleets', label: 'Fleets', icon: Building2, permission: P['/admin/fleets'] },
   { to: '/admin/users', label: 'Users', icon: Users, permission: P['/admin/users'] },
+  { to: '/admin/drivers', label: 'Drivers', icon: IdCard, permission: P['/admin/drivers'] },
   { to: '/admin/invites', label: 'Invites', icon: MailPlus, permission: P['/admin/invites'] },
   { to: '/admin/roles', label: 'Roles', icon: KeyRound, permission: P['/admin/roles'] },
   {

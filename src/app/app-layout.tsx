@@ -3,6 +3,7 @@ import { Link, Outlet, useMatches, useRouter } from '@tanstack/react-router';
 import { Menu } from 'lucide-react';
 import { RequirePermission } from '@/features/access/permissions/require-permission';
 import { UserMenu } from '@/features/auth/components/user-menu';
+import { NotificationBell } from '@/features/notifications/components/notification-bell';
 import {
   selectMe,
   selectStatus,
@@ -110,11 +111,9 @@ export function AppLayout() {
           <span className="truncate text-xs font-extrabold tracking-[0.12em] text-text-muted uppercase">
             {title}
           </span>
-          <div
-            ref={setActionsSlot}
-            data-slot="page-actions"
-            className="ml-auto flex items-center gap-2"
-          />
+          {/* F15-R1: the bell, before the page's own actions. */}
+          <NotificationBell className="ml-auto" />
+          <div ref={setActionsSlot} data-slot="page-actions" className="flex items-center gap-2" />
         </header>
 
         <main className="min-h-0 flex-1 overflow-auto">

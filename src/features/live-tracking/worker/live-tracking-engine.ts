@@ -1,4 +1,10 @@
-import type { Combinfo, Lafparsed, Me, ServerMessage } from '@shared/contract/index.ts';
+import type {
+  Assignment,
+  Combinfo,
+  Lafparsed,
+  Me,
+  ServerMessage,
+} from '@shared/contract/index.ts';
 import type { VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import { liveTrackingConfig, type LiveTrackingConfig } from '../config/live-tracking-config.ts';
 import type { MapConfig } from '../config/map-config.ts';
@@ -16,6 +22,7 @@ import {
   type VehicleFilter,
 } from './filter-engine.ts';
 import { exportCsv, type CsvRequest, type CsvResult } from './csv-exporter.ts';
+import { DriverIndex, DriverSearch, type DriverIndexRow, type FetchJson } from './driver-index.ts';
 import { frameBuffers, MapIndex } from './map-index.ts';
 import { SearchIndex, type Suggestion } from './search-index.ts';
 import { SelectedHistory } from './selected-history.ts';
@@ -53,7 +60,16 @@ export interface EngineDeps {
   map?: Partial<MapConfig>;
   /** Marks buffers for transfer (Comlink `transfer` in the worker; identity elsewhere). */
   transfer?: <T>(value: T, buffers: ArrayBuffer[]) => T;
+  /** F12: same-origin JSON GET with the session cookie (rejects on non-2xx). */
+  fetchJson?: FetchJson;
 }
+
+/** Default `fetchJson`: the worker shares the page's origin and cookies. */
+const defaultFetchJson: FetchJson = async (path) => {
+  const res = await fetch(path, { credentials: 'include' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+};
 
 interface Selection {
   vehicleId: string;
@@ -76,6 +92,8 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   readonly map: MapIndex;
   /** F09: sorted windows over matching vehicles (table + CSV). */
   readonly table: TableQueryEngine;
+  /** F12-R6: driver-name search (D-095). */
+  readonly drivers: DriverSearch;
   private fleetNames: Record<string, string> = {};
   pushCount = 0;
   private readonly clock: Clock;
@@ -123,6 +141,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     this.filters = new FilterEngine(this.state);
     this.search = new SearchIndex(this.state, (task) => this.clock.setTimeout(task, 0));
     this.map = new MapIndex(this.state, deps.map, this.filters);
+    this.drivers = new DriverSearch(new DriverIndex(), deps.fetchJson ?? defaultFetchJson);
     this.table = new TableQueryEngine(
       this.state,
       (i) => this.filters.matches(i),
@@ -267,6 +286,27 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
 
   suggest(prefix: string, field: SearchField, limit = 8): Suggestion[] {
     return this.search.suggest(prefix, field, limit);
+  }
+
+  // ---- F12: driver search ----
+
+  async suggestDriver(prefix: string, limit = 8): Promise<Suggestion[]> {
+    if (!prefix.trim()) return [];
+    const known = (id: string) => this.state.indexOf(id) >= 0;
+    await this.drivers.fill(prefix, known);
+    return this.drivers.index.match(prefix, limit, known).map((m) => ({
+      ...this.search.suggestionAt(this.state.indexOf(m.vehicleId), 'driver'),
+      driverName: m.name,
+    }));
+  }
+
+  applyAssignment(a: Assignment): Promise<void> {
+    return this.drivers.apply(a);
+  }
+
+  loadDriverIndex(rows: DriverIndexRow[]): void {
+    this.drivers.index.load(rows);
+    this.drivers.reset();
   }
 
   getFilterOptions(): FilterOptions {
