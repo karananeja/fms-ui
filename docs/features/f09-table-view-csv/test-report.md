@@ -68,4 +68,4 @@ After F02 merged, two F09 e2e checks failed under machine load (load avg ~7) and
 
 **T9 export step:** under load the 6×-throttled screenshot could outlast the export plus the success toast's 4 s auto-dismiss, so the 30 s wait for "Exported N rows" never saw it. The test now records toast texts with a `MutationObserver` before clicking, resets throttling in a `finally` right after the screenshot, waits for the CSV `download` (60 s), and then asserts an "Exported N rows" toast appeared. Same assertions, no timing dependence.
 
-Verification (load avg 6–10): `pnpm check` 521/521; e2e setup + chromium 36/36; perf `e2e/table-view.perf.spec.ts` 2 runs: scroll no long tasks, export 581 / 540 ms with no long tasks. Decision: D-079 (Proposed).
+Verification (load avg 6–10): `pnpm check` 521/521; e2e setup + chromium 36/36; perf `e2e/table-view.perf.spec.ts` 2 runs: scroll no long tasks, export 581 / 540 ms with no long tasks. Decision: D-079 (Accepted 2026-10-14).
