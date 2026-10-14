@@ -13,3 +13,6 @@ test-results/
 
 # Playwright signed-in state (F02 setup project)
 e2e/.auth/
+
+# Agent worktrees inside the project (avoids permission prompts)
+.worktrees/
