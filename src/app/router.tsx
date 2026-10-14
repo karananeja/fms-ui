@@ -157,6 +157,15 @@ const adminUsersRoute = createRoute({
   staticData: { title: 'Users', permission: ROUTE_PERMISSIONS['/admin/users'] },
   component: lazyRouteComponent(() => import('@/features/access/people/users-page'), 'UsersPage'),
 });
+const adminDriversRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: 'drivers',
+  staticData: { title: 'Drivers', permission: ROUTE_PERMISSIONS['/admin/drivers'] },
+  component: lazyRouteComponent(
+    () => import('@/features/drivers/pages/drivers-page'),
+    'DriversPage',
+  ),
+});
 const adminInvitesRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: 'invites',
@@ -195,6 +204,7 @@ const routeTree = rootRoute.addChildren([
       adminIndexRoute,
       adminFleetsRoute,
       adminUsersRoute,
+      adminDriversRoute,
       adminInvitesRoute,
       adminRolesRoute,
       adminShareLinksRoute,

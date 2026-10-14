@@ -12,6 +12,7 @@ describe('F03-R2: nav filtered by permission', () => {
       'Admin',
       'Fleets',
       'Users',
+      'Drivers',
       'Invites',
       'Roles',
       'Share links',

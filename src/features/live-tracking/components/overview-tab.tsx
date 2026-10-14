@@ -3,6 +3,7 @@ import { lazy, Suspense, useState } from 'react';
 import { Button } from '@/shared/ui/button';
 import type { EventItem, Overview, SessionChart as Chart } from '../lib/vehicle-details-model';
 import { SectionLabel, Skeleton, Tile } from './details-ui';
+import { DriverSection, type DriverSectionProps } from './driver-section';
 import { EventsTimeline } from './events-tab';
 import { SessionChart } from './session-chart';
 import { Speedometer } from './speedometer';
@@ -59,11 +60,14 @@ export function OverviewTab({
   chart,
   events,
   share,
+  driver,
 }: {
   overview: Overview | null;
   chart: Chart | null;
   events: EventItem[];
   share?: ShareTarget | null;
+  /** F12-R5: the Driver section's vehicle (omitted in tests that don't cover it). */
+  driver?: DriverSectionProps | null;
 }) {
   return (
     <>
@@ -94,6 +98,7 @@ export function OverviewTab({
       ) : (
         <Skeleton className="h-[124px]" label="overview" />
       )}
+      {driver && <DriverSection key={driver.vehicleId} {...driver} />}
       <Tile>
         <div className="mb-1.5 flex items-center">
           <SectionLabel>Energy · this session</SectionLabel>

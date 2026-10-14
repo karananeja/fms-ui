@@ -1,6 +1,7 @@
-import type { Combinfo, Lafparsed, Me } from '@shared/contract/index.ts';
+import type { Assignment, Combinfo, Lafparsed, Me } from '@shared/contract/index.ts';
 import type { VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import type { FleetNode, SearchField, VehicleFilter } from './filter-engine.ts';
+import type { DriverIndexRow } from './driver-index.ts';
 import type { Suggestion } from './search-index.ts';
 import type { TableRow, TableSort } from '../config/table-columns.ts';
 import type { CsvRequest, CsvResult } from './csv-exporter.ts';
@@ -10,7 +11,10 @@ import type { TrayCard } from './tray-query.ts';
 
 export type { CsvRequest, CsvResult, TableQuery, TableResult, TableRow, TableSort, TrayCard };
 
-export type { FleetNode, SearchField, Suggestion, VehicleFilter };
+export type { DriverIndexRow, FleetNode, SearchField, Suggestion, VehicleFilter };
+
+/** F12-R6: the status-bar search fields (`driver` suggests only; it never becomes a filter). */
+export type SuggestField = SearchField | 'driver';
 
 /** F08-R6: distinct values present in the fleet state (models carry their make). */
 export interface FilterOptions {
@@ -177,4 +181,11 @@ export interface LiveTrackingWorkerApi {
   ): Promise<CsvResult>;
   /** Up to `limit` matching vehicles in the bbox for the tray. */
   getTray(bbox: Bbox, limit?: number): TrayCard[];
+  // ---- F12 ----
+  /** Vehicles whose current driver's name (or a word of it) starts with `prefix` (D-095). */
+  suggestDriver(prefix: string, limit?: number): Promise<Suggestion[]>;
+  /** An `assignment` event forwarded from the main thread (WS `events`). */
+  applyAssignment(a: Assignment): Promise<void>;
+  /** Replaces the driver index with a compact vehicle → driver list (bulk source, if any). */
+  loadDriverIndex(rows: DriverIndexRow[]): void;
 }

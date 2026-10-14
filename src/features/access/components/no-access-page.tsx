@@ -8,6 +8,7 @@ const LABELS = {
   '/admin': 'Go to admin',
   '/admin/fleets': 'Go to fleets',
   '/admin/users': 'Go to users',
+  '/admin/drivers': 'Go to drivers',
   '/admin/invites': 'Go to invites',
   '/admin/roles': 'Go to roles',
   '/admin/share-links': 'Go to share links',

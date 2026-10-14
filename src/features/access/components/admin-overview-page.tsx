@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 import {
   ArrowRight,
   Building2,
+  IdCard,
   KeyRound,
   Link2,
   MailPlus,
@@ -9,6 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { listDrivers } from '@/features/drivers/api/drivers-api';
 import { listShareLinks } from '@/features/share/api/share-api';
 import { countActive } from '@/features/share/lib/share-link-model';
 import { listFleets, listInvites, listRoles, listUsers } from '../api/access-api';
@@ -24,7 +26,13 @@ function OverviewCard({
   label,
   load,
 }: {
-  to: '/admin/fleets' | '/admin/users' | '/admin/invites' | '/admin/roles' | '/admin/share-links';
+  to:
+    | '/admin/fleets'
+    | '/admin/users'
+    | '/admin/drivers'
+    | '/admin/invites'
+    | '/admin/roles'
+    | '/admin/share-links';
   icon: LucideIcon;
   label: string;
   load: (signal: AbortSignal) => Promise<ReactNode>;
@@ -67,8 +75,12 @@ export function AdminOverviewPage() {
   const invites = useCan('users.invite');
   const roles = useCan('roles.manage');
   const shares = useCan('share.revoke');
+  const drivers = useCan('drivers.manage');
   return (
-    <AdminLayout title="Admin" description="Fleets, users, invites, roles and share links.">
+    <AdminLayout
+      title="Admin"
+      description="Fleets, users, drivers, invites, roles and share links."
+    >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {fleets && (
           <OverviewCard
@@ -98,6 +110,26 @@ export function AdminOverviewPage() {
                   <Big>{count.format(active)}</Big> active ·{' '}
                   <span className="tabular-nums">{count.format(list.length - active)}</span>{' '}
                   disabled
+                </>
+              );
+            }}
+          />
+        )}
+        {drivers && (
+          <OverviewCard
+            to="/admin/drivers"
+            icon={IdCard}
+            label="Drivers"
+            load={async (signal) => {
+              // F12-R1: no count endpoint in F11, so one max page; "500+" past that.
+              const page = await listDrivers({ status: 'active', limit: 500 }, { signal });
+              return (
+                <>
+                  <Big>
+                    {count.format(page.items.length)}
+                    {page.nextCursor ? '+' : ''}
+                  </Big>{' '}
+                  active
                 </>
               );
             }}

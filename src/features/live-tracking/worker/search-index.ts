@@ -11,7 +11,10 @@ export interface Suggestion {
   vin: string;
   deviceId: string;
   status: VehicleStatus | null;
-  matchedField: Field;
+  /** `driver`: matched by the current driver's name (F12-R6). */
+  matchedField: Field | 'driver';
+  /** F12-R6: the current driver's name, on driver matches. */
+  driverName?: string;
 }
 
 interface Sorted {
@@ -84,7 +87,7 @@ export class SearchIndex {
           const i = this.state.byVehicle.get(id);
           if (i === undefined) continue;
           seen.add(id);
-          out.push(this.toSuggestion(i, f));
+          out.push(this.suggestionAt(i, f));
         }
       }
     }
@@ -157,7 +160,8 @@ export class SearchIndex {
     });
   }
 
-  private toSuggestion(i: number, matchedField: Field): Suggestion {
+  /** The suggestion for row `i` (also used by the F12 driver search). */
+  suggestionAt(i: number, matchedField: Suggestion['matchedField']): Suggestion {
     const { vehicleId, regno, vin, deviceId } = this.state.str;
     return {
       vehicleId: vehicleId[i]!,

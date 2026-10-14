@@ -18,9 +18,14 @@ export function SectionLabel({ children, className }: { children: ReactNode; cla
 }
 
 /** Mockup `.panel` / `.ptile`: translucent tile. */
-export function Tile({ children, className }: { children: ReactNode; className?: string }) {
+export function Tile({
+  children,
+  className,
+  ...rest
+}: { children: ReactNode; className?: string; 'data-testid'?: string }) {
   return (
     <div
+      {...rest}
       className={cn(
         'rounded-[var(--radius-tile)] border border-tile-border bg-tile p-3',
         className,
