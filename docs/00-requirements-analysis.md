@@ -126,3 +126,22 @@ Non-functional constraints:
 | D19 | i18n / time format | No i18n; IST `08 Sep 26 \| 09:33:42` | — |
 | E20 | Git / sign-off | Feature branch + PR | Sign-off = chat reply, recorded in the intent/spec status. **Git remote URL still needed** |
 | E21 | Test timeouts | Accepted | Unit ≤5 s, e2e ≤30 s, 0 retries, stop after 2 failed attempts (D-011) |
+
+## 5. Part 2 requirements (`requirement-part-2.md`, 2026-10-14)
+Two new modules: **driver monitoring** and a **chatbot**. They are split into F11–F17 (see `02-feature-catalog.md`).
+
+Answers (2026-10-14):
+1. **Driver access:** a simple web page for now. Read as a new invite-only **Driver** role signing in to a light `/driver` page.
+2. **RSA:** handled inside the fleet (no external provider).
+3. **Replacement:** both. The system suggests a vehicle and the operator approves, and a per-fleet setting allows fully automatic assignment.
+4. **No-GPS reason:** both the driver's reported reason and device signals.
+5. **Notifications:** in-app only.
+6. **Chatbot:** yes to a real Claude model (server-side only). Reports: read as both CSV and PDF.
+7. **Dashboard:** yes to all proposed KPIs, with mock-generated history (90 days).
+
+Estimate given: about 9–14 h of build time, roughly 2 working days including spec reviews and UAT. Not counting the user's response time.
+Open items for the specs:
+- a chart library (new dependency);
+- a PDF library (new dependency);
+- the Anthropic SDK (new dependency) and the API key handling;
+- the look of the driver page and the dashboard (to agree with the user, per CLAUDE.md).

@@ -22,6 +22,14 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 | F08 | Status bar: search, status counters, filters | F05, F06 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
 | F09 | Table view (full / viewport) & CSV export | F08 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
 | F10 | Share live location (create, manage, public page) | F03, F07 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
+| F11 | Driver data & mock contract (drivers, assignments, requests, notifications, history) | F01, F03 | Draft | — | — | — | — |
+| F12 | Drivers & assignment (admin page, assign/unassign, driver on card) | F11 | Draft | — | — | — | — |
+| F13 | Driver web page (breakdown, replacement, RSA requests) | F11, F02 | Draft | — | — | — | — |
+| F14 | Operator request desk & no-GPS insight (incl. replacement suggest/auto-assign) | F11, F13 | Draft | — | — | — | — |
+| F15 | In-app notifications (bell, centre, toasts, 24 h no-GPS alert) | F11 | Draft | — | — | — | — |
+| F16 | Performance dashboard (vehicle & driver KPIs, charts) | F11 | Draft | — | — | — | — |
+| F17 | Fleet assistant chatbot (Claude, read-only tools, CSV/PDF reports) | F11, F16 | Draft | — | — | — | — |
 
 Suggested order: F00 → F01 → F04 → F05 → F06 → (DS1 ∥ F07)  → F08 → F09 → F02 → F03 → F10.
+Part 2 (`requirement-part-2.md`): F11 → (F12 ∥ F15) → (F13 ∥ F14) → F16 → F17.
 This puts the live-tracking core, the main risk, first. Until F02 lands, auth uses a mock dev session.

@@ -277,3 +277,17 @@ F02 only touched `tableViewStore.reset()`.
 **Assistant:** Accepted D-086…D-091, marked F10 accepted in the catalog and CLAUDE.md, merged `integration/f10` into `main` (--no-ff) and deleted the branch.
 
 **Status:** F10 Done, accepted. All catalogued features are complete.
+
+## 2026-10-14 — Session 6 (cont.): Part 2 requirements
+
+**User:** "remove all stale branches". **Assistant:** deleted the 5 fully merged `feature/f0x` branches; only `main` remains.
+
+**User:** added `requirement-part-2.md` (driver monitoring module + chatbot) and asked for a development estimate.
+
+**Assistant:** Estimated about 9–14 h of build time (roughly 2 working days with reviews and UAT), split into F11–F17, calibrated on the actual F00–F10 merge times. Asked 7 questions.
+
+**User:** answered: 1 simple web page; 2 inside fleet; 3 both; 4 both; 5 in-app; 6 yes; 7 yes.
+
+**Assistant:** Recorded the answers in `00-requirements-analysis.md` §5, added F11–F17 to the catalog and wrote intents F11–F17 (Draft).
+
+**Status:** Awaiting user sign-off of the F11–F17 intents.
