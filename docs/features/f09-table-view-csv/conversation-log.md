@@ -14,3 +14,10 @@ Agent added `@tanstack/react-table` and `@tanstack/react-virtual` and stopped. B
 - E2E `e2e/table-view.spec.ts` (T6, T7, T8, T9 screenshots) + `e2e/table-helpers.ts`; budgets in `e2e/table-view.perf.spec.ts` (D-069, Proposed).
 - First runs found: wheel-scroll long tasks 55–86 ms; the details card covering the Locate column and clipping Export CSV; tray fleet ids instead of names (fetch raced the dev sign-in); heading compass over the table; clipped cells without ellipsis; wrapped tray stats. All fixed in `86eddff` (D-068 Proposed for the table-beside-card layout).
 - Final: `pnpm check` 366/366; build + dist leak scan clean; chromium + clock 24/24; one perf run: scroll longest task 50 ms, export 584 ms with no long tasks. Report: `test-report.md`.
+
+## 2026-10-14 — Hardening (D-079)
+**Trigger:** after the F02 merge, F09-T7 scroll (long tasks 54/74 ms) and the F09-T9 export step failed under load and passed alone.
+- Profiled `scrollTable`: the cost was React re-rendering every row on each window response or push (new TanStack `Row` objects defeated `memo`), plus four elements per cell. Fixed in `table-view.tsx`: rows render from the worker window, memoised `VehicleRow`, plain cell functions, overscan 8 → 4. Longest scroll tasks 39–52 ms → 21–26 ms (trace, 3 runs each).
+- F09-T9: toast texts recorded by a `MutationObserver`, throttling reset in `finally`, completion awaited via the CSV download.
+- Screenshot churn in DS1/F02/F07/F08 from suite reruns reverted; the 5 F09 screenshots regenerated.
+- Final: `pnpm check` 521/521; e2e setup + chromium 36/36; perf 2 runs: no scroll long tasks, export 581 / 540 ms (load avg 6–8).

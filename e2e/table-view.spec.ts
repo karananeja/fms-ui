@@ -244,14 +244,41 @@ test.describe('F09-T9: UAT screenshots', () => {
     await page.screenshot({ path: `${SHOTS}/column-menu.png` });
     await page.keyboard.press('Escape');
 
-    // Slow the CPU so the progress toast is on screen long enough to capture.
+    // Slow the CPU so the progress toast is on screen long enough to capture. Under machine load
+    // the throttled screenshot can outlast the export and the success toast's 4 s auto-dismiss,
+    // so the toast texts are recorded as they appear and completion is awaited via the download.
+    await page.evaluate(() => {
+      // Minimal DOM typing (the e2e tsconfig has no DOM lib).
+      type El = { textContent: string | null };
+      const g = globalThis as unknown as {
+        __toasts: string[];
+        document: { body: unknown; querySelectorAll(s: string): Iterable<El> };
+        MutationObserver: new (cb: () => void) => { observe(n: unknown, o: object): void };
+      };
+      g.__toasts = [];
+      new g.MutationObserver(() => {
+        for (const t of g.document.querySelectorAll('[data-sonner-toast]'))
+          if (t.textContent && !g.__toasts.includes(t.textContent)) g.__toasts.push(t.textContent);
+      }).observe(g.document.body, { childList: true, subtree: true, characterData: true });
+    });
+    const toasts = () =>
+      page.evaluate(() => (globalThis as unknown as { __toasts: string[] }).__toasts);
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
-    await page.getByRole('button', { name: 'Export CSV' }).click();
-    await expect(page.getByText(/Exporting CSV… \d+%/)).toBeVisible();
-    await page.screenshot({ path: `${SHOTS}/export-in-progress.png` });
-    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
-    await expect(page.getByText(/Exported [\d,]+ rows/)).toBeVisible({ timeout: 30_000 });
+    const downloaded = page.waitForEvent('download', { timeout: 60_000 });
+    try {
+      await page.getByRole('button', { name: 'Export CSV' }).click();
+      await expect(page.getByText(/Exporting CSV… \d+%/)).toBeVisible();
+      await page.screenshot({ path: `${SHOTS}/export-in-progress.png` });
+    } finally {
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    }
+    await downloaded;
+    await expect
+      .poll(async () => (await toasts()).find((t) => /Exported [\d,]+ rows/.test(t)), {
+        timeout: 10_000,
+      })
+      .toMatch(/Exported [\d,]+ rows/);
   });
 
   test.describe('mobile', () => {

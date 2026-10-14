@@ -52,3 +52,20 @@ Browser numbers are from the Vite dev server (React development build), like the
 F04-T9 first data 1136 ms / snapshot 1487 ms; F04-T10 3.26 pushes/s, 0 streaming long tasks; F06-T9 0 long tasks;
 F08 frame after filter change 25–118 ms, no long tasks; F09 scroll no long tasks, export 678 ms, no long tasks.
 Integration changes: D-074. UAT accepted 2026-10-14.
+
+## Hardening: scroll headroom and T9 export step (fix/f09-table-scroll, 2026-10-14)
+After F02 merged, two F09 e2e checks failed under machine load (load avg ~7) and passed alone: F09-T7 scroll long tasks 54 and 74 ms, and the F09-T9 desktop "export in progress" step timing out on "Exported N rows".
+
+**Scroll cause (CPU profile + Chrome trace of `scrollTable`):** the cost was React rendering rows, not the worker (window query ≤ 0.2 ms). Each wheel step (1 200 px = 30 rows) or scrollbar jump mounts a whole window of new rows, and every window response or live push re-rendered **every** row: TanStack's row model created new `Row` objects, which defeated `memo`. Each cell also went through `flexRender` + `getContext` + a `<Cell>` component + fragments; in the dev build each element costs a `jsxDEV` debug stack (≈ 45 % of self time).
+
+**Fix (`table-view.tsx`, no behaviour change):** rows render straight from the worker window (TanStack Table still drives the header); `VehicleRow` is memoised on the row's field values, so responses and pushes only re-render rows that entered or changed; cell content is a plain function returning strings where possible (one element per cell instead of four); overscan 8 → 4 (≈ 31 → 23 rows in the DOM, still "about 50" max).
+
+**Before/after, longest main-thread tasks during `scrollTable` (Chrome trace `RunTask`, dev build, load avg 4–8, 3 runs each):**
+| | top tasks (ms) |
+|---|---|
+| before | 48 / 41 / 39 · 51 / 50 / 49 · 52 / 51 / 48 |
+| after | 24 / 22 / 21 · 23 / 22 / 21 · 26 / 25 / 21 |
+
+**T9 export step:** under load the 6×-throttled screenshot could outlast the export plus the success toast's 4 s auto-dismiss, so the 30 s wait for "Exported N rows" never saw it. The test now records toast texts with a `MutationObserver` before clicking, resets throttling in a `finally` right after the screenshot, waits for the CSV `download` (60 s), and then asserts an "Exported N rows" toast appeared. Same assertions, no timing dependence.
+
+Verification (load avg 6–10): `pnpm check` 521/521; e2e setup + chromium 36/36; perf `e2e/table-view.perf.spec.ts` 2 runs: scroll no long tasks, export 581 / 540 ms with no long tasks. Decision: D-079 (Accepted 2026-10-14).
