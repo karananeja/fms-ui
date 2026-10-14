@@ -207,3 +207,11 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 F02 only touched `tableViewStore.reset()`.
 
 **Next:** F09 hardening (scroll headroom, T9 export wait) and the F03 spec.
+
+## 2026-10-14 — Session 3 (cont. 4)
+
+**User:** "continue" (F09 hardening + F03 spec).
+
+**Assistant:** Spawned the F09 hardening agent in `../fms-ui-f09h` (branch `fix/f09-table-scroll`; D-079 reserved). Wrote the F03 spec draft. Changes: one permission check (`can`) with a gating matrix, the Fleets admin pages (tree, create/rename/move/delete, vehicle moves, a shared fleet picker), and the Users, Invites, Roles and overview pages. `users.invite` and `roles.manage` are locked to Super Admin, with one mock change (R14). Scope e2e uses `ops@fms.local`. Delivery: F03a Fleets ∥ F03b People from a shared contract commit (D-080…D-085).
+
+**Status:** Awaiting F03 spec sign-off; F09 hardening running.
