@@ -4,7 +4,7 @@ import { parse } from '../context.ts';
 
 /** Dev-only helpers (registered only when `NODE_ENV !== 'production'`). */
 export async function devRoutes(app: FastifyInstance) {
-  const { accounts, clock, hub, sim } = app.mock;
+  const { accounts, clock, hub, sim, notifications } = app.mock;
 
   app.get<{ Querystring: { to?: string } }>('/mailbox', async (req) => {
     const to = req.query.to?.trim().toLowerCase();
@@ -13,6 +13,8 @@ export async function devRoutes(app: FastifyInstance) {
 
   app.post('/clock', async (req) => {
     clock.offsetMs = parse(setClockSchema, req.body).offsetMs;
+    // Clock-aware jobs (D-038) run at once instead of on their next minute tick.
+    notifications.tick();
     return { offsetMs: clock.offsetMs, now: clock.now() };
   });
 

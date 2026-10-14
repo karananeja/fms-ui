@@ -14,6 +14,7 @@ export const ADMIN_PERMISSIONS = [
   'users.invite',
   'roles.manage',
   'share.revoke',
+  'drivers.manage',
 ] as const satisfies readonly Permission[];
 
 /**

@@ -5,6 +5,7 @@ import {
   type Pid,
   type VehicleMeta,
 } from '@shared/contract/index.ts';
+import type { VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import combinfoSample from '../fixtures/combinfo-sample.json' with { type: 'json' };
 import lafparsedSample from '../fixtures/lafparsed-sample.json' with { type: 'json' };
 import { CENTRES, MODELS } from './catalogue.ts';
@@ -33,15 +34,28 @@ const PERSONA_CUMULATIVE: [number, number][] = [
 ];
 
 /** Duty cycle (fraction of the cycle): drive, then stop, then charge (EVs only). */
-const DRIVE_END = 0.49;
-const CHARGE_FROM = 0.87;
+export const DRIVE_END = 0.49;
+export const CHARGE_FROM = 0.87;
 /** A driving vehicle reports speed 0 this often (signals, traffic). */
 const HALT_SHARE = 0.08;
 const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 const NON_COMM_EPOCH = 3 * DAY;
-const NO_GPS_EPOCH = DAY;
+/**
+ * No-GPS episodes (F11 §5): a share of `noGps` vehicles lose GPS for 5-day episodes (so about
+ * 30 % of them are past 24 h at any time, up to ~5 d); the rest refresh within 3–20 h (always
+ * under 24 h). Ages never drop below 11 min, so the F05 status stays `no-gps`.
+ */
+const NO_GPS_LONG_SHARE = 0.375;
+const NO_GPS_LONG_EPOCH = 5 * DAY;
+/** F05 thresholds (mirror `statusRulesConfig.thresholds`; the mock cannot import `src/`). */
+export const NON_COMM_MS = 30 * MIN;
+export const NO_GPS_MS = 10 * MIN;
+export const PULLOUT_VOLTS = 1.0;
+export const RUNNING_SPEED_KMH = 2;
+/** Seeded signal pattern of each `noGps` vehicle (F11 no-GPS insight). */
+export const NO_GPS_CAUSE = { devBatteryLow: 0, weakSignal: 1, ignitionOff: 2, none: 3 } as const;
 const KM_PER_DEG = 111.32;
 /** Duty cycles (and so odometers) count from this instant. */
 const SIM_EPOCH = Date.UTC(2026, 8, 1);
@@ -63,6 +77,8 @@ const S = {
   regno: 14,
   vin: 15,
   sign: 16,
+  gpsEpoch: 17,
+  gpsCause: 18,
 } as const;
 
 export interface LiveState {
@@ -198,7 +214,7 @@ export class VehicleSim {
         persona === PERSONA.nonComm
           ? 31 * MIN + r(S.age) * 2 * DAY
           : persona === PERSONA.noGps
-            ? 11 * MIN + r(S.age) * 3 * HOUR
+            ? 11 * MIN + r(S.age) * HOUR
             : r(S.age) * 12 * HOUR;
       this.socHi[i] = 70 + Math.floor(r(S.soc) * 31);
       this.socDrop[i] = 20 + Math.floor(r(S.soc, 1) * 31);
@@ -226,6 +242,24 @@ export class VehicleSim {
   private frozen(i: number, t: number, epoch: number): number {
     const off = this.reportPhase[i]! * epoch;
     return Math.round(Math.floor((t - off) / epoch) * epoch + off - this.ageMs[i]!);
+  }
+
+  /** Refresh period of a `noGps` vehicle's frozen `gpstime` (one no-GPS episode). */
+  noGpsEpoch(i: number): number {
+    const u = unit(this.seed + S.gpsEpoch, i);
+    return u < NO_GPS_LONG_SHARE
+      ? NO_GPS_LONG_EPOCH
+      : Math.round((3 + ((u - NO_GPS_LONG_SHARE) / (1 - NO_GPS_LONG_SHARE)) * 17) * HOUR);
+  }
+
+  /** `NO_GPS_CAUSE` of a `noGps` vehicle. */
+  noGpsCause(i: number): number {
+    return Math.floor(unit(this.seed + S.gpsCause, i) * 4);
+  }
+
+  /** `gpstime` of a `noGps` vehicle as of `t`: the start of its current no-GPS episode. */
+  noGpsSince(i: number, t: number): number {
+    return this.frozen(i, this.reportAt(i, t), this.noGpsEpoch(i));
   }
 
   /** Time of this vehicle's latest report at or before `t`. Non-comm vehicles stopped reporting. */
@@ -363,6 +397,12 @@ export class VehicleSim {
         : round(m.voltage * (1.02 + 0.08 * noise(3)), 4);
     s.devbattery = round(3.5 + 0.7 * noise(4), 4);
     s.rxdbm = -60 - Math.round(35 * noise(5));
+    if (persona === PERSONA.noGps) {
+      const cause = this.noGpsCause(i);
+      if (cause === NO_GPS_CAUSE.devBatteryLow) s.devbattery = round(3.2 + 0.18 * noise(4), 4);
+      else if (cause === NO_GPS_CAUSE.weakSignal) s.rxdbm = -106 - Math.round(12 * noise(5));
+      else if (cause === NO_GPS_CAUSE.none) s.ignstatus = 1;
+    }
     s.utctime = r;
     s.canutctime = r;
 
@@ -373,7 +413,7 @@ export class VehicleSim {
       s.gpstime = 0;
       s.fixquality = 0;
     } else if (persona === PERSONA.noGps) {
-      s.gpstime = this.frozen(i, r, NO_GPS_EPOCH);
+      s.gpstime = this.frozen(i, r, this.noGpsEpoch(i));
       s.fixquality = 0;
     } else {
       s.gpstime = r - 200 - Math.floor(noise(6) * 2800);
@@ -408,6 +448,19 @@ export class VehicleSim {
     out.lat = round(c.lat + y / KM_PER_DEG, 6);
     out.lng = round(c.lng + x / (KM_PER_DEG * Math.cos((c.lat * Math.PI) / 180)), 6);
     out.heading = round(((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360, 2);
+  }
+
+  /** F05 status of the vehicle at `t` (same rules and thresholds as the client deriver). */
+  status(i: number, t: number): VehicleStatus {
+    const s = this.state(i, t);
+    if (s.lat === 0 && s.lng === 0) return 'gps-never';
+    if (t - s.utctime > NON_COMM_MS) return 'non-comm';
+    if (s.carbattery < PULLOUT_VOLTS) return 'pullout';
+    if (s.immobilization_status === 1) return 'immobilized';
+    if (s.charging) return 'charging';
+    if (t - s.gpstime > NO_GPS_MS) return 'no-gps';
+    if (s.ignstatus === 1 && s.speed > RUNNING_SPEED_KMH) return 'running';
+    return 'stopped';
   }
 
   liveRow(i: number, t: number): unknown[] {

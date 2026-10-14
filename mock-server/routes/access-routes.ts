@@ -28,7 +28,7 @@ type IdParams = { Params: { id: string } };
 
 export async function accessRoutes(app: FastifyInstance) {
   const ctx = app.mock;
-  const { tree, sim, accounts, hub } = ctx;
+  const { tree, sim, accounts, hub, drivers } = ctx;
 
   const fleetDto = (id: string): Fleet => tree.list([id]).find((f) => f.id === id)!;
   const requireFleetsExist = (ids: string[]) => {
@@ -82,8 +82,13 @@ export async function accessRoutes(app: FastifyInstance) {
   });
 
   app.get('/vehicles', async (req) => {
-    const { user } = authorize(ctx, req, 'fleets.manage');
     const query = parse(vehicleListQuerySchema, req.query);
+    // F11: searching by driver name is a live-tracking feature, so `live.view` is enough for it.
+    const { user } =
+      query.driver === undefined
+        ? authorize(ctx, req, 'fleets.manage')
+        : authorize(ctx, req, 'fleets.manage', 'live.view');
+    const driverQ = query.driver?.trim().toLowerCase();
     const only =
       query.fleetId === undefined ? -1 : requireFleetInScope(ctx, query.fleetId, user.fleetIds).idx;
     const mask = tree.scopeMask(user.fleetIds);
@@ -95,6 +100,10 @@ export async function accessRoutes(app: FastifyInstance) {
     for (; i < sim.count && items.length < query.limit; i++) {
       const f = sim.fleet[i]!;
       if (!mask[f] || (only >= 0 && f !== only)) continue;
+      if (driverQ) {
+        const d = drivers.driverOf(i);
+        if (d < 0 || !drivers.name(d).toLowerCase().includes(driverQ)) continue;
+      }
       if (q) {
         const m = sim.meta(i);
         if (![m.vehicleId, m.regno, m.vin, m.deviceId].some((v) => v.toLowerCase().includes(q)))

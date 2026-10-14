@@ -40,6 +40,8 @@ const hashPassword = (password: string, salt: string) =>
 const normEmail = (email: string) => email.trim().toLowerCase();
 
 export const SUPER_ADMIN_ROLE = 'role-super-admin';
+export const DRIVER_ROLE = 'role-driver';
+export const DRIVER_USER_ID = 'u-driver';
 
 /** Users, roles, sessions, invites, reset tokens and the dev mailbox (memory only). */
 export class Accounts {
@@ -49,6 +51,8 @@ export class Accounts {
   private readonly sessions = new Map<string, Session>();
   private readonly resets = new Map<string, ResetToken>();
   readonly mailbox: Mail[] = [];
+  /** Called after an invite is accepted (links invited drivers to their new user). */
+  readonly onInviteAccepted: ((inviteId: string, userId: string) => void)[] = [];
 
   constructor(
     private readonly clock: Clock,
@@ -73,6 +77,9 @@ export class Accounts {
         'table.export',
         'share.create',
         'share.revoke',
+        'requests.manage',
+        'analytics.view',
+        'chat.use',
       ],
     });
     this.addRole({
@@ -81,6 +88,7 @@ export class Accounts {
       system: false,
       permissions: ['live.view', 'vehicle.details.view'],
     });
+    this.addRole({ id: DRIVER_ROLE, name: 'Driver', permissions: ['driver.self'], system: true });
     const fleetId = (name: string) => [...tree.byId.values()].find((f) => f.name === name)!.id;
     this.addUser(
       'superadmin@fms.local',
@@ -105,6 +113,15 @@ export class Accounts {
       'role-viewer',
       [fleetId('Delhi Hub 1')],
       'u-viewer',
+    );
+    // Linked to a driver in North with a vehicle by `buildServer` (F11).
+    this.addUser(
+      'driver@fms.local',
+      'Driver User',
+      'Drive@1234',
+      DRIVER_ROLE,
+      [fleetId('North')],
+      DRIVER_USER_ID,
     );
   }
 
@@ -359,6 +376,7 @@ export class Accounts {
       throw new HttpError(409, 'conflict', 'A user with this email already exists');
     const user = this.addUser(invite.email, name, password, invite.roleId, invite.fleetIds);
     invite.status = 'accepted';
+    for (const listener of this.onInviteAccepted) listener(invite.id, user.id);
     return this.user(user.id);
   }
 }

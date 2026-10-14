@@ -101,7 +101,7 @@ describe('F01-T1: every REST response parses with its zod schema', () => {
   it('users, roles and invites', async () => {
     const { api } = server;
     const users = await api('GET', '/api/users', { cookie, schema: userListSchema });
-    expect(users.body).toHaveLength(3);
+    expect(users.body).toHaveLength(4);
     const viewer = users.body.find((u) => u.email === 'viewer@fms.local')!;
     await api('PATCH', `/api/users/${viewer.id}`, {
       cookie,
