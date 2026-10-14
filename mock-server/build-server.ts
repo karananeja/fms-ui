@@ -6,15 +6,23 @@ import { Clock } from './clock.ts';
 import { loadConfig, type MockConfig } from './config.ts';
 import { setSessionCookie, type MockContext } from './context.ts';
 import { FleetTree } from './generator/fleet-tree.ts';
+import { HistorySim } from './generator/history-sim.ts';
 import { VehicleSim } from './generator/vehicle-sim.ts';
 import { HttpError } from './http-error.ts';
 import { LiveHub } from './live/live-hub.ts';
 import { accessRoutes } from './routes/access-routes.ts';
+import { analyticsRoutes } from './routes/analytics-routes.ts';
 import { authRoutes } from './routes/auth-routes.ts';
 import { devRoutes } from './routes/dev-routes.ts';
+import { driverRoutes } from './routes/driver-routes.ts';
+import { notificationRoutes } from './routes/notification-routes.ts';
+import { requestRoutes } from './routes/request-routes.ts';
 import { shareRoutes } from './routes/share-routes.ts';
 import { vehicleRoutes } from './routes/vehicle-routes.ts';
-import { Accounts } from './store/accounts.ts';
+import { Accounts, DRIVER_USER_ID } from './store/accounts.ts';
+import { Drivers } from './store/drivers.ts';
+import { Notifications } from './store/notifications.ts';
+import { Requests } from './store/requests.ts';
 import { ShareLinks } from './store/share-links.ts';
 
 export interface BuildOptions extends Partial<MockConfig> {
@@ -36,7 +44,22 @@ export function buildServer({ logLevel = 'warn', ...overrides }: BuildOptions = 
     app.log.info(`[mail] to ${mail.to}: ${mail.subject} → ${mail.url}`),
   );
   ctx.shares = new ShareLinks(clock);
+  ctx.drivers = new Drivers(config.seed, sim, tree, clock);
+  ctx.history = new HistorySim(sim);
+  ctx.requests = new Requests(ctx);
+  ctx.notifications = new Notifications(ctx);
   ctx.hub = new LiveHub(ctx);
+  ctx.drivers.onAssignment = (a) => {
+    const i = sim.indexOf(a.vehicleId);
+    ctx.hub.publish('assignment', a, {
+      fleetId: sim.fleetId(i),
+      staff: ['drivers.manage', 'vehicle.details.view'],
+      driver: ctx.drivers.indexOf(a.driverId),
+    });
+    ctx.requests.reevaluate();
+  };
+  linkSeedDriver(ctx);
+  ctx.notifications.tick();
   app.decorate('mock', ctx);
 
   app.register(cookie);
@@ -73,6 +96,10 @@ export function buildServer({ logLevel = 'warn', ...overrides }: BuildOptions = 
   app.register(accessRoutes, { prefix: '/api' });
   app.register(shareRoutes, { prefix: '/api' });
   app.register(vehicleRoutes, { prefix: '/api' });
+  app.register(driverRoutes, { prefix: '/api' });
+  app.register(requestRoutes, { prefix: '/api' });
+  app.register(notificationRoutes, { prefix: '/api' });
+  app.register(analyticsRoutes, { prefix: '/api' });
   if (config.dev) app.register(devRoutes, { prefix: '/api/dev' });
 
   app.register(async (scope) => {
@@ -99,7 +126,26 @@ export function buildServer({ logLevel = 'warn', ...overrides }: BuildOptions = 
     });
   });
 
-  app.addHook('onReady', async () => ctx.hub.start());
-  app.addHook('onClose', async () => ctx.hub.stop());
+  app.addHook('onReady', async () => {
+    ctx.hub.start();
+    ctx.notifications.start();
+  });
+  app.addHook('onClose', async () => {
+    ctx.hub.stop();
+    ctx.notifications.stop();
+  });
   return app;
+}
+
+/** Links `driver@fms.local` to the first driver in North that has a vehicle (F11 §6). */
+function linkSeedDriver(ctx: MockContext): void {
+  const { drivers, tree, accounts } = ctx;
+  const north = [...tree.byId.values()].find((f) => f.name === 'North');
+  if (!north) return;
+  for (let d = 0; d < drivers.gen.assignedCount; d++) {
+    if (!tree.isDescendant(drivers.fleetIdx(d), north.idx)) continue;
+    drivers.linkUser(d, DRIVER_USER_ID);
+    accounts.user(DRIVER_USER_ID).name = drivers.name(d);
+    return;
+  }
 }

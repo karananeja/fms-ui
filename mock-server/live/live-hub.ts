@@ -6,6 +6,8 @@ import {
   HEARTBEAT_MS,
   LAFPARSED_BASE_FIELDS,
   WS_CLOSE,
+  type EventKind,
+  type EventMessage,
   type ServerMessage,
   type SubscribeMessage,
   type Topic,
@@ -13,6 +15,7 @@ import {
 import type { WebSocket } from 'ws';
 import type { MockContext } from '../context.ts';
 import { PID_SET } from '../generator/vehicle-sim.ts';
+import { driverSees, staffSees, type Audience } from '../store/notifications.ts';
 import type { ShareLinkRecord } from '../store/share-links.ts';
 import { redactCombinfo, redactLafparsed } from './redact.ts';
 
@@ -38,9 +41,12 @@ interface Sub {
   maskVersion?: number;
   pids?: string[];
   vehicle?: number;
+  /** Topic `events` with `{ kind: 'self' }`. */
+  self?: boolean;
 }
 
 const OPEN = 1;
+const EVENT_STAFF = ['live.view', 'requests.manage', 'drivers.manage'] as const;
 
 /** Owns live sockets and subscriptions; flushes batched deltas every `MOCK_BATCH_MS`. */
 export class LiveHub {
@@ -162,8 +168,14 @@ export class LiveHub {
       seq: 0,
     };
 
+    if (conn.principal.kind === 'user' && msg.topic === 'events')
+      return this.subscribeEvents(sub, msg);
+    if (msg.scope.kind === 'self')
+      return this.error(conn, 'validation_failed', 'scope self is only for topic events', msg.id);
+
     if (conn.principal.kind === 'share') {
       const { link } = conn.principal;
+      if (msg.topic === 'events') return forbidden('share links may not subscribe to events');
       if (msg.scope.kind !== 'vehicle' || msg.scope.vehicleId !== link.vehicleId) {
         return forbidden('share links may only subscribe to their own vehicle');
       }
@@ -181,7 +193,7 @@ export class LiveHub {
         if (i < 0 || !tree.inScope(sim.fleetId(i), user.fleetIds))
           return forbidden('vehicle outside your scope');
         sub.vehicle = i;
-      } else {
+      } else if (msg.scope.kind === 'fleet') {
         if (!msg.scope.fleetIds.every((id) => tree.inScope(id, user.fleetIds))) {
           return forbidden('fleet outside your scope');
         }
@@ -201,6 +213,57 @@ export class LiveHub {
       this.sendPayload(sub, now);
       sub.ready = true;
     } else void this.snapshot(sub, now);
+  }
+
+  /**
+   * Topic `events` (D-093): staff with a fleet scope inside their own (any of `live.view`,
+   * `requests.manage`, `drivers.manage`), or a linked driver with `{ kind: 'self' }`.
+   */
+  private subscribeEvents(sub: Sub, msg: SubscribeMessage): void {
+    const { accounts, tree, drivers } = this.ctx;
+    const { conn } = sub;
+    const forbidden = (reason: string) => this.close(conn, WS_CLOSE.forbidden, reason);
+    const user = accounts.users.get((conn.principal as { userId: string }).userId);
+    if (!user || user.status !== 'active')
+      return this.close(conn, WS_CLOSE.unauthenticated, 'session ended');
+    const perms = accounts.permissions(user);
+    if (msg.scope.kind === 'self') {
+      if (!perms.includes('driver.self') || drivers.byUserId(user.id) < 0)
+        return forbidden('scope self requires a linked driver');
+      sub.self = true;
+    } else if (msg.scope.kind === 'fleet') {
+      if (!EVENT_STAFF.some((p) => perms.includes(p)))
+        return forbidden('requires a staff permission');
+      if (!msg.scope.fleetIds.every((id) => tree.inScope(id, user.fleetIds)))
+        return forbidden('fleet outside your scope');
+      sub.fleetIds = msg.scope.fleetIds;
+    } else {
+      return this.error(conn, 'validation_failed', 'events supports fleet or self scope', msg.id);
+    }
+    sub.ready = true;
+    conn.subs.set(sub.id, sub);
+    void this.send(conn, { type: 'subscribed', id: sub.id });
+  }
+
+  /** Fans an `events` message out to every subscription allowed to see it (same rules as REST). */
+  publish(kind: EventKind, data: EventMessage['data'], audience: Audience): void {
+    const { accounts, tree } = this.ctx;
+    for (const conn of this.conns) {
+      if (conn.principal.kind !== 'user') continue;
+      let user: ReturnType<typeof accounts.users.get>;
+      let perms: ReturnType<typeof accounts.permissions> | undefined;
+      for (const sub of conn.subs.values()) {
+        if (sub.topic !== 'events' || sub.closed) continue;
+        user ??= accounts.users.get(conn.principal.userId);
+        if (!user || user.status !== 'active') break;
+        perms ??= accounts.permissions(user);
+        const ok = sub.self
+          ? driverSees(this.ctx, user, perms, audience)
+          : staffSees(this.ctx, user, perms, audience) &&
+            tree.inScope(audience.fleetId, sub.fleetIds!);
+        if (ok) void this.send(conn, { type: 'event', id: sub.id, kind, data } as EventMessage);
+      }
+    }
   }
 
   // ---- data ----
@@ -262,11 +325,12 @@ export class LiveHub {
     const i = sub.vehicle!;
     const { principal } = sub.conn;
     const show = principal.kind === 'share' ? principal.link.show : undefined;
+    const topic = sub.topic === 'combinfo' ? 'combinfo' : 'lafparsed';
     const data =
-      sub.topic === 'combinfo'
+      topic === 'combinfo'
         ? redactCombinfo(sim.combinfo(i, t), show)
         : redactLafparsed(sim.lafparsed(i, t), show);
-    void this.send(sub.conn, { type: 'payload', id: sub.id, topic: sub.topic, data });
+    void this.send(sub.conn, { type: 'payload', id: sub.id, topic, data });
   }
 
   private sendRows(sub: Sub, fields: string[], rows: unknown[][]): void {
@@ -297,7 +361,7 @@ export class LiveHub {
         continue;
       }
       for (const sub of conn.subs.values()) {
-        if (!sub.ready) continue;
+        if (!sub.ready || sub.topic === 'events') continue;
         if (sub.since > now) sub.since = prev;
         if (sub.vehicle === undefined) fleetSubs.push(sub);
         else if (sim.reportAt(sub.vehicle, now) > sub.since) {

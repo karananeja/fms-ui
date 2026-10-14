@@ -14,6 +14,7 @@ export const SEED_USERS = {
   superadmin: { email: 'superadmin@fms.local', password: 'Admin@123' },
   ops: { email: 'ops@fms.local', password: 'Ops@1234' },
   viewer: { email: 'viewer@fms.local', password: 'View@1234' },
+  driver: { email: 'driver@fms.local', password: 'Drive@1234' },
 } as const;
 
 export interface ApiResult<T = unknown> {

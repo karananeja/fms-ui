@@ -12,6 +12,11 @@ export const PERMISSIONS = [
   'users.manage',
   'fleets.manage',
   'roles.manage',
+  'drivers.manage',
+  'requests.manage',
+  'analytics.view',
+  'chat.use',
+  'driver.self',
 ] as const;
 
 export const permissionSchema = z.enum(PERMISSIONS);
@@ -34,6 +39,11 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   'users.manage': 'Manage users',
   'fleets.manage': 'Manage fleets',
   'roles.manage': 'Manage roles',
+  'drivers.manage': 'Manage drivers',
+  'requests.manage': 'Manage driver requests',
+  'analytics.view': 'View analytics',
+  'chat.use': 'Use the assistant',
+  'driver.self': 'Driver self-service',
 };
 
 /** F03-R14 (B8): permissions only system roles (Super Admin) may hold; custom roles can't. */

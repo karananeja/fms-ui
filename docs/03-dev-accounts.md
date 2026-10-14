@@ -10,13 +10,15 @@ Defined in `mock-server/store/accounts.ts`; recreated on every mock start.
 | `superadmin@fms.local` | `Admin@123` | Super Admin | Super Admin (system, every permission) | Root (Acme Mobility, all 1 lakh vehicles) | Default on the sign-in page in dev (`VITE_DEV_LOGIN_EMAIL`); e2e storageState user (D-077) |
 | `ops@fms.local` | `Ops@1234` | Ops User | Operator | North | Used by the F03-T7 scope e2e and the WS proxy e2e |
 | `viewer@fms.local` | `View@1234` | Viewer User | Viewer | Delhi Hub 1 | — |
+| `driver@fms.local` | `Drive@1234` | Karan Shah | Driver (system) | North (own vehicle only) | F11 seed driver with an assigned vehicle; sees only `/driver` (F13) and its own requests |
 
 **Seeded roles:**
 
 | Role | Permissions |
 |---|---|
 | Super Admin (system, read-only) | all |
-| Operator | `live.view`, `vehicle.details.view`, `vehicle.parameters.view`, `table.view`, `table.export`, `share.create`, `share.revoke` |
+| Operator | `live.view`, `vehicle.details.view`, `vehicle.parameters.view`, `table.view`, `table.export`, `share.create`, `share.revoke`, `requests.manage`, `analytics.view`, `chat.use` (F11) |
+| Driver (system, F11) | `driver.self` |
 | Viewer | `live.view`, `vehicle.details.view` |
 
 ## Accounts created by e2e tests (temporary)

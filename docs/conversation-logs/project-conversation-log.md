@@ -309,3 +309,43 @@ Found that the mock's no-GPS vehicles are at most 3 h stale, so the spec widens 
 **User:** "approved" (F11 spec signed off).
 
 **Assistant:** Started the F11 agent in the main checkout on `feature/f11-driver-data` (ports 5273/4101, D-092…D-094). Drafting the F12 and F15 specs in parallel.
+
+**Assistant:** Wrote F12 (drivers & assignment) and F15 (in-app notifications) spec drafts while F11 runs.
+
+**User:** "approved" (F12 and F15 specs signed off). They start in parallel once F11 is merged.
+
+**Assistant:** Wrote F13 (driver web page, new look proposed in §4) and F14 (request desk + no-GPS insight) spec drafts.
+
+**User:** "approved" (F13 and F14 specs signed off, including the driver page look proposal; final confirmation via UAT screenshots).
+
+**Assistant:** Wrote F16 (performance dashboard, in-house SVG charts, no chart library) and F17 (fleet assistant: server-side `claude-opus-5-5` with `fallbacks: "default"`, read-only tools as the user, CSV/PDF reports via `pdf-lib`, fake Messages endpoint for tests) spec drafts.
+
+**User:** "approved" (F16 and F17 specs signed off). All Part 2 specs (F11–F17) are now signed off.
+
+## 2026-10-14 — Session 7 (resume)
+
+**User:** "Resume the existing project."
+
+**Assistant:** Recovered state:
+- On `feature/f11-driver-data`. All F11–F17 intents and specs are signed off.
+- The F11 agent is still running (≈13 min in). It has written the contracts, the driver/history/no-GPS generators, the stores, the permissions/roles and the WS `events` work in progress. Routes, tests and docs aren't there yet; everything is uncommitted.
+- Did not restart or duplicate it. Updated CLAUDE.md (it still said "no pending work") with the Part 2 status, order and decision IDs.
+
+**Status:** Waiting for the F11 agent. Then full verification → F11 UAT.
+
+**System:** the F11 agent stopped on the account's weekly usage limit (resets 2026-10-19 1:30 pm IST). **User:** "resume".
+
+**Assistant:** Finished F11 in this session:
+- removed the debug probe;
+- wrote F11-T1…T8 (37 tests);
+- fixed two defects the tests found (history days not summing to 24 h; no-GPS alert severity → critical per F15-R5).
+
+Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54/55: F09-T8 (tray after pan) fails identically on `main`, so it is pre-existing. Committed F11 code on its branch (`e708421`) and wrote the F11 test report. D-092…D-094 are proposed.
+
+**User:** "what is the reason for delay in development of the feature?" **Assistant:** explained: the usage limit stopped the agent mid-way; the missing tests found 2 real defects; a few test slips of mine; the F09-T8 check against `main`.
+
+**Status:** F11 Impl Done, Test Passed. Awaiting UAT + approval of D-092…D-094.
+
+**User:** "continue" (F11 UAT acceptance + D-092…D-094 approval).
+
+**Assistant:** Accepted D-092…D-094, marked F11 accepted, merged `feature/f11-driver-data` into `main` (--no-ff), deleted the branch. Starting F12 ∥ F15.

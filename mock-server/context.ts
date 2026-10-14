@@ -4,10 +4,14 @@ import type { z } from 'zod';
 import type { Clock } from './clock.ts';
 import type { MockConfig } from './config.ts';
 import type { FleetTree } from './generator/fleet-tree.ts';
+import type { HistorySim } from './generator/history-sim.ts';
 import type { VehicleSim } from './generator/vehicle-sim.ts';
 import { HttpError } from './http-error.ts';
 import type { LiveHub } from './live/live-hub.ts';
 import { SESSION_TTL_MS, type Accounts } from './store/accounts.ts';
+import type { Drivers } from './store/drivers.ts';
+import type { Notifications } from './store/notifications.ts';
+import type { Requests } from './store/requests.ts';
 import type { ShareLinks } from './store/share-links.ts';
 
 export interface MockContext {
@@ -18,6 +22,10 @@ export interface MockContext {
   accounts: Accounts;
   shares: ShareLinks;
   hub: LiveHub;
+  drivers: Drivers;
+  history: HistorySim;
+  requests: Requests;
+  notifications: Notifications;
 }
 
 declare module 'fastify' {

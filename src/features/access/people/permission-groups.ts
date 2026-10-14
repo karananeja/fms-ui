@@ -10,6 +10,8 @@ export const PERMISSION_GROUPS: readonly { label: string; permissions: readonly 
     label: 'Admin',
     permissions: ['users.invite', 'users.manage', 'fleets.manage', 'roles.manage'],
   },
+  { label: 'Drivers', permissions: ['drivers.manage', 'requests.manage', 'driver.self'] },
+  { label: 'Insights', permissions: ['analytics.view', 'chat.use'] },
 ];
 
 /** F03-R10/R14 (B8): never grantable to a custom role. */

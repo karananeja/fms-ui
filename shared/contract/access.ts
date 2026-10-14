@@ -87,6 +87,8 @@ export type VehicleMeta = z.infer<typeof vehicleMetaSchema>;
 export const vehicleListQuerySchema = z.object({
   fleetId: z.string().optional(),
   q: z.string().optional(),
+  /** F11: vehicles whose current driver's name contains this (needs only `live.view`). */
+  driver: z.string().optional(),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(500).default(50),
 });
