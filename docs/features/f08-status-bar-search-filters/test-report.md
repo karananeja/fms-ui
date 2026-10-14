@@ -45,3 +45,9 @@ After D-072 + D-073; load average 8.7 / 8.6 (F09 finished). History: before D-07
 - Search box: after choosing a suggestion, the stale list and highlight survived, so the next Enter located the old vehicle instead of filtering — fixed (reset on choose/apply/edit).
 - Overlays (suggestions, filter popover, `+N`) were translucent over the map/pulse card — now `surface-solid`.
 - Mobile top row overflowed (LIVE pill clipped) — search flexes, LIVE pill is compact on mobile, placeholder "Search vehicles".
+
+## Post-merge verification (integration/f08-f09, 2026-10-14)
+`pnpm check` 440/440; `pnpm build` clean, no dev leaks; e2e chromium + clock 29/29; full perf project 5/5 (load avg 3.5):
+F04-T9 first data 1136 ms / snapshot 1487 ms; F04-T10 3.26 pushes/s, 0 streaming long tasks; F06-T9 0 long tasks;
+F08 frame after filter change 25–118 ms, no long tasks; F09 scroll no long tasks, export 678 ms, no long tasks.
+Integration changes: D-074. UAT accepted 2026-10-14.

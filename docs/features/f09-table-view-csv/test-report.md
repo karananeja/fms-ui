@@ -46,3 +46,9 @@ Browser numbers are from the Vite dev server (React development build), like the
 ## Open items
 - D-068 and D-069 are Proposed and need approval.
 - Scroll budget has no headroom in the dev build (50 ms max in the single perf run); the orchestrator's post-merge perf run should confirm.
+
+## Post-merge verification (integration/f08-f09, 2026-10-14)
+`pnpm check` 440/440; `pnpm build` clean, no dev leaks; e2e chromium + clock 29/29; full perf project 5/5 (load avg 3.5):
+F04-T9 first data 1136 ms / snapshot 1487 ms; F04-T10 3.26 pushes/s, 0 streaming long tasks; F06-T9 0 long tasks;
+F08 frame after filter change 25–118 ms, no long tasks; F09 scroll no long tasks, export 678 ms, no long tasks.
+Integration changes: D-074. UAT accepted 2026-10-14.
