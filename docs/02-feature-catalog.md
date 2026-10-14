@@ -28,7 +28,7 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 | F13 | Driver web page (breakdown, replacement, RSA requests) | F11, F02 | Signed off | Signed off (F13: amended by D-109/D-110) | Done | Passed (targeted) | Accepted 2026-10-14 |
 | F14 | Operator request desk & no-GPS insight (incl. replacement suggest/auto-assign) | F11, F13 | Signed off | Signed off | Done | Passed (targeted) | Accepted 2026-10-14 |
 | F15 | In-app notifications (bell, centre, toasts, 24 h no-GPS alert) | F11 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
-| F16 | Performance dashboard (vehicle & driver KPIs, charts) | F11 | Signed off | Signed off | — | — | — |
+| F16 | Performance dashboard (vehicle & driver KPIs, charts) | F11 | Signed off | Signed off | Done | Passed (targeted) | Awaiting UAT |
 | F17 | Fleet assistant chatbot (Claude, read-only tools, CSV/PDF reports) | F11, F16 | Signed off | Signed off | — | — | — |
 
 Suggested order: F00 → F01 → F04 → F05 → F06 → (DS1 ∥ F07)  → F08 → F09 → F02 → F03 → F10.

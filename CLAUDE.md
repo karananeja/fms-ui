@@ -23,9 +23,10 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F11 | Driver data & mock contract | Done, accepted |
 | F12, F15 | Drivers & assignment, in-app notifications (+ DS2 auth backdrop) | Done, accepted |
 | F13, F14 | Driver page (integrated report + voice), request desk (+ street-grid mock routes) | Done, accepted |
-| F16, F17 | Dashboard, assistant | Intents + specs signed off. Not started |
+| F16 | Performance dashboard | Done on `feature/f16-dashboard`, awaiting UAT (D-103, D-104 proposed) |
+| F17 | Fleet assistant | Intent + spec signed off. Not started |
 
-Last `main` baseline: `pnpm check` 716/716, build clean, e2e 54/55 (F09-T8 tray flake, pre-existing, also fails on the pre-F11 `main`), clock 4/4. Last decision: **D-111** (F12/F15 used D-095…D-098; F13/F14 D-099…D-102; D-109…D-111 driver report, voice, mock routes).
+Last `main` baseline: `pnpm check` 716/716, build clean, e2e 54/55 (F09-T8 tray flake, pre-existing, also fails on the pre-F11 `main`), clock 4/4. Last decision: **D-111** (F12/F15 D-095…D-098; F13/F14 D-099…D-102; F16 D-103…D-104; D-109…D-111 driver report, voice, mock routes).
 
 ### Pending work: Part 2 (`requirement-part-2.md`), F11–F17
 - All intents and specs are signed off (2026-10-14); see `docs/02-feature-catalog.md` and `docs/features/f11-…`–`f17-…/spec.md`.

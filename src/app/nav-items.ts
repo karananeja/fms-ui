@@ -1,5 +1,6 @@
 import {
   Building2,
+  ChartColumn,
   IdCard,
   Inbox,
   KeyRound,
@@ -44,6 +45,7 @@ export const navItems: NavItem[] = [
     permission: P['/requests'],
     badge: RequestsNavBadge,
   },
+  { to: '/analytics', label: 'Analytics', icon: ChartColumn, permission: P['/analytics'] },
   { to: '/admin', label: 'Admin', icon: ShieldCheck, permission: P['/admin'] },
   { to: '/admin/fleets', label: 'Fleets', icon: Building2, permission: P['/admin/fleets'] },
   { to: '/admin/users', label: 'Users', icon: Users, permission: P['/admin/users'] },

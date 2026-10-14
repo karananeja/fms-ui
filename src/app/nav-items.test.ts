@@ -10,6 +10,7 @@ describe('F03-R2: nav filtered by permission', () => {
     expect(labels(...PERMISSIONS)).toEqual([
       'Live tracking',
       'Requests',
+      'Analytics',
       'Admin',
       'Fleets',
       'Users',

@@ -24,6 +24,7 @@ export const ADMIN_PERMISSIONS = [
 export const ROUTE_PERMISSIONS = {
   '/live-tracking': 'live.view',
   '/requests': 'requests.manage',
+  '/analytics': 'analytics.view',
   '/admin': ADMIN_PERMISSIONS,
   '/admin/fleets': 'fleets.manage',
   '/admin/users': 'users.manage',
