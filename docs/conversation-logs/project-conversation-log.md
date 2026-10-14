@@ -229,3 +229,9 @@ F02 only touched `tableViewStore.reset()`.
 **Assistant:** Accepted D-079 and merged `fix/f09-table-scroll` into `main` (--no-ff). Removed the worktree and branch. Post-merge `pnpm check` 521/521. The F03 contract agent is still running.
 
 **Assistant:** F03 contract finished (`pnpm check` 562/562, e2e 36/36) and merged into `main`. The contract puts guards in `staticData.permission` + AppLayout, and `/` now lands on the first page the user can open. Created worktrees `../fms-ui-f03a` (`feature/f03a-fleets`, ports 5273/4100, D-080…D-082) and `../fms-ui-f03b` (`feature/f03b-people`, ports 5373/4200, D-083…D-085) and spawned both agents in parallel. Left for F03b: gate `table.view`, and don't start the live worker without `live.view`.
+
+## 2026-10-14 — Session 4 (cont.)
+
+**Assistant:** F03a and F03b finished. Merged both on `integration/f03`; only the docs logs conflicted. One integration fix: a T4 test clicked an implied (disabled) child in the real picker. Results: `pnpm check` 619/619, build clean, e2e 48/48, clock 3/3. Perf was load-sensitive (load avg 5–15, editor using about one core). F04, F06 and F09 passed on re-run. The fleets budget had one 64 ms task in 1 of 4 runs, and the root's empty vehicle page took 323 ms once. F08 long tasks while filtering were 58–84 ms, but `main` fails the same check at the same load, so this is not an F03 regression. Could not stop a leftover mock server and Vite server from the removed `../fms-ui-f09h` worktree (ports 4100 and 5174); the auto-mode classifier blocked the kill.
+
+**Status:** F03 awaiting UAT and approval of D-080…D-085.

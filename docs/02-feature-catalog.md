@@ -13,7 +13,7 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 | F00 | Project foundation | — | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
 | F01 | Mock server & API/WS contract | F00 | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
 | F02 | Authentication (sign-in, forgot/reset, accept invite) | F01 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
-| F03 | Access control (fleet tree, users, invites, permissions) | F02 | Signed off | Signed off | In progress | — | — |
+| F03 | Access control (fleet tree, users, invites, permissions) | F02 | Signed off | Signed off | Done | Passed | Awaiting UAT |
 | F04 | Live data pipeline (worker, WS, `live-tracking-store.ts`) | F01 | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
 | F05 | Vehicle status derivation | F04 | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
 | F06 | Live map (markers, clusters, zoom-to-fit, city jump, quick locate) | F04, F05 | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
