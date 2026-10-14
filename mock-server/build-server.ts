@@ -12,6 +12,7 @@ import { HttpError } from './http-error.ts';
 import { LiveHub } from './live/live-hub.ts';
 import { accessRoutes } from './routes/access-routes.ts';
 import { analyticsRoutes } from './routes/analytics-routes.ts';
+import { assistantRoutes } from './routes/assistant-routes.ts';
 import { authRoutes } from './routes/auth-routes.ts';
 import { devRoutes } from './routes/dev-routes.ts';
 import { driverRoutes } from './routes/driver-routes.ts';
@@ -100,6 +101,7 @@ export function buildServer({ logLevel = 'warn', ...overrides }: BuildOptions = 
   app.register(requestRoutes, { prefix: '/api' });
   app.register(notificationRoutes, { prefix: '/api' });
   app.register(analyticsRoutes, { prefix: '/api' });
+  app.register(assistantRoutes);
   if (config.dev) app.register(devRoutes, { prefix: '/api/dev' });
 
   app.register(async (scope) => {

@@ -400,3 +400,9 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "continue" (UAT acceptance of F16 + the duplicate fix; approval of D-103, D-104).
 
 **Assistant:** Accepted D-103/D-104, merged `feature/f16-dashboard` into `main` (--no-ff), deleted the branch. Starting F17.
+
+**Assistant:** F17 (fleet assistant): wrote the shared chat contract and installed `@anthropic-ai/sdk` + `pdf-lib` (pre-approved, server only), then ran F17a (server) and F17b (client) agents in parallel. Server: SSE `/api/chat`, 8 read-only tools as the user, CSV/PDF reports, fake Messages endpoint. Client: "Ask FMS" sheet, streaming markdown, tool chips, entity links, report cards. `pnpm check` 907/908 (known F11-T3 flake), build clean, panel 6.5 kB gzip, no server deps in the browser bundle. Proposed D-105…D-107.
+
+**Incident:** the server agent's `pkill -f "mock-server/index.ts"` also stopped the user's own `pnpm dev`. Added a working-style rule to CLAUDE.md.
+
+**Status:** F17 awaiting UAT; real-key smoke test pending (needs the user's `ANTHROPIC_API_KEY`).

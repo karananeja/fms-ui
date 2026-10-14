@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useMatches, useRouter } from '@tanstack/react-router';
 import { Menu } from 'lucide-react';
+import { AskFmsButton } from '@/features/assistant/components/ask-fms-button';
 import { RequirePermission } from '@/features/access/permissions/require-permission';
 import { UserMenu } from '@/features/auth/components/user-menu';
 import { NotificationBell } from '@/features/notifications/components/notification-bell';
@@ -113,8 +114,11 @@ export function AppLayout() {
           <span className="truncate text-xs font-extrabold tracking-[0.12em] text-text-muted uppercase">
             {title}
           </span>
-          {/* F15-R1: the bell, before the page's own actions. */}
-          <NotificationBell className="ml-auto" />
+          {/* F17-R1: "Ask FMS", then the F15 bell, before the page's own actions. */}
+          <div className="ml-auto flex items-center gap-1">
+            <AskFmsButton />
+            <NotificationBell />
+          </div>
           <div ref={setActionsSlot} data-slot="page-actions" className="flex items-center gap-2" />
         </header>
 
