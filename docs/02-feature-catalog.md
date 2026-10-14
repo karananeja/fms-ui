@@ -24,8 +24,8 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 | F10 | Share live location (create, manage, public page) | F03, F07 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
 | F11 | Driver data & mock contract (drivers, assignments, requests, notifications, history) | F01, F03 | Signed off | Signed off | — | — | — |
 | F12 | Drivers & assignment (admin page, assign/unassign, driver on card) | F11 | Signed off | Signed off | — | — | — |
-| F13 | Driver web page (breakdown, replacement, RSA requests) | F11, F02 | Signed off | Draft | — | — | — |
-| F14 | Operator request desk & no-GPS insight (incl. replacement suggest/auto-assign) | F11, F13 | Signed off | Draft | — | — | — |
+| F13 | Driver web page (breakdown, replacement, RSA requests) | F11, F02 | Signed off | Signed off | — | — | — |
+| F14 | Operator request desk & no-GPS insight (incl. replacement suggest/auto-assign) | F11, F13 | Signed off | Signed off | — | — | — |
 | F15 | In-app notifications (bell, centre, toasts, 24 h no-GPS alert) | F11 | Signed off | Signed off | — | — | — |
 | F16 | Performance dashboard (vehicle & driver KPIs, charts) | F11 | Signed off | — | — | — | — |
 | F17 | Fleet assistant chatbot (Claude, read-only tools, CSV/PDF reports) | F11, F16 | Signed off | — | — | — | — |

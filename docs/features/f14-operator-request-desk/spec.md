@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Draft: awaiting user sign-off** |
+| Status | **Signed off: 2026-10-14 (user)** |
 | Intent | `intent.md` (signed off 2026-10-14) |
 | Server contract | F11: `/api/requests*` (list, get, actions, suggestions), `/api/fleets/:id/settings`, `/api/vehicles/:id/no-gps-insight`, WS `events` (`kind:'request'`). **No mock changes.** |
 | Visual source of truth | DS1 tokens + Doto. The desk reuses the F03/F09 table + F07 card patterns. No new look. |

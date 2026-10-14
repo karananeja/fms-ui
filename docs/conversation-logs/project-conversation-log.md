@@ -313,3 +313,7 @@ Found that the mock's no-GPS vehicles are at most 3 h stale, so the spec widens 
 **Assistant:** Wrote F12 (drivers & assignment) and F15 (in-app notifications) spec drafts while F11 runs.
 
 **User:** "approved" (F12 and F15 specs signed off). They start in parallel once F11 is merged.
+
+**Assistant:** Wrote F13 (driver web page, new look proposed in §4) and F14 (request desk + no-GPS insight) spec drafts.
+
+**User:** "approved" (F13 and F14 specs signed off, including the driver page look proposal; final confirmation via UAT screenshots).

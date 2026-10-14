@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Draft: awaiting user sign-off** |
+| Status | **Signed off: 2026-10-14 (user)** |
 | Intent | `intent.md` (signed off 2026-10-14) |
 | Server contract | F11: `GET /api/driver/me`, `POST /api/requests`, `GET /api/requests?mine`, WS `events` with `{kind:'self'}`; the Driver role (`driver.self`); F02 sign-in. **No mock changes.** |
 | Visual source of truth | **New screen: look proposed in §4, confirmed by UAT screenshots** (per CLAUDE.md). DS1 dark tokens + Doto, large touch targets. |
