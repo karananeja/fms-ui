@@ -355,3 +355,18 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Assistant:** Offered 3 directions (live ops backdrop / split hero / subtle polish); the user chose **live ops backdrop**. Built DS2 on the active branch (auth files + `index.css` only, disjoint from the F12/F15 agents): canvas dots along the grid with trails, a radar sweep, card entrance + staggered fields, brand pulse and button shine, all off under reduced motion. Tuned after a visual check (longer trails, softer sweep). Auth unit 228/228, `auth.spec` e2e 8/8. Proposed D-108.
 
 **Status:** DS2 awaiting UAT (with F12/F15).
+
+## 2026-10-14 — Session 8 (resume)
+
+**System:** the user stopped the F12 and F15 agents mid-way. **User:** "Resume the existing project."
+
+**Assistant:** Recovered state on `feature/f12-f15`: F15 was code-complete with unit tests; F12 had the API, assign dialog, card section (not mounted) and worker index. Finished both in this session:
+- F12: drivers page (virtualised, server search, fleet/status filters, drawer with assign/reassign/unassign, history), driver form (+ invite), route/nav/overview card, card section mounted, assignment events moved onto the shared F15 socket.
+- Tests: F12-T1/T2 unit/component, F12 e2e 6/6, F15 e2e 3/3 (incl. clock), screenshots.
+- Fixed 3 defects (conflict text, driver picker fleet filter, `Tile` testid).
+
+**User:** "relax the testing and focus on the development and finish the pending features".
+
+**Assistant:** Stopped short of the full e2e/perf. One `pnpm check` (781/783; the 2 failures are a time-dependent F11 replacement-engine test, no mock files changed) + build. Proposed D-095…D-098.
+
+**Status:** F12 + F15 (+ DS2) awaiting UAT and approval of D-095…D-098, D-108. Next: F13 ∥ F14.
