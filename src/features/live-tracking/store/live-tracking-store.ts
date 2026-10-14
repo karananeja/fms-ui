@@ -1,6 +1,7 @@
 import type { Fleet, Me, Permission } from '@shared/contract/index.ts';
 import { VEHICLE_STATUSES, type VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import { proxy, releaseProxy, wrap, type Remote } from 'comlink';
+import { apiFetch } from '@/shared/api/api-client';
 import type { IndiaCity } from '../config/india-cities.ts';
 import { detailsConfig } from '../config/details-config.ts';
 import { mapConfig } from '../config/map-config.ts';
@@ -95,19 +96,15 @@ export interface LiveTrackingStoreDeps {
 
 /** `GET /api/vehicles/:id/trail` (F07-R12); failures leave the trail to live positions only. */
 export async function fetchTrail(vehicleId: string, minutes: number): Promise<LngLat[]> {
-  const res = await fetch(
+  const body = await apiFetch<{ points: [number, number, number][] }>(
     `/api/vehicles/${encodeURIComponent(vehicleId)}/trail?minutes=${minutes}`,
-    { credentials: 'include' },
-  );
-  if (!res.ok) return [];
-  const body = (await res.json()) as { points: [number, number, number][] };
-  return body.points.map(([lng, lat]) => [lng, lat]);
+  ).catch(() => null);
+  return body ? body.points.map(([lng, lat]) => [lng, lat]) : [];
 }
 
 /** `GET /api/fleets`; failures leave the fleet filter without a tree. */
 export async function fetchFleets(): Promise<Fleet[]> {
-  const res = await fetch('/api/fleets', { credentials: 'include' });
-  return res.ok ? ((await res.json()) as Fleet[]) : [];
+  return apiFetch<Fleet[]>('/api/fleets').catch(() => []);
 }
 
 const emptyStats: LiveStats = {

@@ -13,4 +13,5 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
-void bootstrapLiveTracking();
+// The router's guards load the session; the worker starts once it is authenticated.
+bootstrapLiveTracking();
