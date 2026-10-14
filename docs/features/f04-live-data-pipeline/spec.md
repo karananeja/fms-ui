@@ -60,7 +60,7 @@ src/app/dev-session.ts               dev-only auto sign-in until F02 lands
 | ID | Requirement |
 |---|---|
 | F04-R16 | **The worker API is typed** (`worker-api.ts`) and exposed with Comlink. F04 ships `init(me, onPush)`, `selectVehicle(id \| null)`, `getVehicleSummary(id)` and `dispose()`. Later features add query methods: viewport clusters, search, table window, CSV. |
-| F04-R17 | **Push** goes through the `onPush` callback (Comlink proxy) and is **coalesced to ≤ `config.pushHz` (4 Hz)**. It is sent only when something changed. The payload is small and contains the following:<br>• `{connection, stats, version, selected?}`.<br>• `stats` is `{vehicleCount, snapshotComplete, rowsPerSec, msgsPerSec, lastMessageAt, reconnects, stateBytes, serverOffsetMs}`.<br>• `selected` holds the full `combinfo` and `lafparsed` of the selected vehicle, or null. |
+| F04-R17 | **Push** goes through the `onPush` callback (Comlink proxy) and is **coalesced to ≤ `config.pushHz` (4 Hz)**. It is sent only when something changed. The payload is small and contains the following:<br>• `{connection, stats, version, selected?}`.<br>• `stats` is `{vehicleCount, snapshotComplete, rowsPerSec, msgsPerSec, lastMessageAt, reconnects, stateBytes, serverOffsetMs}`.<br>• `selected` holds the full `combinfo` and `lafparsed` of the selected vehicle, or null.<br>*Amended 2026-10-14 (D-073):* a user filter change (`setFilter`, F08) pushes immediately and restarts the 250 ms window; pushes driven by data alone remain coalesced to ≤ 4 Hz. |
 | F04-R18 | **The fleet never leaves the worker.** The main thread only receives push payloads and query results. The largest is one vehicle's full payloads, about 25 KB. |
 
 ### Main thread: `LiveTrackingStore`

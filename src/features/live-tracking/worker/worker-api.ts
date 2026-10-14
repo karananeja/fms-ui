@@ -1,6 +1,24 @@
 import type { Combinfo, Lafparsed, Me } from '@shared/contract/index.ts';
 import type { VehicleStatus } from '@shared/domain/vehicle-status.ts';
+import type { FleetNode, SearchField, VehicleFilter } from './filter-engine.ts';
+import type { Suggestion } from './search-index.ts';
+import type { TableRow, TableSort } from '../config/table-columns.ts';
+import type { CsvRequest, CsvResult } from './csv-exporter.ts';
 import type { SessionHistory } from './selected-history.ts';
+import type { TableQuery, TableResult } from './table-query.ts';
+import type { TrayCard } from './tray-query.ts';
+
+export type { CsvRequest, CsvResult, TableQuery, TableResult, TableRow, TableSort, TrayCard };
+
+export type { FleetNode, SearchField, Suggestion, VehicleFilter };
+
+/** F08-R6: distinct values present in the fleet state (models carry their make). */
+export interface FilterOptions {
+  assetTypes: string[];
+  fuelTypes: string[];
+  makes: string[];
+  models: { make: string; model: string }[];
+}
 
 export type ConnectionState =
   'connecting' | 'live' | 'reconnecting' | 'offline' | 'unauthenticated' | 'error';
@@ -82,6 +100,13 @@ export interface LivePush {
   selected?: SelectedVehicle | null;
   /** Fresh frame for the current viewport, when the data changed since the last one. */
   mapFrame?: MapFrame;
+  // ---- F08 ----
+  /** Per-status counts over every filter except `statuses` (F08-R3). */
+  filteredCounts: Record<VehicleStatus, number>;
+  /** Vehicles matching the whole filter. */
+  filteredTotal: number;
+  /** False when the selected vehicle exists but is hidden by the filter (F08-R13). */
+  selectedMatches: boolean;
 }
 
 /** One vehicle's fleet-level record (slim, from fleet state). */
@@ -130,7 +155,26 @@ export interface LiveTrackingWorkerApi {
   setViewport(viewport: MapViewport | null): MapFrame | null;
   /** Zoom at which the cluster splits, or null if the id is stale (index rebuilt since). */
   getClusterExpansionZoom(clusterId: number): number | null;
-  /** Bbox of all vehicles with a valid position, or null when there are none. */
+  /** Bbox of all (filter-matching) vehicles with a valid position, or null when there are none. */
   getBounds(): Bbox | null;
   dispose(): void;
+  // ---- F08 ----
+  /** Applies a filter (F08-R1); the map rebuilds at once and the next push carries new counts. */
+  setFilter(filter: VehicleFilter): void;
+  /** Fleet tree used to expand `fleetIds` to subtrees. */
+  setFleets(fleets: FleetNode[]): void;
+  suggest(prefix: string, field: SearchField, limit?: number): Suggestion[];
+  getFilterOptions(): FilterOptions;
+  // ---- F09 ----
+  /** Fleet id → name, for the table's Fleet column, its sort and the CSV. */
+  setFleetNames(names: Record<string, string>): void;
+  /** A sorted window of matching vehicles (all or a bbox), ≤ 200 rows. */
+  queryTable(query: TableQuery): TableResult;
+  /** The table's rows as CSV (same scope, filter, sort, columns); progress per 10 000 rows. */
+  exportCsv(
+    req: CsvRequest,
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<CsvResult>;
+  /** Up to `limit` matching vehicles in the bbox for the tray. */
+  getTray(bbox: Bbox, limit?: number): TrayCard[];
 }

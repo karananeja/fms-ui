@@ -1,19 +1,29 @@
-import type { Me, Permission } from '@shared/contract/index.ts';
+import type { Fleet, Me, Permission } from '@shared/contract/index.ts';
 import { VEHICLE_STATUSES, type VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import { proxy, releaseProxy, wrap, type Remote } from 'comlink';
 import type { IndiaCity } from '../config/india-cities.ts';
 import { detailsConfig } from '../config/details-config.ts';
 import { mapConfig } from '../config/map-config.ts';
 import { isValidPosition } from '../worker/position.ts';
+import { addPulseSample, type PulseSample } from './fleet-pulse.ts';
 import type {
   Bbox,
   ConnectionState,
+  FilterOptions,
   LivePush,
   LiveStats,
   LiveTrackingWorkerApi,
   MapFrame,
   MapViewport,
+  CsvRequest,
+  CsvResult,
+  SearchField,
   SelectedVehicle,
+  Suggestion,
+  TableQuery,
+  TableResult,
+  TrayCard,
+  VehicleFilter,
   VehicleSummary,
 } from '../worker/worker-api.ts';
 
@@ -49,6 +59,21 @@ export interface LiveTrackingState {
   notice: Notice | null;
   /** Selected vehicle's recent path, oldest first (F07-R12); null when nothing is selected. */
   trail: LngLat[] | null;
+  // ---- F08 ----
+  /** Session filter (not in the URL); `{}` = everything. */
+  filter: VehicleFilter;
+  /** Per-status counts over every filter except `statuses` (F08-R3). */
+  filteredCounts: Record<VehicleStatus, number>;
+  /** Vehicles matching the whole filter. */
+  filteredTotal: number;
+  /** The selected vehicle exists but the filter hides it (F08-R13). */
+  selectedHidden: boolean;
+  /** Distinct values for the filter panel; null until loaded. */
+  filterOptions: FilterOptions | null;
+  /** Permitted fleets (`GET /api/fleets`), for the fleet tree and chip names. */
+  fleets: readonly Fleet[];
+  /** Running-count samples since page load (F08-R10). */
+  pulse: readonly PulseSample[];
 }
 
 /** Main-thread counters for e2e budgets (`performance.now()` ms; 0 = not yet). */
@@ -62,6 +87,10 @@ export interface LiveTrackingStoreDeps {
   createWorkerApi: () => Remote<LiveTrackingWorkerApi>;
   /** `[lng, lat]` points of the last `minutes` (oldest first). Defaults to the REST endpoint. */
   fetchTrail?: (vehicleId: string, minutes: number) => Promise<LngLat[]>;
+  /** Permitted fleets. Defaults to `GET /api/fleets`. */
+  fetchFleets?: () => Promise<Fleet[]>;
+  /** Wall clock for pulse samples (ms). Defaults to `Date.now`. */
+  now?: () => number;
 }
 
 /** `GET /api/vehicles/:id/trail` (F07-R12); failures leave the trail to live positions only. */
@@ -73,6 +102,12 @@ export async function fetchTrail(vehicleId: string, minutes: number): Promise<Ln
   if (!res.ok) return [];
   const body = (await res.json()) as { points: [number, number, number][] };
   return body.points.map(([lng, lat]) => [lng, lat]);
+}
+
+/** `GET /api/fleets`; failures leave the fleet filter without a tree. */
+export async function fetchFleets(): Promise<Fleet[]> {
+  const res = await fetch('/api/fleets', { credentials: 'include' });
+  return res.ok ? ((await res.json()) as Fleet[]) : [];
 }
 
 const emptyStats: LiveStats = {
@@ -108,7 +143,32 @@ const initialState: LiveTrackingState = {
   mapFrame: null,
   notice: null,
   trail: null,
+  filter: {},
+  filteredCounts: emptyCounts,
+  filteredTotal: 0,
+  selectedHidden: false,
+  filterOptions: null,
+  fleets: [],
+  pulse: [],
 };
+
+/** Drops empty lists, blank search and undefined bounds, so `{}` means "no filter". */
+export function normalizeFilter(f: VehicleFilter): VehicleFilter {
+  const out: VehicleFilter = {};
+  for (const k of ['statuses', 'fleetIds', 'assetTypes', 'fuelTypes', 'makes', 'models'] as const) {
+    const list = f[k];
+    if (list?.length) (out as Record<string, unknown>)[k] = [...list];
+  }
+  if (f.socMin !== undefined && f.socMin > 0) out.socMin = f.socMin;
+  if (f.socMax !== undefined && f.socMax < 100) out.socMax = f.socMax;
+  if (f.search?.prefix.trim())
+    out.search = { field: f.search.field, prefix: f.search.prefix.trim() };
+  return out;
+}
+
+/** True when the two filters differ in anything other than `statuses`. */
+const scopeChanged = (a: VehicleFilter, b: VehicleFilter) =>
+  JSON.stringify({ ...a, statuses: undefined }) !== JSON.stringify({ ...b, statuses: undefined });
 
 export const hasPermission = (state: LiveTrackingState, permission: Permission): boolean =>
   state.permissions.includes(permission);
@@ -116,7 +176,7 @@ export const hasPermission = (state: LiveTrackingState, permission: Permission):
 /** Live position of the selected vehicle: its payload, else its point in the current frame. */
 export function selectedPosition(state: LiveTrackingState): LngLat | null {
   const id = state.selectedVehicleId;
-  if (!id) return null;
+  if (!id || state.selectedHidden) return null;
   const c = state.selected?.combinfo;
   if (c && isValidPosition(c.latitude, c.longitude)) return [c.longitude, c.latitude];
   const p = state.mapFrame?.points;
@@ -147,6 +207,57 @@ export class LiveTrackingStore {
       me,
       proxy((push: LivePush) => this.receive(push)),
     );
+    void this.loadFleets();
+  }
+
+  private async loadFleets(): Promise<void> {
+    const api = this.api;
+    const fleets = await (this.deps.fetchFleets ?? fetchFleets)().catch(() => []);
+    if (!fleets.length || this.api !== api) return;
+    this.set({ ...this.state, fleets });
+    await api?.setFleets(fleets.map(({ id, parentId }) => ({ id, parentId })));
+  }
+
+  // ---- F08: filter & search ----
+
+  setFilter(filter: VehicleFilter): void {
+    const next = normalizeFilter(filter);
+    const prev = this.state.filter;
+    if (JSON.stringify(next) === JSON.stringify(prev)) return;
+    // The pulse follows the filtered running count; a new scope starts a new series.
+    const pulse = scopeChanged(prev, next) ? [] : this.state.pulse;
+    this.set({ ...this.state, filter: next, pulse });
+    void this.api?.setFilter(next);
+  }
+
+  patchFilter(patch: Partial<VehicleFilter>): void {
+    this.setFilter({ ...this.state.filter, ...patch });
+  }
+
+  clearFilter(): void {
+    this.setFilter({});
+  }
+
+  /** Adds or removes one status; `null` (ALL) clears the status filter. */
+  toggleStatus(status: VehicleStatus | null): void {
+    const current = this.state.filter.statuses ?? [];
+    const statuses =
+      status === null
+        ? []
+        : current.includes(status)
+          ? current.filter((s) => s !== status)
+          : VEHICLE_STATUSES.filter((s) => s === status || current.includes(s));
+    this.patchFilter({ statuses });
+  }
+
+  async suggest(prefix: string, field: SearchField): Promise<Suggestion[]> {
+    return (await this.api?.suggest(prefix, field, 8)) ?? [];
+  }
+
+  /** Refreshes the distinct values offered by the filter panel. */
+  async loadFilterOptions(): Promise<void> {
+    const options = await this.api?.getFilterOptions();
+    if (options) this.set({ ...this.state, filterOptions: options });
   }
 
   stop(): void {
@@ -183,6 +294,7 @@ export class LiveTrackingStore {
       selectedVehicleId: vehicleId,
       selected: null,
       selectedSummary: null,
+      selectedHidden: false,
       trail: vehicleId ? [] : null,
     });
     const api = this.api;
@@ -270,6 +382,32 @@ export class LiveTrackingStore {
     }
   }
 
+  // ---- F09: table, CSV, tray (worker passthroughs) ----
+
+  /** The map's last settled bbox (null before the map reported one). */
+  get viewportBbox(): Bbox | null {
+    return this.viewport?.bbox ?? null;
+  }
+
+  async setFleetNames(names: Record<string, string>): Promise<void> {
+    await this.api?.setFleetNames(names);
+  }
+
+  async queryTable(query: TableQuery): Promise<TableResult | null> {
+    return (await this.api?.queryTable(query)) ?? null;
+  }
+
+  async exportCsv(
+    req: CsvRequest,
+    onProgress: (done: number, total: number) => void,
+  ): Promise<CsvResult | null> {
+    return (await this.api?.exportCsv(req, proxy(onProgress))) ?? null;
+  }
+
+  async getTray(bbox: Bbox): Promise<TrayCard[]> {
+    return (await this.api?.getTray(bbox)) ?? [];
+  }
+
   /** Asks the map to re-measure its container (layout around it changed). */
   resizeMap(): void {
     this.command({ type: 'resize' });
@@ -311,6 +449,7 @@ export class LiveTrackingStore {
     if (!m.snapshotCompleteAt && push.stats.snapshotComplete) {
       m.snapshotCompleteAt = performance.now();
     }
+    const now = (this.deps.now ?? Date.now)();
     const next = {
       ...this.state,
       connection: push.connection,
@@ -319,6 +458,14 @@ export class LiveTrackingStore {
       statusCounts: sameCounts(push.statusCounts, this.state.statusCounts)
         ? this.state.statusCounts
         : push.statusCounts,
+      filteredCounts: sameCounts(push.filteredCounts, this.state.filteredCounts)
+        ? this.state.filteredCounts
+        : push.filteredCounts,
+      filteredTotal: push.filteredTotal,
+      selectedHidden: !!this.state.selectedVehicleId && !push.selectedMatches,
+      pulse: push.stats.snapshotComplete
+        ? addPulseSample(this.state.pulse, now, push.filteredCounts.running)
+        : this.state.pulse,
     };
     if (push.selected !== undefined && push.selected?.vehicleId === this.state.selectedVehicleId) {
       next.selected = push.selected;

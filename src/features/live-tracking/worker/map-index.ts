@@ -25,6 +25,29 @@ const addBreakdown = (a: Breakdown, b: Readonly<Breakdown>) => {
   for (let k = 0; k < N_STATUS; k++) a[k]! += b[k]!;
 };
 
+/**
+ * What the map index needs from the filter (F08-R4, D-072). `FilterEngine` implements it.
+ * Clusters are built over `matchesBase` (every field but statuses); the status selection is
+ * applied when a frame is cut, so a status change needs no rebuild.
+ */
+export interface MapFilter {
+  /** Full match, statuses included (live status column). */
+  matches(i: number): boolean;
+  /** Match on every field except statuses. */
+  matchesBase(i: number): boolean;
+  /** Selected statuses as bits over status codes (bit `code`); 0 = all. */
+  readonly statusMask: number;
+  /** True when a field other than statuses restricts the set. */
+  readonly baseActive: boolean;
+}
+
+const NO_FILTER: MapFilter = {
+  matches: () => true,
+  matchesBase: () => true,
+  statusMask: 0,
+  baseActive: false,
+};
+
 type MapIndexOptions = Pick<
   MapConfig,
   'clusterRadius' | 'clusterMaxZoom' | 'unclusteredZoom' | 'clusterRebuildMs' | 'maxFramePoints'
@@ -38,15 +61,26 @@ export class MapIndex {
   readonly opts: MapIndexOptions;
   buildMs = 0;
   builds = 0;
+  /** Bumps whenever the index serving frames changes (a build, or a D-072 cache swap). */
+  generation = 0;
+  /** D-072 cache swaps (frames served from the cached unfiltered index). */
+  cacheHits = 0;
   private index: Supercluster<PointProps, Breakdown> | null = null;
   private builtAt = -Infinity;
   private builtVersion = -1;
+  /** Whether `index` was built with a non-status filter active. */
+  private indexFiltered = false;
+  /** D-072: the last index built with no non-status filter, and its data version. */
+  private unfiltered: Supercluster<PointProps, Breakdown> | null = null;
+  private unfilteredVersion = -1;
   private version = 0;
   private scratch: Int32Array;
 
   constructor(
     private readonly state: FleetState,
     opts: Partial<MapIndexOptions> = {},
+    /** F08-R4: only matching vehicles are clustered, scanned and bounded. */
+    private readonly filter: MapFilter = NO_FILTER,
   ) {
     this.opts = { ...mapConfig, ...opts };
     this.scratch = new Int32Array(this.opts.maxFramePoints + 1);
@@ -54,8 +88,19 @@ export class MapIndex {
 
   /** Rebuilds when the data changed and the throttle allows (or there is no index yet); `force` skips the throttle. */
   update(dataVersion: number, now: number, force = false): boolean {
-    if (this.index && (dataVersion === this.builtVersion || (!force && !this.rebuildDue(now))))
-      return false;
+    if (this.index && dataVersion === this.builtVersion) return false;
+    if (force && this.indexFiltered && !this.filter.baseActive && this.unfiltered) {
+      // D-072: back to no non-status filter (e.g. Clear all): serve the cached unfiltered index
+      // now and let the throttle run a fresh rebuild right after (rebuildWait → 0).
+      this.index = this.unfiltered;
+      this.indexFiltered = false;
+      this.builtVersion = this.unfilteredVersion;
+      this.builtAt = now - this.opts.clusterRebuildMs;
+      this.generation++;
+      this.cacheHits++;
+      return true;
+    }
+    if (this.index && !force && !this.rebuildDue(now)) return false;
     this.rebuild(dataVersion, now);
     return true;
   }
@@ -74,22 +119,24 @@ export class MapIndex {
       if (n <= max) return this.pack(zoom, this.scratch.subarray(0, n), []);
     }
     const index = this.ensureIndex();
+    const mask = this.filter.statusMask;
     for (let qz = Math.min(z, this.opts.clusterMaxZoom); ; qz--) {
       const features = index.getClusters(bbox, qz) as Feature[];
       const clusters: ClusterFeature<Breakdown>[] = [];
       let n = 0;
       for (const f of features) {
-        if ('cluster' in f.properties) clusters.push(f as ClusterFeature<Breakdown>);
-        else n++;
+        if (!('cluster' in f.properties)) n++;
+        else if (!mask || this.selectedCount(f.properties as Breakdown, mask) > 0)
+          clusters.push(f as ClusterFeature<Breakdown>);
       }
       if (n > max && qz > 0) continue;
       let k = 0;
       for (const f of features) {
         if ('cluster' in f.properties) continue;
         const i = this.state.byVehicle.get((f.properties as PointProps).id);
-        if (i !== undefined && this.valid(i)) this.scratch[k++] = i;
+        if (i !== undefined && this.valid(i) && this.filter.matches(i)) this.scratch[k++] = i;
       }
-      return this.pack(zoom, this.scratch.subarray(0, k), clusters);
+      return this.pack(zoom, this.scratch.subarray(0, k), clusters, mask);
     }
   }
 
@@ -110,7 +157,7 @@ export class MapIndex {
     for (let i = 0; i < this.state.count; i++) {
       const y = lat[i]!;
       const x = lng[i]!;
-      if (!isValidPosition(y, x)) continue;
+      if (!isValidPosition(y, x) || !this.filter.matches(i)) continue;
       if (x < w) w = x;
       if (x > e) e = x;
       if (y < s) s = y;
@@ -121,6 +168,13 @@ export class MapIndex {
 
   private rebuildDue(now: number) {
     return now - this.builtAt >= this.opts.clusterRebuildMs;
+  }
+
+  /** Vehicles of the selected statuses in a cluster (breakdown keys are code − 1). */
+  private selectedCount(b: Readonly<Breakdown>, mask: number): number {
+    let n = 0;
+    for (let j = 0; j < N_STATUS; j++) if (mask & (1 << (j + 1))) n += b[j]!;
+    return n;
   }
 
   private ensureIndex() {
@@ -137,10 +191,12 @@ export class MapIndex {
     const { lat, lng, status } = this.state.cols;
     const ids = this.state.str.vehicleId;
     const features: PointFeature<PointProps>[] = [];
+    const filtered = this.filter.baseActive;
+    const matchesBase = (i: number) => !filtered || this.filter.matchesBase(i);
     for (let i = 0; i < this.state.count; i++) {
       const y = lat[i]!;
       const x = lng[i]!;
-      if (!isValidPosition(y, x)) continue;
+      if (!isValidPosition(y, x) || !matchesBase(i)) continue;
       features.push({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [x, y] },
@@ -155,7 +211,13 @@ export class MapIndex {
     }).load(features);
     this.builtVersion = dataVersion;
     this.builtAt = now;
+    this.indexFiltered = filtered;
+    if (!filtered) {
+      this.unfiltered = this.index;
+      this.unfilteredVersion = dataVersion;
+    }
     this.builds++;
+    this.generation++;
     this.buildMs = performance.now() - t0;
   }
 
@@ -166,12 +228,18 @@ export class MapIndex {
     for (let i = 0; i < this.state.count && k < limit; i++) {
       const y = lat[i]!;
       const x = lng[i]!;
-      if (y >= s && y <= n && x >= w && x <= e && isValidPosition(y, x)) this.scratch[k++] = i;
+      if (y >= s && y <= n && x >= w && x <= e && isValidPosition(y, x) && this.filter.matches(i))
+        this.scratch[k++] = i;
     }
     return k;
   }
 
-  private pack(zoom: number, idx: Int32Array, clusters: ClusterFeature<Breakdown>[]): MapFrame {
+  private pack(
+    zoom: number,
+    idx: Int32Array,
+    clusters: ClusterFeature<Breakdown>[],
+    mask = 0,
+  ): MapFrame {
     const { lat, lng, heading, status } = this.state.cols;
     const { vehicleId, regno } = this.state.str;
     const n = idx.length;
@@ -205,8 +273,14 @@ export class MapIndex {
       out.lng[k] = geometry.coordinates[0]!;
       out.lat[k] = geometry.coordinates[1]!;
       out.id[k] = p.cluster_id;
-      out.count[k] = p.point_count;
-      for (let j = 0; j < N_STATUS; j++) out.breakdown[k * N_STATUS + j] = p[j]!;
+      let count = 0;
+      for (let j = 0; j < N_STATUS; j++) {
+        const c = !mask || mask & (1 << (j + 1)) ? p[j]! : 0;
+        out.breakdown[k * N_STATUS + j] = c;
+        count += c;
+      }
+      // D-072: with a status selection, the count is that of the selected statuses only.
+      out.count[k] = mask ? count : p.point_count;
     }
     return { version: ++this.version, zoom, points, clusters: out };
   }

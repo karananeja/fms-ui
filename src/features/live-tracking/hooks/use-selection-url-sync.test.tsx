@@ -54,6 +54,9 @@ function setup(path: string) {
         version: 1,
         statusCounts: counts,
         total: 1,
+        filteredCounts: counts,
+        filteredTotal: 1,
+        selectedMatches: true,
       }),
     );
   const vehicle = () => (router.state.location.search as { vehicle?: string }).vehicle;

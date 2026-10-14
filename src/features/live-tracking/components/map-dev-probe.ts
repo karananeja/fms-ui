@@ -37,6 +37,11 @@ export function exposeMapProbe(
     get pointCount() {
       return frame()?.points.ids.length ?? 0;
     },
+    /** Vehicles in the current frame: cluster sizes plus single points (F08 e2e). */
+    get framed() {
+      const f = frame();
+      return f ? f.clusters.count.reduce((n, c) => n + c, 0) + f.points.ids.length : 0;
+    },
     get autoFitDone() {
       return store.autoFitDone;
     },

@@ -174,3 +174,11 @@ Running log of the whole project chat (summarised per turn; decisions linked to 
 **Assistant:** D-073 landed on F08: `pnpm check` 406/406, e2e 24/24. Perf passed both runs: widening 47–97 ms (was 250–314 ms), no long tasks. F08 + F09 both ready for UAT.
 
 **Status:** Awaiting UAT acceptance of F08 and F09. Once both are accepted, merge them on `integration/f08-f09` and run the full perf suite there, including the borderline F09 scroll check.
+
+## 2026-10-14 — Session 3 (cont.)
+
+**User:** "continue". Read as UAT acceptance of F08 + F09, as before.
+
+**Assistant:** Merged F08 + F09 on `integration/f08-f09`. Conflicts: imports, page layout, decision log. D-074: in table view the status bar sits above the table. The table-view test fixture needed the new F08 `LivePush` fields. F09-T8 now drags right, because the F08 pulse card was intercepting the drag. Results: `pnpm check` 440/440, build clean, e2e 29/29, perf 5/5. F08 filter frames 25–118 ms. F09 scroll had no long tasks; export took 678 ms. Merged into `main`; worktrees and branches removed.
+
+**Next:** F02 Authentication. Intent signed off; spec to write.

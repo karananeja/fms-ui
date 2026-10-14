@@ -138,7 +138,7 @@ export class StatusTracker implements FleetStateHooks {
   ) {
     state.addColumn('status', Uint8Array);
     state.addColumn('displayStatus', Uint8Array, encodeStatus);
-    state.hooks = this;
+    state.addHooks(this);
     this.compiled();
   }
 

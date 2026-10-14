@@ -9,13 +9,24 @@ import {
 } from '../config/status-rules-config.ts';
 import { parseStatusRulesConfig } from '../config/status-rules-schema.ts';
 import { FleetState } from './fleet-state.ts';
+import {
+  FilterEngine,
+  type FleetNode,
+  type SearchField,
+  type VehicleFilter,
+} from './filter-engine.ts';
+import { exportCsv, type CsvRequest, type CsvResult } from './csv-exporter.ts';
 import { frameBuffers, MapIndex } from './map-index.ts';
+import { SearchIndex, type Suggestion } from './search-index.ts';
 import { SelectedHistory } from './selected-history.ts';
 import { detailsConfig } from '../config/details-config.ts';
 import { StatusTracker } from './status-deriver.ts';
+import { TableQueryEngine, type TableQuery, type TableResult } from './table-query.ts';
+import { trayQuery, type TrayCard } from './tray-query.ts';
 import type {
   Bbox,
   ConnectionState,
+  FilterOptions,
   LivePush,
   LiveStats,
   LiveTrackingWorkerApi,
@@ -59,7 +70,13 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   readonly state: FleetState;
   readonly status: StatusTracker;
   readonly client: WsClient;
+  /** F08/F09 contract: consumers call `filters.matches(i)` only. */
+  readonly filters: FilterEngine;
+  readonly search: SearchIndex;
   readonly map: MapIndex;
+  /** F09: sorted windows over matching vehicles (table + CSV). */
+  readonly table: TableQueryEngine;
+  private fleetNames: Record<string, string> = {};
   pushCount = 0;
   private readonly clock: Clock;
   private me: Me | null = null;
@@ -81,7 +98,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   private viewport: MapViewport | null = null;
   /** Bumped when a sweep changed any status (the state version covers rows). */
   private statusEpoch = 0;
-  private frameOf = { data: -1, builds: -1 };
+  private frameOf = { data: -1, generation: -1, filter: -1 };
   private selectedStatus: VehicleStatus | null = null;
   private readonly history = new SelectedHistory(detailsConfig.historyMs);
   private rows = 0;
@@ -103,7 +120,15 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
       pendingMax: this.config.pendingLafMax,
     });
     this.status = new StatusTracker(this.state, this.rules);
-    this.map = new MapIndex(this.state, deps.map);
+    this.filters = new FilterEngine(this.state);
+    this.search = new SearchIndex(this.state, (task) => this.clock.setTimeout(task, 0));
+    this.map = new MapIndex(this.state, deps.map, this.filters);
+    this.table = new TableQueryEngine(
+      this.state,
+      (i) => this.filters.matches(i),
+      () => this.state.version + this.statusEpoch + this.filters.version,
+      () => this.clock.now(),
+    );
     this.client = new WsClient({
       url: deps.url,
       createSocket: deps.createSocket,
@@ -169,6 +194,28 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     return this.map.bounds();
   }
 
+  // ---- F09: table, CSV, tray ----
+
+  setFleetNames(names: Record<string, string>): void {
+    this.fleetNames = names;
+    this.table.setFleetNames(names);
+  }
+
+  queryTable(query: TableQuery): TableResult {
+    return this.table.query(query);
+  }
+
+  exportCsv(
+    req: CsvRequest,
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<CsvResult> {
+    return exportCsv(req, this.state, this.table, this.fleetNames, onProgress);
+  }
+
+  getTray(bbox: Bbox, limit?: number): TrayCard[] {
+    return trayQuery(this.state, (i) => this.filters.matches(i), this.rules.priority, bbox, limit);
+  }
+
   get connection(): ConnectionState {
     return this.client.state;
   }
@@ -200,6 +247,60 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     this.onPush = null;
     this.client.dispose();
     this.deps.onDispose?.();
+  }
+
+  // ---- F08: filters & search ----
+
+  setFilter(filter: VehicleFilter): void {
+    const base = this.filters.baseVersion;
+    this.filters.set(filter);
+    // D-072: only a change outside `statuses` needs the index rebuilt (or swapped) at once.
+    if (this.filters.baseVersion !== base) this.rebuildNow = true;
+    this.pushNow();
+  }
+
+  setFleets(fleets: FleetNode[]): void {
+    this.filters.setFleets(fleets);
+    this.rebuildNow = true;
+    this.markDirty();
+  }
+
+  suggest(prefix: string, field: SearchField, limit = 8): Suggestion[] {
+    return this.search.suggest(prefix, field, limit);
+  }
+
+  getFilterOptions(): FilterOptions {
+    const { codes, dicts, count } = this.state;
+    const distinct = (f: 'assetType' | 'fuelType' | 'make') => {
+      const seen = new Uint8Array(dicts[f].values.length);
+      for (let i = 0; i < count; i++) seen[codes[f][i]!] = 1;
+      return dicts[f].values.filter((v, k) => seen[k] && v).sort();
+    };
+    const models = new Map<string, { make: string; model: string }>();
+    for (let i = 0; i < count; i++) {
+      const make = dicts.make.values[codes.make[i]!]!;
+      const model = dicts.model.values[codes.model[i]!]!;
+      if (model) models.set(`${make}\u0000${model}`, { make, model });
+    }
+    return {
+      assetTypes: distinct('assetType'),
+      fuelTypes: distinct('fuelType'),
+      makes: distinct('make'),
+      models: [...models.values()].sort((a, b) => a.model.localeCompare(b.model)),
+    };
+  }
+
+  private filteredPush(): Pick<LivePush, 'filteredCounts' | 'filteredTotal' | 'selectedMatches'> {
+    const { counts, total } = this.filters.active
+      ? this.filters.counts()
+      : { counts: this.status.statusCounts(), total: this.state.count };
+    const s = this.selection;
+    const i = s?.found ? this.state.indexOf(s.vehicleId) : -1;
+    return {
+      filteredCounts: counts,
+      filteredTotal: total,
+      selectedMatches: i < 0 || this.filters.matches(i),
+    };
   }
 
   // ---- subscriptions ----
@@ -284,6 +385,8 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     this.state.endSnapshot();
     this.snapshotComplete = true;
     this.rebuildNow = true;
+    // After the first frame goes out: later searches then never wait for a full index build.
+    this.clock.setTimeout(() => this.search.warm(), 0);
     this.client.resetBackoff();
     this.pendingTimer = this.clock.setTimeout(
       () => this.state.closePending(),
@@ -300,6 +403,19 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     this.pushTimer = this.clock.setTimeout(() => this.flush(), wait);
   }
 
+  /**
+   * D-073: a user filter change pushes at once instead of waiting for the next 4 Hz slot; the
+   * push restarts the 250 ms window, so data-driven pushes stay coalesced after it.
+   */
+  private pushNow(): void {
+    if (this.pushTimer !== null) {
+      this.clock.clearTimeout(this.pushTimer);
+      this.pushTimer = null;
+    }
+    this.dirty = true;
+    this.flush();
+  }
+
   private flush(): void {
     this.pushTimer = null;
     if (!this.dirty || !this.onPush) return;
@@ -311,6 +427,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
       version: this.state.version,
       statusCounts: this.status.statusCounts(),
       total: this.state.count,
+      ...this.filteredPush(),
     };
     const s = this.selection;
     const i = s?.found ? this.state.indexOf(s.vehicleId) : -1;
@@ -329,8 +446,9 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
 
   // ---- map ----
 
+  /** What the cluster index is built from: statuses in the filter are applied per frame (D-072). */
   private get dataVersion(): number {
-    return this.state.version + this.statusEpoch;
+    return this.state.version + this.statusEpoch + this.filters.baseVersion;
   }
 
   private transfer<T>(value: T, buffers: ArrayBuffer[]): T {
@@ -340,9 +458,17 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   /** Rebuilds the index when due; schedules a later rebuild when throttled. */
   private updateIndex(): void {
     const now = this.clock.now();
-    this.map.update(this.dataVersion, now, this.rebuildNow);
+    // D-072: a status-only filter change is cut from the current index first; a throttled
+    // rebuild that happens to be due waits for the next push instead of delaying this frame.
+    const statusOnly = !this.rebuildNow && this.filters.version !== this.frameOf.filter;
+    if (!statusOnly) this.map.update(this.dataVersion, now, this.rebuildNow);
     this.rebuildNow = false;
     const wait = this.map.rebuildWait(this.dataVersion, now);
+    // wait 0 = a D-072 cache swap: rebuild right after, not on an older, longer timer.
+    if (wait === 0 && this.rebuildTimer !== null) {
+      this.clock.clearTimeout(this.rebuildTimer);
+      this.rebuildTimer = null;
+    }
     if (wait !== null && this.rebuildTimer === null) {
       this.rebuildTimer = this.clock.setTimeout(() => {
         this.rebuildTimer = null;
@@ -351,16 +477,25 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
     }
   }
 
-  private computeFrame(): MapFrame {
-    this.updateIndex();
-    this.frameOf = { data: this.dataVersion, builds: this.map.builds };
+  /** `update` false: the index was just updated (a D-072 cache swap must not rebuild in the same task). */
+  private computeFrame(update = true): MapFrame {
+    if (update) this.updateIndex();
+    this.frameOf = {
+      data: this.dataVersion,
+      generation: this.map.generation,
+      filter: this.filters.version,
+    };
     return this.map.frame(this.viewport!);
   }
 
   private frameIfChanged(): MapFrame | null {
     this.updateIndex();
-    const { data, builds } = this.frameOf;
-    return data === this.dataVersion && builds === this.map.builds ? null : this.computeFrame();
+    const { data, generation, filter } = this.frameOf;
+    return data === this.dataVersion &&
+      generation === this.map.generation &&
+      filter === this.filters.version
+      ? null
+      : this.computeFrame(false);
   }
 
   private tickStats(): void {

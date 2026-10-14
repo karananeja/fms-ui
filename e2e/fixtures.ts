@@ -34,6 +34,7 @@ export interface FmsMap {
   frameVersion: number;
   clusterCount: number;
   pointCount: number;
+  framed: number;
   autoFitDone: boolean;
   vehicleCount: number;
   moving: boolean;
@@ -56,6 +57,7 @@ export const mapState = (page: Page) =>
           frameVersion: m.frameVersion,
           clusterCount: m.clusterCount,
           pointCount: m.pointCount,
+          framed: m.framed,
           autoFitDone: m.autoFitDone,
           vehicleCount: m.vehicleCount,
           moving: m.moving,

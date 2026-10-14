@@ -61,6 +61,9 @@ function setup(permissions: Permission[] = ALL, found = true) {
         version: 1,
         statusCounts: counts,
         total: 1,
+        filteredCounts: counts,
+        filteredTotal: 1,
+        selectedMatches: true,
         selected,
       }),
     );
