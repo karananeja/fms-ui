@@ -2,14 +2,11 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   Outlet,
   redirect,
   type RouterHistory,
 } from '@tanstack/react-router';
-import { AcceptInvitePage } from '@/features/auth/components/accept-invite-page';
-import { ForgotPasswordPage } from '@/features/auth/components/forgot-password-page';
-import { LoginPage } from '@/features/auth/components/login-page';
-import { ResetPasswordPage } from '@/features/auth/components/reset-password-page';
 import { sessionStore, type SessionStore } from '@/features/auth/session/session-store';
 import { LiveTrackingPage } from '@/features/live-tracking/components/live-tracking-page';
 import { parseLiveTrackingSearch } from '@/features/live-tracking/hooks/use-selection-url-sync';
@@ -44,7 +41,8 @@ async function signedOutOnly({ context }: { context: RouterContext }) {
   }
 }
 
-// Auth and public routes render without the app shell.
+// Auth and public routes render without the app shell. Auth screens are a separate chunk
+// (forms + zod), so the signed-in shell doesn't carry them.
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'login',
@@ -54,14 +52,17 @@ const loginRoute = createRoute({
     return redirect ? { redirect } : {};
   },
   beforeLoad: signedOutOnly,
-  component: LoginPage,
+  component: lazyRouteComponent(() => import('@/features/auth/components/login-page'), 'LoginPage'),
 });
 const forgotPasswordRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'forgot-password',
   staticData: { title: 'Forgot password' },
   beforeLoad: signedOutOnly,
-  component: ForgotPasswordPage,
+  component: lazyRouteComponent(
+    () => import('@/features/auth/components/forgot-password-page'),
+    'ForgotPasswordPage',
+  ),
 });
 // Reset, accept-invite and share links work signed in or not (no guard, no session probe).
 const tokenSearch = (s: Record<string, unknown>): { token?: string } => {
@@ -73,14 +74,20 @@ const resetPasswordRoute = createRoute({
   path: 'reset-password',
   staticData: { title: 'Reset password' },
   validateSearch: tokenSearch,
-  component: ResetPasswordPage,
+  component: lazyRouteComponent(
+    () => import('@/features/auth/components/reset-password-page'),
+    'ResetPasswordPage',
+  ),
 });
 const acceptInviteRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'accept-invite',
   staticData: { title: 'Accept invite' },
   validateSearch: tokenSearch,
-  component: AcceptInvitePage,
+  component: lazyRouteComponent(
+    () => import('@/features/auth/components/accept-invite-page'),
+    'AcceptInvitePage',
+  ),
 });
 const shareRoute = createRoute({
   getParentRoute: () => rootRoute,

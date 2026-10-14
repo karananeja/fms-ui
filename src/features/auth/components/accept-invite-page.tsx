@@ -4,7 +4,6 @@ import { LoaderCircle } from 'lucide-react';
 import type { z } from 'zod';
 import type { inviteInfoSchema } from '@shared/contract/auth.ts';
 import { apiFetch } from '@/shared/api/api-client';
-import { formatIst } from '@/shared/lib/format-date';
 import { buttonVariants } from '@/shared/ui/button';
 import { useSessionStore } from '../session/use-session.ts';
 import { AuthLayout, FormMessage, StateMessage } from './auth-layout';
@@ -22,6 +21,17 @@ import { SubmitButton } from './submit-button';
 import { inputClass, TextField } from './text-field';
 
 type InviteInfo = z.infer<typeof inviteInfoSchema>;
+
+/** "21 Oct 2026, 06:24" in IST. */
+const expiryFormat = new Intl.DateTimeFormat('en-IN', {
+  timeZone: 'Asia/Kolkata',
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
 const FIELDS = ['name', 'password', 'confirm'] as const;
 type Field = (typeof FIELDS)[number];
 
@@ -150,7 +160,7 @@ export function AcceptInvitePage() {
     <AuthLayout title="Accept invite">
       <p className="mb-5 text-[13px] leading-relaxed text-text-muted">
         Set your name and a password to finish creating your account. This invite expires on{' '}
-        <span className="text-text">{formatIst(view.invite.expiresAt)}</span> IST.
+        <span className="text-text">{expiryFormat.format(view.invite.expiresAt)}</span> IST.
       </p>
       {formError && <FormMessage tone="error">{formError}</FormMessage>}
       <form noValidate onSubmit={onSubmit}>
@@ -164,6 +174,7 @@ export function AcceptInvitePage() {
             readOnly
             autoComplete="username"
             value={view.invite.email}
+            title={view.invite.email}
             className={inputClass}
           />
         </div>

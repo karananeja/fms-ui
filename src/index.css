@@ -196,7 +196,7 @@ div.maplibregl-map {
   }
 }
 
-/* F02 auth backdrop: the mockup's faint street grid and vignette, pure CSS (no map tiles). */
+/* F02 auth backdrop: the mockup's faint street grid, pure CSS (no map tiles); `.fms-vignette` on top. */
 @utility street-grid {
   background-color: var(--map-bg);
   background-image:
@@ -210,7 +210,4 @@ div.maplibregl-map {
     48px 48px,
     48px 48px;
   background-position: -1px -1px;
-}
-@utility vignette {
-  background: radial-gradient(ellipse at 50% 45%, var(--transparent) 35%, var(--vignette) 100%);
 }
