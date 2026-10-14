@@ -1,3 +1,4 @@
+import { can } from '@/features/access/permissions/can';
 import { sessionStore, type SessionStore } from '@/features/auth/session/session-store';
 import {
   liveTrackingStore,
@@ -22,6 +23,8 @@ interface Deps {
  * F02-R4: live tracking follows the session. The worker starts when a user is authenticated,
  * stops on sign-out or expiry, and restarts for a different user. A WS close with
  * `unauthenticated` expires the session (F02-R3). Returns an unsubscribe for tests.
+ * F03-R2: a user without `live.view` never starts the worker (no socket, no snapshot); caches
+ * are still reset when that user changes.
  */
 export function bootstrapLiveTracking(
   { session, live, resetCaches }: Deps = {
@@ -32,17 +35,19 @@ export function bootstrapLiveTracking(
 ): () => void {
   if (import.meta.env.DEV) window.__fmsLive = live.metrics;
   let userId: string | null = null;
+  let running = false;
 
   const followSession = () => {
     const { me } = session.getSnapshot();
     const next = me?.user.id ?? null;
     if (next === userId) return;
     if (userId) {
-      live.stop();
+      if (running) live.stop();
       resetCaches();
     }
     userId = next;
-    if (me) live.start(me);
+    running = !!me && can(me, 'live.view');
+    if (running) live.start(me!);
   };
   const followSocket = () => {
     if (live.getSnapshot().connection === 'unauthenticated') session.expire();

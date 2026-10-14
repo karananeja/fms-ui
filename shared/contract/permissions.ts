@@ -35,3 +35,9 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   'fleets.manage': 'Manage fleets',
   'roles.manage': 'Manage roles',
 };
+
+/** F03-R14 (B8): permissions only system roles (Super Admin) may hold; custom roles can't. */
+export const SYSTEM_ONLY_PERMISSIONS = [
+  'users.invite',
+  'roles.manage',
+] as const satisfies readonly Permission[];

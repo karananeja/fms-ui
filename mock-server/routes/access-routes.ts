@@ -5,6 +5,7 @@ import {
   moveVehiclesSchema,
   PERMISSION_LABELS,
   PERMISSIONS,
+  SYSTEM_ONLY_PERMISSIONS,
   updateFleetSchema,
   updateRoleSchema,
   updateUserSchema,
@@ -37,6 +38,14 @@ export async function accessRoutes(app: FastifyInstance) {
   const requireRoleExists = (id: string) => {
     if (!accounts.roles.has(id))
       throw new HttpError(422, 'validation_failed', `Unknown role ${id}`);
+  };
+
+  /** F03-R14 (B8): only system roles may hold these; custom roles get 422 with a field issue. */
+  const rejectSystemOnly = (permissions: readonly string[] | undefined) => {
+    const blocked = SYSTEM_ONLY_PERMISSIONS.filter((p) => permissions?.includes(p));
+    if (blocked.length === 0) return;
+    const message = `${blocked.join(', ')} can only be granted to system roles`;
+    throw new HttpError(422, 'validation_failed', message, [{ path: ['permissions'], message }]);
   };
 
   app.get('/permissions', async (req) => {
@@ -172,6 +181,7 @@ export async function accessRoutes(app: FastifyInstance) {
   app.post('/roles', async (req, reply) => {
     authorize(ctx, req, 'roles.manage');
     const body = parse(createRoleSchema, req.body);
+    rejectSystemOnly(body.permissions);
     return reply
       .code(201)
       .send(accounts.addRole({ id: `role-${randomUUID()}`, system: false, ...body }));
@@ -182,6 +192,7 @@ export async function accessRoutes(app: FastifyInstance) {
     const body = parse(updateRoleSchema, req.body);
     const role = accounts.role(req.params.id);
     if (role.system) throw new HttpError(409, 'conflict', 'System roles cannot be edited');
+    rejectSystemOnly(body.permissions);
     if (body.name !== undefined) role.name = body.name;
     if (body.permissions) role.permissions = [...new Set(body.permissions)];
     return role;
