@@ -1,13 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useMatches, useRouter } from '@tanstack/react-router';
 import { Menu } from 'lucide-react';
+import { RequirePermission } from '@/features/access/permissions/require-permission';
 import { UserMenu } from '@/features/auth/components/user-menu';
-import { selectStatus, useSession, useSessionStore } from '@/features/auth/session/use-session';
+import {
+  selectMe,
+  selectStatus,
+  useSession,
+  useSessionStore,
+} from '@/features/auth/session/use-session';
 import { BrandMark } from '@/shared/ui/brand-mark';
 import { Button } from '@/shared/ui/button';
 import { Toaster } from '@/shared/ui/sonner';
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/shared/ui/sheet';
-import { navItems } from './nav-items';
+import { visibleNavItems } from './nav-items';
 import { PageActionsSlotContext } from './page-actions-context';
 
 const activeOptions = { exact: true } as const;
@@ -37,7 +43,11 @@ export function AppLayout() {
   const signedOut = useLeaveWhenSignedOut();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [actionsSlot, setActionsSlot] = useState<HTMLDivElement | null>(null);
-  const title = useMatches({ select: (ms) => ms.at(-1)?.staticData.title });
+  // The leaf route's static options (a stable reference).
+  const { title, permission } = useMatches({ select: (ms) => ms.at(-1)?.staticData }) ?? {};
+  const me = useSession(selectMe);
+  // F03-R2: only the pages you can open.
+  const navItems = useMemo(() => visibleNavItems(me), [me]);
   // No shell (and no live data) once signed out, not even for the frame before navigating.
   if (signedOut) return null;
 
@@ -109,7 +119,14 @@ export function AppLayout() {
 
         <main className="min-h-0 flex-1 overflow-auto">
           <PageActionsSlotContext value={actionsSlot}>
-            <Outlet />
+            {/* F03-R1: the page's `staticData.permission`, else No access. */}
+            {permission ? (
+              <RequirePermission p={permission}>
+                <Outlet />
+              </RequirePermission>
+            ) : (
+              <Outlet />
+            )}
           </PageActionsSlotContext>
         </main>
       </div>

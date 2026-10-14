@@ -1,4 +1,5 @@
-export const DEFAULT_REDIRECT = '/live-tracking';
+/** `/` lands on the first page the user can open (F03-R2). */
+export const DEFAULT_REDIRECT = '/';
 
 /** Screens that must never be a post-sign-in target. */
 export const AUTH_PATHS = ['/login', '/forgot-password', '/reset-password', '/accept-invite'];
@@ -7,7 +8,7 @@ const ORIGIN = 'http://fms.invalid';
 
 /**
  * F02-R5: a same-origin relative path (single leading `/`, no scheme, not an auth screen);
- * anything else becomes `/live-tracking`.
+ * anything else becomes `DEFAULT_REDIRECT`.
  */
 export function safeRedirect(raw: unknown): string {
   if (typeof raw !== 'string' || !raw.startsWith('/') || /^\/[/\\]/.test(raw)) {
