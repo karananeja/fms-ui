@@ -66,3 +66,37 @@
   --ring: var(--accent);
   --radius: 12px;
 }
+
+/*
+ * F10 public share page (spec §4, D-090): a light variant of DS1, scoped to the page root
+ * (`data-theme="share-light"`). The global theme above stays dark. Use the base names here
+ * (`--bg`, `--glass`, `--text`…), not the legacy/shadcn aliases, which resolve at `:root`.
+ */
+[data-theme='share-light'] {
+  color-scheme: light;
+
+  --bg: #f6f8fa;
+  --map-bg: #eef2f6;
+  --glass: #ffffffe6;
+  --glass-strong: #ffffff;
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --surface-solid: #ffffff;
+  --tile: rgba(15, 23, 42, 0.035);
+  --tile-border: rgba(15, 23, 42, 0.09);
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+  --accent: #2dd4bf;
+  --accent-2: #38bdf8;
+  --accent-soft: rgba(45, 212, 191, 0.16);
+  --accent-ink: #032a25;
+  /* Teal for text and thin strokes on white (the fill teal is too light to read). */
+  --accent-text: #0f766e;
+  --ok: #059669;
+  --warn: #b45309;
+  --danger: #dc2626;
+  --shadow: rgba(15, 23, 42, 0.12);
+  --accent-glow: rgba(45, 212, 191, 0.45);
+  --accent-halo: rgba(45, 212, 191, 0.2);
+  --marker-ring: #ffffff;
+}

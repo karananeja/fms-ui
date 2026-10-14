@@ -13,6 +13,7 @@ export const ADMIN_PERMISSIONS = [
   'users.manage',
   'users.invite',
   'roles.manage',
+  'share.revoke',
 ] as const satisfies readonly Permission[];
 
 /**
@@ -26,6 +27,7 @@ export const ROUTE_PERMISSIONS = {
   '/admin/users': 'users.manage',
   '/admin/invites': 'users.invite',
   '/admin/roles': 'roles.manage',
+  '/admin/share-links': 'share.revoke',
 } as const satisfies Record<string, PermissionCheck>;
 
 export type AppPath = keyof typeof ROUTE_PERMISSIONS;

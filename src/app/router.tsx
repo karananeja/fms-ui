@@ -15,7 +15,6 @@ import {
 import { sessionStore, type SessionStore } from '@/features/auth/session/session-store';
 import { LiveTrackingPage } from '@/features/live-tracking/components/live-tracking-page';
 import { parseLiveTrackingSearch } from '@/features/live-tracking/hooks/use-selection-url-sync';
-import { PlaceholderPage } from '@/shared/ui/placeholder-page';
 import { AppLayout } from './app-layout';
 import { NotFoundPage } from './not-found-page';
 
@@ -90,7 +89,11 @@ const shareRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'share/$token',
   staticData: { title: 'Shared live location' },
-  component: PlaceholderPage,
+  // F10b: its own lazy chunk (no live-tracking store, worker or admin code).
+  component: lazyRouteComponent(
+    () => import('@/features/share/public/public-share-route'),
+    'PublicShareRoute',
+  ),
 });
 
 /**
@@ -169,6 +172,15 @@ const adminRolesRoute = createRoute({
   staticData: { title: 'Roles', permission: ROUTE_PERMISSIONS['/admin/roles'] },
   component: lazyRouteComponent(() => import('@/features/access/people/roles-page'), 'RolesPage'),
 });
+const adminShareLinksRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: 'share-links',
+  staticData: { title: 'Share links', permission: ROUTE_PERMISSIONS['/admin/share-links'] },
+  component: lazyRouteComponent(
+    () => import('@/features/share/manage/share-links-page'),
+    'ShareLinksPage',
+  ),
+});
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
@@ -185,6 +197,7 @@ const routeTree = rootRoute.addChildren([
       adminUsersRoute,
       adminInvitesRoute,
       adminRolesRoute,
+      adminShareLinksRoute,
     ]),
   ]),
 ]);

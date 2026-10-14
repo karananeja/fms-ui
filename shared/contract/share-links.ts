@@ -36,6 +36,8 @@ export const createShareLinkSchema = z.object({
 });
 
 export const publicShareSchema = z.object({
+  /** The shared vehicle's id: the share socket subscribes with `scope: { kind: 'vehicle', vehicleId }` (D-089). */
+  vehicleId: z.string(),
   vehicle: z.object({
     regno: z.string(),
     make: z.string(),

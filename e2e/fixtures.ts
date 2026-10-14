@@ -4,6 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { test as base, request as apiRequest, type Page } from '@playwright/test';
 
 const blankStyle = readFileSync(new URL('../public/map-styles/blank-dark.json', import.meta.url));
+/** F10 public share page: its light basemap (positron by default) gets the blank light style. */
+const blankLightStyle = readFileSync(
+  new URL('../public/map-styles/blank-light.json', import.meta.url),
+);
 const local = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 /** Signed-in super admin `storageState`, written by `auth.setup.ts` (F02, gitignored). */
@@ -75,7 +79,10 @@ export const test = base.extend<{ blockExternal: void }, { ensureSignedIn: void 
         (url) => !local.has(url.hostname),
         (route) =>
           /style/i.test(route.request().url())
-            ? route.fulfill({ contentType: 'application/json', body: blankStyle })
+            ? route.fulfill({
+                contentType: 'application/json',
+                body: /positron|light/i.test(route.request().url()) ? blankLightStyle : blankStyle,
+              })
             : route.abort(),
       );
       await use();

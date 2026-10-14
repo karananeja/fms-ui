@@ -10,6 +10,7 @@ const LABELS = {
   '/admin/users': 'Go to users',
   '/admin/invites': 'Go to invites',
   '/admin/roles': 'Go to roles',
+  '/admin/share-links': 'Go to share links',
 } as const;
 
 /** F03-R1: shown in place of a page you lack the permission for; links to one you can open. */

@@ -1,6 +1,7 @@
 import {
   Building2,
   KeyRound,
+  Link2,
   MailPlus,
   MapPinned,
   ShieldCheck,
@@ -35,6 +36,12 @@ export const navItems: NavItem[] = [
   { to: '/admin/users', label: 'Users', icon: Users, permission: P['/admin/users'] },
   { to: '/admin/invites', label: 'Invites', icon: MailPlus, permission: P['/admin/invites'] },
   { to: '/admin/roles', label: 'Roles', icon: KeyRound, permission: P['/admin/roles'] },
+  {
+    to: '/admin/share-links',
+    label: 'Share links',
+    icon: Link2,
+    permission: P['/admin/share-links'],
+  },
 ];
 
 /** F03-R2: the items `me` may open (the Admin entry needs any admin permission). */
