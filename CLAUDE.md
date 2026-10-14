@@ -19,19 +19,14 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F07 | Vehicle details panel | Done, accepted |
 | F08 | Status bar: search, counters, filters | Done, accepted |
 | F09 | Table view & CSV export (+ D-079 hardening) | Done, accepted |
-| **F10** | **Share live location** | **Spec signed off. Implementation NOT started** |
+| **F10** | **Share live location** | **Implemented + tested on `integration/f10`. Awaiting UAT** |
 
 Last `main` baseline: `pnpm check` 619/619, build clean, e2e 48/48, clock 3/3. Last decision: **D-085**.
 
-### Pending work: F10 only
-Read `docs/features/f10-share-live-location/intent.md` and `spec.md`; the spec is the source of truth.
-- `src/features/share/` is empty (only `.gitkeep`). `/share/$token` already exists in `src/app/router.tsx` as a placeholder route.
-- No mock changes: the server side (share-links REST, public endpoints, `/ws/live?share=`) was built in F01.
-- Delivery plan (spec header and §5):
-  - **F10a** in-app create + manage: branch `feature/f10a-share-manage`, ports 5273/4101, decisions D-086…D-088.
-  - **F10b** public page: branch `feature/f10b-share-public`, ports 5373/4200, decisions D-089…D-091.
-  - Both run in parallel from `main`, with no contract commit, then merge on `integration/f10`. There the orchestrator resolves conflicts (expected in `router.tsx` and the docs), writes F10-T9 (the cross-feature e2e), runs the full verification plus perf, and asks the user for UAT.
-- Earlier attempts made the worktrees `../fms-ui-f10a` and `../fms-ui-f10b` with zero commits. Nothing in them is worth keeping; recreate them fresh.
+### Pending work: F10 UAT only
+- All of F10 is on branch `integration/f10` (F10a create/manage + F10b public page + F10-T9). Results: `docs/features/f10-share-live-location/test-report.md`. Decisions D-086…D-091 are **Proposed**.
+- When the user says "continue": mark D-086…D-091 Accepted, merge `integration/f10` into `main` with `--no-ff`, delete the branch, mark F10 accepted in the catalog and here.
+- Spec deviations awaiting confirmation: `vehicleId` added to the public share response (contract + mock); `lafparsed` never subscribed; the `main.tsx` entry split; the first-marker budget measured warm.
 
 ## SDLC process (follow strictly)
 - Each feature folder `docs/features/<id>-<name>/` holds `intent.md` → `spec.md` (each signed off by the user) → `conversation-log.md` → `test-report.md` (+ `screenshots/`).
@@ -51,10 +46,9 @@ Read `docs/features/f10-share-live-location/intent.md` and `spec.md`; the spec i
 
 ## Working style (user preferences)
 - Speed matters: about 25 min per feature felt too slow. While iterating, run only targeted tests (`pnpm vitest run <file>`, `pnpm playwright test <spec>`). Run the full `pnpm check` + `pnpm build` + e2e **once** at the end. Run perf only when the change can affect budgets.
-- Split independent work into parallel agents, each in its own worktree with its own `VITE_PORT`/`MOCK_PORT`.
-- Avoid permission prompts:
-  - Prefer worktrees **inside** the project under `.worktrees/` (git-ignored) over sibling `../fms-ui-*` dirs.
-  - Use the Read/Grep/Edit tools and simple single Bash commands.
+- **No git worktrees** (user, 2026-10-14). Do all work, including parallel agents, in this checkout on one branch. Give agents disjoint files and their own `VITE_PORT`/`MOCK_PORT`. Agents don't commit; the orchestrator does.
+- Work autonomously. Ask the user only before critical steps (merge to `main`, deletes, pushes, new deps, spec/contract changes).
+- Use the Read/Grep/Edit tools and simple single Bash commands.
 - Under load, perf e2e can be flaky (load avg > 5). Re-run the single failing spec before calling it a regression, and compare against `main`.
 
 ## Commands

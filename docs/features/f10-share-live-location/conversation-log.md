@@ -21,3 +21,6 @@
 - Decisions D-089…D-091 (Proposed). Tests: vitest 16/16; e2e `share-public.spec.ts` 4/4 (with setup); clock `share-expiry.clock.spec.ts` 1/1. First marker: warm 303–417 ms, cold ~2.4–2.6 s (SwiftShader start). Report: `test-report-f10b.md`.
 
 **Status/Next:** F10b is implemented and its targeted tests pass. Next, the orchestrator runs the full check, build (chunk check), e2e and clock, writes T9, and asks the user for UAT.
+
+## Orchestrator — integration (2026-10-14)
+Both agents' work merged on `integration/f10` in the main checkout (worktrees removed at the user's request). Wrote F10-T9 `e2e/share-flow.spec.ts`. Full runs: check 679/679, build clean, chromium 55/55, clock 4/4, `/share/*` chunk check pass, perf no regression vs `main` (both miss F04/F08 budgets equally at load avg 8–10). Report: `test-report.md`. Awaiting UAT.
