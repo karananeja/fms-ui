@@ -370,3 +370,7 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Assistant:** Stopped short of the full e2e/perf. One `pnpm check` (781/783; the 2 failures are a time-dependent F11 replacement-engine test, no mock files changed) + build. Proposed D-095…D-098.
 
 **Status:** F12 + F15 (+ DS2) awaiting UAT and approval of D-095…D-098, D-108. Next: F13 ∥ F14.
+
+**User:** "continue" (UAT acceptance of F12, F15, DS2 + approval of D-095…D-098, D-108).
+
+**Assistant:** Accepted the decisions, marked F12/F15/DS2 accepted, merged `feature/f12-f15` into `main` (--no-ff), deleted the branch. Starting F13 ∥ F14.

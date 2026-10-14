@@ -21,16 +21,16 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F09 | Table view & CSV export (+ D-079 hardening) | Done, accepted |
 | F10 | Share live location | Done, accepted |
 | F11 | Driver data & mock contract | Done, accepted |
-| F12, F15 | Drivers & assignment, in-app notifications | Done on `feature/f12-f15`, awaiting UAT (D-095…D-098 proposed) |
+| F12, F15 | Drivers & assignment, in-app notifications (+ DS2 auth backdrop) | Done, accepted |
 | F13, F14, F16, F17 | Driver page, request desk, dashboard, assistant | Intents + specs signed off. Not started |
 
-Last `main` baseline: `pnpm check` 716/716, build clean, e2e 54/55 (F09-T8 tray flake, pre-existing, also fails on the pre-F11 `main`), clock 4/4. Last decision: **D-094**.
+Last `main` baseline: `pnpm check` 716/716, build clean, e2e 54/55 (F09-T8 tray flake, pre-existing, also fails on the pre-F11 `main`), clock 4/4. Last decision: **D-108** (F12/F15 used D-095…D-098).
 
 ### Pending work: Part 2 (`requirement-part-2.md`), F11–F17
 - All intents and specs are signed off (2026-10-14); see `docs/02-feature-catalog.md` and `docs/features/f11-…`–`f17-…/spec.md`.
 - Known flake to fix: F09-T8 (tray updates after a pan) is time-of-day dependent.
 - Seed driver: `driver@fms.local` / `Drive@1234` (F11).
-- Order: F11 (done) → (F12 ∥ F15) → (F13 ∥ F14) → F16 → F17 (F17a server ∥ F17b client). Stop for UAT after each step.
+- Order: F11, F12, F15 (done) → (F13 ∥ F14) → F16 → F17 (F17a server ∥ F17b client). Stop for UAT after each step.
 - Decision IDs: F11 D-092…D-094, F12 D-095…D-096, F15 D-097…D-098, F13 D-099…D-100, F14 D-101…D-102, F16 D-103…D-104, F17 D-105…D-107.
 - Approved dependencies (still need their decision rows): `@anthropic-ai/sdk` and `pdf-lib` (server only, F17). No chart library (F16 uses in-house SVG).
 

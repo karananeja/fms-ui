@@ -18,16 +18,16 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 | F05 | Vehicle status derivation | F04 | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
 | F06 | Live map (markers, clusters, zoom-to-fit, city jump, quick locate) | F04, F05 | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
 | DS1 | Design refresh ("Dark ops console"; restyles F00 shell + F06 map) | F06 | Signed off | Signed off | Done | Passed | Accepted 2026-10-13 |
-| DS2 | Auth screens "live ops" backdrop (animated vehicles, radar sweep, entrance) | F02, DS1 | Direction chosen by user | — (small design item) | Done | Passed (targeted) | — |
+| DS2 | Auth screens "live ops" backdrop (animated vehicles, radar sweep, entrance) | F02, DS1 | Direction chosen by user | — (small design item) | Done | Passed (targeted) | Accepted 2026-10-14 |
 | F07 | Vehicle details panel & parameters | DS1 tokens | Signed off (amended) | Rev 3 signed off | Done | Passed | Accepted 2026-10-13 |
 | F08 | Status bar: search, status counters, filters | F05, F06 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
 | F09 | Table view (full / viewport) & CSV export | F08 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
 | F10 | Share live location (create, manage, public page) | F03, F07 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
 | F11 | Driver data & mock contract (drivers, assignments, requests, notifications, history) | F01, F03 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
-| F12 | Drivers & assignment (admin page, assign/unassign, driver on card) | F11 | Signed off | Signed off | Done | Passed | Awaiting UAT |
+| F12 | Drivers & assignment (admin page, assign/unassign, driver on card) | F11 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
 | F13 | Driver web page (breakdown, replacement, RSA requests) | F11, F02 | Signed off | Signed off | — | — | — |
 | F14 | Operator request desk & no-GPS insight (incl. replacement suggest/auto-assign) | F11, F13 | Signed off | Signed off | — | — | — |
-| F15 | In-app notifications (bell, centre, toasts, 24 h no-GPS alert) | F11 | Signed off | Signed off | Done | Passed | Awaiting UAT |
+| F15 | In-app notifications (bell, centre, toasts, 24 h no-GPS alert) | F11 | Signed off | Signed off | Done | Passed | Accepted 2026-10-14 |
 | F16 | Performance dashboard (vehicle & driver KPIs, charts) | F11 | Signed off | Signed off | — | — | — |
 | F17 | Fleet assistant chatbot (Claude, read-only tools, CSV/PDF reports) | F11, F16 | Signed off | Signed off | — | — | — |
 

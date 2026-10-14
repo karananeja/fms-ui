@@ -1,6 +1,6 @@
 # F12 — Test report
 
-Branch `feature/f12-f15` in the main checkout (with F15 and DS2). **Awaiting UAT.**
+Branch `feature/f12-f15` in the main checkout (with F15 and DS2). **UAT accepted 2026-10-14**; merged into `main`.
 
 ## How it was delivered
 The F12 agent built the API client, assign dialog, vehicle-card section and worker driver index, then was stopped by the user. The orchestrator finished it in session 8: drivers page, driver form, assignment history, route/nav/overview card, mounting the card section, moving assignment events onto the shared F15 socket, and the tests. On the user's request ("relax the testing"), only targeted e2e runs were done, plus one `pnpm check` and `pnpm build`.

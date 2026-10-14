@@ -1,6 +1,6 @@
 # F15 — Test report
 
-Branch `feature/f12-f15` (with F12 and DS2). **Awaiting UAT.**
+Branch `feature/f12-f15` (with F12 and DS2). **UAT accepted 2026-10-14**; merged into `main`.
 
 ## How it was delivered
 The F15 agent built the store, shared events socket, bell, lazy panel, items, links, toast policy and unit/component tests, then was stopped by the user. The orchestrator added the e2e specs and screenshots in session 8. Testing kept light at the user's request.
