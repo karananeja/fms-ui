@@ -13,27 +13,35 @@ export function RankingTable({
   ranking,
   onOpen,
   tall,
+  compact,
 }: {
   tab: Tab;
   ranking: VehicleRanking | DriverRanking;
-  onOpen: (e: Entity) => void;
+  /** Omitted: rows are not clickable. */
+  onOpen?: (e: Entity) => void;
   tall?: boolean;
+  /**
+   * F20: rank, name and the ranked metric only (the column whose `id` matches); the table fills
+   * its container.
+   */
+  compact?: { metricCol: Col<unknown> };
 }) {
+  const all = (tab === 'vehicles' ? VEHICLE_COLS : DRIVER_COLS) as Col<unknown>[];
+  const cols = compact ? [all[0]!, { ...compact.metricCol, wide: false }] : all;
   const rows =
     tab === 'vehicles'
       ? (ranking as VehicleRanking).items.map((r) => ({
           key: r.vehicleId,
-          cells: VEHICLE_COLS.map((c) => c.cell(r)),
+          cells: cols.map((c) => c.cell(r)),
           entity: { kind: 'vehicle', id: r.vehicleId, label: r.regno } as Entity,
         }))
       : (ranking as DriverRanking).items.map((r) => ({
           key: r.driverId,
-          cells: DRIVER_COLS.map((c) => c.cell(r)),
+          cells: cols.map((c) => c.cell(r)),
           entity: { kind: 'driver', id: r.driverId, label: r.name } as Entity,
         }));
-  const cols = (tab === 'vehicles' ? VEHICLE_COLS : DRIVER_COLS) as Col<unknown>[];
   return (
-    <div className={cn('overflow-auto', tall && 'max-h-[560px]')}>
+    <div className={cn('overflow-auto', tall && 'max-h-[560px]', compact && 'h-full')}>
       <table className="w-full text-sm" aria-label="Ranking" data-testid="ranking">
         <thead className="sticky top-0 bg-surface-solid">
           <tr className="h-9 border-b border-glass-border">
@@ -59,16 +67,24 @@ export function RankingTable({
           {rows.map((r, k) => (
             <tr
               key={r.key}
-              tabIndex={0}
+              tabIndex={onOpen ? 0 : undefined}
               data-testid="ranking-row"
-              onClick={() => onOpen(r.entity)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onOpen(r.entity);
-                }
-              }}
-              className="h-10 cursor-pointer border-b border-glass-border/50 outline-none last:border-b-0 hover:bg-tile focus-visible:bg-tile focus-visible:shadow-[inset_2px_0_0_var(--accent)]"
+              onClick={onOpen && (() => onOpen(r.entity))}
+              onKeyDown={
+                onOpen &&
+                ((e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onOpen(r.entity);
+                  }
+                })
+              }
+              className={cn(
+                'border-b border-glass-border/50 outline-none last:border-b-0',
+                compact ? 'h-8' : 'h-10',
+                onOpen &&
+                  'cursor-pointer hover:bg-tile focus-visible:bg-tile focus-visible:shadow-[inset_2px_0_0_var(--accent)]',
+              )}
             >
               <td className="px-2 text-xs text-text-faint tabular-nums">{k + 1}</td>
               {r.cells.map((v, ci) => (

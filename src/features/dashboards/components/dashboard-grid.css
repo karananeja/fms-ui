@@ -1,0 +1,58 @@
+/* D-127: react-grid-layout chrome in DS3 tokens (no react-resizable stylesheet, no raw colours). */
+.dashboard-grid .react-grid-placeholder {
+  background: var(--accent);
+  opacity: 0.18;
+  border-radius: var(--radius-tile);
+}
+
+.dashboard-grid .react-resizable-handle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  z-index: 2;
+}
+
+.dashboard-grid .react-resizable-handle-se {
+  right: 2px;
+  bottom: 2px;
+  cursor: se-resize;
+}
+
+.dashboard-grid .react-resizable-handle-se::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--text-faint);
+  border-bottom: 2px solid var(--text-faint);
+  border-bottom-right-radius: 2px;
+}
+
+.dashboard-grid .react-grid-item:hover .react-resizable-handle-se::after {
+  border-color: var(--accent);
+}
+
+/* Charts fill the widget: the SVG scales into the space left under the caption. */
+.widget-chart figure {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+}
+
+.widget-chart figure > div {
+  min-height: 0;
+  flex: 1;
+}
+
+.widget-chart figure svg {
+  height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-grid .react-grid-item,
+  .dashboard-grid .react-grid-placeholder {
+    transition: none !important;
+  }
+}
