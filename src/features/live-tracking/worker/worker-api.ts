@@ -8,6 +8,14 @@ import type { CsvRequest, CsvResult } from './csv-exporter.ts';
 import type { SessionHistory } from './selected-history.ts';
 import type { TableQuery, TableResult } from './table-query.ts';
 import type { TrayCard } from './tray-query.ts';
+import type {
+  LiveListFilter,
+  LiveWidgetBatch,
+  LiveWidgetQuery,
+  LiveWidgetResult,
+} from './widget-query.ts';
+
+export type { LiveListFilter, LiveWidgetBatch, LiveWidgetQuery, LiveWidgetResult };
 
 export type { CsvRequest, CsvResult, TableQuery, TableResult, TableRow, TableSort, TrayCard };
 
@@ -188,4 +196,10 @@ export interface LiveTrackingWorkerApi {
   applyAssignment(a: Assignment): Promise<void>;
   /** Replaces the driver index with a compact vehicle → driver list (bulk source, if any). */
   loadDriverIndex(rows: DriverIndexRow[]): void;
+  // ---- F20 ----
+  /**
+   * D-129: read-only dashboard widget queries (≤ 24). Never touches the global filter, viewport,
+   * selection, table order or tray, and never pushes. `results` is null when unchanged.
+   */
+  queryWidgets(queries: LiveWidgetQuery[], sinceVersion?: number): LiveWidgetBatch;
 }

@@ -5,7 +5,12 @@ import { PDFDocument } from 'pdf-lib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { requestPrefix, toApiMessages } from '../assistant/assistant-runner.ts';
-import { buildTools, toolDefinitions, TOOL_NAMES, type ToolHost } from '../assistant/assistant-tools.ts';
+import {
+  buildTools,
+  toolDefinitions,
+  TOOL_NAMES,
+  type ToolHost,
+} from '../assistant/assistant-tools.ts';
 import { ReportStore } from '../assistant/reports.ts';
 import { SYSTEM_PROMPT } from '../assistant/system-prompt.ts';
 import { SEED_USERS, startServer } from '../testing/harness.ts';
@@ -29,7 +34,9 @@ const userOf = (k: 'ops' | 'superadmin' | 'viewer' | 'driver') =>
 const vehicleFor = (k: 'ops', inside: boolean) => {
   const { sim, tree } = server.ctx;
   const fleets = userOf(k).fleetIds;
-  const i = [...Array(sim.count).keys()].find((n) => tree.inScope(sim.fleetId(n), fleets) === inside)!;
+  const i = [...Array(sim.count).keys()].find(
+    (n) => tree.inScope(sim.fleetId(n), fleets) === inside,
+  )!;
   return { regno: sim.regno(i), vehicleId: sim.vehicleId(i) };
 };
 
@@ -40,7 +47,11 @@ function host(k: 'ops' | 'superadmin' | 'viewer' | 'driver', events: ChatEvent[]
     user,
     permissions: server.ctx.accounts.permissions(user),
     api: async (path) => {
-      const r = await server.app.inject({ method: 'GET', url: path, headers: { cookie: cookies[k] } });
+      const r = await server.app.inject({
+        method: 'GET',
+        url: path,
+        headers: { cookie: cookies[k] },
+      });
       return { status: r.statusCode, body: r.body ? (JSON.parse(r.body) as unknown) : null };
     },
     reports: new ReportStore(() => server.ctx.clock.now()),
@@ -53,14 +64,22 @@ function host(k: 'ops' | 'superadmin' | 'viewer' | 'driver', events: ChatEvent[]
 async function callTool(h: ToolHost, name: string, input: unknown) {
   const tool = buildTools(h).find((t) => t.name === name)!;
   try {
-    return { ok: true, json: JSON.parse((await tool.run(tool.parse(input))) as string) as Record<string, unknown> };
+    return {
+      ok: true,
+      json: JSON.parse((await tool.run(tool.parse(input))) as string) as Record<string, unknown>,
+    };
   } catch (err) {
     return { ok: false, error: String((err as { content?: unknown }).content ?? err) };
   }
 }
 
 /** POSTs a question and returns every SSE event (validated against the contract). */
-async function chat(cookie: string, question: string, signal?: AbortSignal, onEvent?: (e: ChatEvent) => void) {
+async function chat(
+  cookie: string,
+  question: string,
+  signal?: AbortSignal,
+  onEvent?: (e: ChatEvent) => void,
+) {
   const res = await fetch(`${server.base}/api/chat`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', cookie },
@@ -95,7 +114,11 @@ async function chat(cookie: string, question: string, signal?: AbortSignal, onEv
 }
 
 const script = (body: unknown) =>
-  server.api('POST', '/api/dev/assistant/script', { body, schema: z.unknown(), cookie: cookies.ops });
+  server.api('POST', '/api/dev/assistant/script', {
+    body,
+    schema: z.unknown(),
+    cookie: cookies.ops,
+  });
 const stats = async () =>
   (await (await fetch(`${server.base}/api/dev/assistant/stats`)).json()) as {
     activeRuns: number;
@@ -109,14 +132,23 @@ describe('F17-T1 tools: schemas, scope and permissions', () => {
       strict: boolean;
       input_schema: { type: string; additionalProperties?: boolean };
     }[];
+    // F19 added the seven dashboard tools to the one sorted list.
     expect(defs.map((d) => d.name)).toEqual([
+      'add_widget',
+      'arrange_widgets',
+      'create_dashboard',
       'create_report',
       'find_drivers',
       'find_vehicles',
       'fleet_summary',
+      'get_dashboard',
       'get_driver',
       'get_vehicle',
       'list_requests',
+      'preview_widget',
+      'remove_widget',
+      'rename_dashboard',
+      'update_widget',
       'vehicle_history',
     ]);
     for (const d of defs) {
@@ -129,16 +161,24 @@ describe('F17-T1 tools: schemas, scope and permissions', () => {
   });
 
   it('an Operator in North gets their vehicle, but a vehicle outside North is "not found"', async () => {
-    const mine = await callTool(host('ops'), 'get_vehicle', { regno: vehicleFor('ops', true).regno });
+    const mine = await callTool(host('ops'), 'get_vehicle', {
+      regno: vehicleFor('ops', true).regno,
+    });
     expect(mine.ok).toBe(true);
     expect(mine.json!.regno).toBe(vehicleFor('ops', true).regno);
-    const other = await callTool(host('ops'), 'get_vehicle', { regno: vehicleFor('ops', false).regno });
+    const other = await callTool(host('ops'), 'get_vehicle', {
+      regno: vehicleFor('ops', false).regno,
+    });
     expect(other).toMatchObject({ ok: false });
     expect(other.error).toMatch(/not found/i);
     // Unknown regnos read the same as out-of-scope ones.
     const unknown = await callTool(host('ops'), 'get_vehicle', { regno: 'ZZ99ZZ9999' });
-    expect(unknown.error!.replace('ZZ99ZZ9999', 'X')).toBe(other.error!.replace(vehicleFor('ops', false).regno, 'X'));
-    const history = await callTool(host('ops'), 'vehicle_history', { regno: vehicleFor('ops', false).regno });
+    expect(unknown.error!.replace('ZZ99ZZ9999', 'X')).toBe(
+      other.error!.replace(vehicleFor('ops', false).regno, 'X'),
+    );
+    const history = await callTool(host('ops'), 'vehicle_history', {
+      regno: vehicleFor('ops', false).regno,
+    });
     expect(history.error).toMatch(/not found/i);
   });
 
@@ -153,16 +193,23 @@ describe('F17-T1 tools: schemas, scope and permissions', () => {
     expect(items.length).toBe(50);
     expect(items.every((v) => north.has(v.fleet))).toBe(true);
     const drivers = await callTool(host('ops'), 'find_drivers', {});
-    expect((drivers.json!.items as { fleet: string }[]).every((d) => north.has(d.fleet))).toBe(true);
-    expect((await callTool(host('ops'), 'fleet_summary', { fleet: 'South' })).error).toMatch(/not found/i);
+    expect((drivers.json!.items as { fleet: string }[]).every((d) => north.has(d.fleet))).toBe(
+      true,
+    );
+    expect((await callTool(host('ops'), 'fleet_summary', { fleet: 'South' })).error).toMatch(
+      /not found/i,
+    );
   });
 
   it('permission-gated tools say "not permitted"', async () => {
     expect((await callTool(host('viewer'), 'fleet_summary', {})).error).toMatch(/not permitted/i);
     expect((await callTool(host('viewer'), 'list_requests', {})).error).toMatch(/not permitted/i);
-    expect((await callTool(host('driver'), 'get_vehicle', { regno: 'X' })).error).toMatch(/not permitted/i);
+    expect((await callTool(host('driver'), 'get_vehicle', { regno: 'X' })).error).toMatch(
+      /not permitted/i,
+    );
     expect(
-      (await callTool(host('viewer'), 'create_report', { kind: 'utilisation', format: 'csv' })).error,
+      (await callTool(host('viewer'), 'create_report', { kind: 'utilisation', format: 'csv' }))
+        .error,
     ).toMatch(/not permitted/i);
     const ok = await callTool(host('ops'), 'list_requests', {});
     expect(ok.ok).toBe(true);
@@ -172,7 +219,11 @@ describe('F17-T1 tools: schemas, scope and permissions', () => {
     const events: ChatEvent[] = [];
     const { regno } = vehicleFor('ops', true);
     await callTool(host('ops', events), 'get_vehicle', { regno });
-    expect(events[0]).toMatchObject({ type: 'tool_start', name: 'get_vehicle', label: `Looking up ${regno}…` });
+    expect(events[0]).toMatchObject({
+      type: 'tool_start',
+      name: 'get_vehicle',
+      label: `Looking up ${regno}…`,
+    });
     expect(events[1]).toMatchObject({ type: 'tool_end', ok: true });
   });
 });
@@ -181,9 +232,12 @@ describe('F17-T3 /api/chat against the fake model', () => {
   it('guards: 401 without a session, 403 without chat.use, 422 for a bad body', async () => {
     const q = { messages: [{ role: 'user', content: 'hi' }] };
     expect((await server.api('POST', '/api/chat', { body: q })).status).toBe(401);
-    expect((await server.api('POST', '/api/chat', { body: q, cookie: cookies.viewer })).status).toBe(403);
     expect(
-      (await server.api('POST', '/api/chat', { body: { messages: [] }, cookie: cookies.ops })).status,
+      (await server.api('POST', '/api/chat', { body: q, cookie: cookies.viewer })).status,
+    ).toBe(403);
+    expect(
+      (await server.api('POST', '/api/chat', { body: { messages: [] }, cookie: cookies.ops }))
+        .status,
     ).toBe(422);
   });
 
@@ -200,7 +254,9 @@ describe('F17-T3 /api/chat against the fake model', () => {
     const text = events.flatMap((e) => (e.type === 'text' ? [e.delta] : [])).join('');
     expect(text).toContain(regno);
     const entities = events.find((e) => e.type === 'entities');
-    expect(entities).toMatchObject({ items: expect.arrayContaining([{ kind: 'vehicle', id: vehicleId, label: regno }]) });
+    expect(entities).toMatchObject({
+      items: expect.arrayContaining([{ kind: 'vehicle', id: vehicleId, label: regno }]),
+    });
     const done = events.at(-1) as Extract<ChatEvent, { type: 'done' }>;
     expect(done.stopReason).toBe('end_turn');
     expect(done.usage!.cacheReadInputTokens).toBeGreaterThan(0);
@@ -210,7 +266,10 @@ describe('F17-T3 /api/chat against the fake model', () => {
   it('an out-of-scope regno never leaks: the answer says it was not found', async () => {
     const { regno } = vehicleFor('ops', false);
     const events = await chat(cookies.ops, `Where is ${regno}?`);
-    expect(events.find((e) => e.type === 'tool_end')).toMatchObject({ ok: false, summary: 'Not found' });
+    expect(events.find((e) => e.type === 'tool_end')).toMatchObject({
+      ok: false,
+      summary: 'Not found',
+    });
     expect(events.some((e) => e.type === 'entities')).toBe(false);
   });
 
@@ -249,7 +308,9 @@ describe('F17-T3 /api/chat against the fake model', () => {
     const lines = (await res.text()).trimEnd().split('\r\n');
     expect(lines[0]).toMatch(/^Regno,Fleet,Status,Last GPS/);
     expect(lines.length - 1).toBe(csv.rows);
-    expect((await fetch(server.base + csv.url, { headers: { cookie: cookies.superadmin } })).status).toBe(404);
+    expect(
+      (await fetch(server.base + csv.url, { headers: { cookie: cookies.superadmin } })).status,
+    ).toBe(404);
     expect((await fetch(server.base + csv.url)).status).toBe(401);
 
     const pdfEvents = await chat(cookies.ops, 'Export no-GPS vehicles as PDF');
@@ -270,9 +331,15 @@ describe('F17-T3 /api/chat against the fake model', () => {
 
   it('429 from the model → error "busy"; a 400 → "failed"', async () => {
     await script({ name: 'busy' });
-    expect((await chat(cookies.ops, 'anything')).at(-1)).toMatchObject({ type: 'error', code: 'busy' });
+    expect((await chat(cookies.ops, 'anything')).at(-1)).toMatchObject({
+      type: 'error',
+      code: 'busy',
+    });
     await script({ name: 'failed' });
-    expect((await chat(cookies.ops, 'anything')).at(-1)).toMatchObject({ type: 'error', code: 'failed' });
+    expect((await chat(cookies.ops, 'anything')).at(-1)).toMatchObject({
+      type: 'error',
+      code: 'failed',
+    });
   });
 
   it('caps the tool loop at 8 iterations', async () => {
@@ -285,7 +352,10 @@ describe('F17-T3 /api/chat against the fake model', () => {
   it('explicit scripts: tool step then {{result}} text', async () => {
     const { regno } = vehicleFor('ops', true);
     await script({
-      steps: [{ tools: [{ name: 'get_vehicle', input: { regno } }] }, { text: 'Result: {{result}}' }],
+      steps: [
+        { tools: [{ name: 'get_vehicle', input: { regno } }] },
+        { text: 'Result: {{result}}' },
+      ],
     });
     const text = (await chat(cookies.ops, 'custom'))
       .flatMap((e) => (e.type === 'text' ? [e.delta] : []))
@@ -338,7 +408,10 @@ describe('F17-T4 prompt caching hygiene', () => {
   });
 
   it('no timestamps, dates, ids or names in the cached prefix', () => {
-    const prefix = JSON.stringify({ tools: toolDefinitions(buildTools(host('ops'))), system: SYSTEM_PROMPT });
+    const prefix = JSON.stringify({
+      tools: toolDefinitions(buildTools(host('ops'))),
+      system: SYSTEM_PROMPT,
+    });
     expect(prefix).not.toMatch(/\d{4}-\d{2}-\d{2}/);
     expect(prefix).not.toMatch(/\b\d{10,13}\b/);
     expect(prefix).not.toMatch(/Ops User|Super Admin|u-ops|North/);

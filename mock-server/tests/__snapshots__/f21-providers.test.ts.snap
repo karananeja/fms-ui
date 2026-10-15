@@ -1,0 +1,2840 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`F21-T2 zod tools → OpenAI tools > all 16 tools (D-135 preview_widget) convert (snapshot); strict only where the schema qualifies 1`] = `
+[
+  {
+    "function": {
+      "description": "Add one widget to the current dashboard (dashboard chat only; at most 24 widgets). It is placed at the bottom with its default size. Call it several times in parallel to add several widgets.",
+      "name": "add_widget",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "driverId": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                  "metric": {
+                    "enum": [
+                      "distanceKm",
+                      "driveMs",
+                      "idleMs",
+                      "uptimeMs",
+                      "downtimeMs",
+                      "noGpsMs",
+                      "energyKwh",
+                      "chargeSessions",
+                      "breakdowns",
+                      "harshBrake",
+                      "harshAccel",
+                      "overspeed",
+                      "uptimePct",
+                      "eventsPer100Km",
+                      "score",
+                      "vehicleCount",
+                    ],
+                    "type": "string",
+                  },
+                  "range": {
+                    "$ref": "#/$defs/__schema1",
+                  },
+                  "source": {
+                    "const": "analytics",
+                    "type": "string",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "kpi",
+                    "type": "string",
+                  },
+                  "vehicleId": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "source",
+                  "metric",
+                  "range",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                  "source": {
+                    "const": "live",
+                    "type": "string",
+                  },
+                  "status": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/__schema3",
+                      },
+                      {
+                        "const": "total",
+                        "type": "string",
+                      },
+                    ],
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "kpi",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "source",
+                  "status",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "__schema1": {
+            "enum": [
+              "today",
+              "yesterday",
+              "7d",
+              "30d",
+              "90d",
+            ],
+            "type": "string",
+          },
+          "__schema10": {
+            "$ref": "#/$defs/__schema2",
+          },
+          "__schema11": {
+            "additionalProperties": false,
+            "properties": {
+              "columns": {
+                "items": {
+                  "$ref": "#/$defs/__schema14",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "filter": {
+                "additionalProperties": false,
+                "properties": {
+                  "assetTypes": {
+                    "$ref": "#/$defs/__schema12",
+                  },
+                  "fleetIds": {
+                    "items": {
+                      "$ref": "#/$defs/__schema2",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                  "fuelTypes": {
+                    "$ref": "#/$defs/__schema12",
+                  },
+                  "makes": {
+                    "$ref": "#/$defs/__schema12",
+                  },
+                  "socMax": {
+                    "type": "number",
+                  },
+                  "socMin": {
+                    "type": "number",
+                  },
+                  "statuses": {
+                    "items": {
+                      "$ref": "#/$defs/__schema3",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                },
+                "type": "object",
+              },
+              "limit": {
+                "$ref": "#/$defs/__schema9",
+              },
+              "sort": {
+                "additionalProperties": false,
+                "properties": {
+                  "column": {
+                    "$ref": "#/$defs/__schema14",
+                  },
+                  "dir": {
+                    "enum": [
+                      "asc",
+                      "desc",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "column",
+                  "dir",
+                ],
+                "type": "object",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "vehicle-list",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "filter",
+              "columns",
+              "sort",
+              "limit",
+            ],
+            "type": "object",
+          },
+          "__schema12": {
+            "items": {
+              "$ref": "#/$defs/__schema13",
+            },
+            "minItems": 1,
+            "type": "array",
+          },
+          "__schema13": {
+            "type": "string",
+          },
+          "__schema14": {
+            "enum": [
+              "regno",
+              "fleet",
+              "status",
+              "speed",
+              "soc",
+              "dte",
+              "odometer",
+              "gpstime",
+              "location",
+            ],
+            "type": "string",
+          },
+          "__schema15": {
+            "additionalProperties": false,
+            "properties": {
+              "fleetId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "limit": {
+                "$ref": "#/$defs/__schema9",
+              },
+              "q": {
+                "type": "string",
+              },
+              "status": {
+                "enum": [
+                  "active",
+                  "off-duty",
+                  "disabled",
+                ],
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "driver-list",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "limit",
+            ],
+            "type": "object",
+          },
+          "__schema16": {
+            "additionalProperties": false,
+            "properties": {
+              "display": {
+                "enum": [
+                  "counts",
+                  "latest",
+                ],
+                "type": "string",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "groupBy": {
+                "enum": [
+                  "status",
+                  "type",
+                ],
+                "type": "string",
+              },
+              "limit": {
+                "$ref": "#/$defs/__schema9",
+              },
+              "openOnly": {
+                "type": "boolean",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "requests-summary",
+                "type": "string",
+              },
+              "types": {
+                "items": {
+                  "$ref": "#/$defs/__schema17",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "groupBy",
+              "openOnly",
+              "display",
+              "limit",
+            ],
+            "type": "object",
+          },
+          "__schema17": {
+            "enum": [
+              "breakdown",
+              "replacement",
+              "rsa",
+            ],
+            "type": "string",
+          },
+          "__schema18": {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "text",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "body",
+            ],
+            "type": "object",
+          },
+          "__schema2": {
+            "type": "string",
+          },
+          "__schema3": {
+            "enum": [
+              "running",
+              "stopped",
+              "immobilized",
+              "non-comm",
+              "charging",
+              "pullout",
+              "no-gps",
+              "gps-never",
+            ],
+            "type": "string",
+          },
+          "__schema4": {
+            "additionalProperties": false,
+            "properties": {
+              "chart": {
+                "enum": [
+                  "bar",
+                  "line",
+                  "area",
+                ],
+                "type": "string",
+              },
+              "driverId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "metrics": {
+                "items": {
+                  "$ref": "#/$defs/__schema5",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "range": {
+                "enum": [
+                  "7d",
+                  "30d",
+                  "90d",
+                ],
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "daily-chart",
+                "type": "string",
+              },
+              "vehicleId": {
+                "$ref": "#/$defs/__schema2",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "chart",
+              "metrics",
+              "range",
+            ],
+            "type": "object",
+          },
+          "__schema5": {
+            "enum": [
+              "distanceKm",
+              "driveMs",
+              "idleMs",
+              "uptimeMs",
+              "downtimeMs",
+              "noGpsMs",
+              "energyKwh",
+              "chargeSessions",
+              "breakdowns",
+              "harshBrake",
+              "harshAccel",
+              "overspeed",
+            ],
+            "type": "string",
+          },
+          "__schema6": {
+            "additionalProperties": false,
+            "properties": {
+              "display": {
+                "enum": [
+                  "bars",
+                  "donut",
+                ],
+                "type": "string",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "statuses": {
+                "items": {
+                  "$ref": "#/$defs/__schema3",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "status-breakdown",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "display",
+            ],
+            "type": "object",
+          },
+          "__schema7": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "entity": {
+                    "const": "vehicles",
+                    "type": "string",
+                  },
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema10",
+                  },
+                  "limit": {
+                    "$ref": "#/$defs/__schema9",
+                  },
+                  "metric": {
+                    "$ref": "#/$defs/__schema5",
+                  },
+                  "order": {
+                    "$ref": "#/$defs/__schema8",
+                  },
+                  "range": {
+                    "$ref": "#/$defs/__schema1",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "ranking",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "entity",
+                  "metric",
+                  "order",
+                  "limit",
+                  "range",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "entity": {
+                    "const": "drivers",
+                    "type": "string",
+                  },
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema10",
+                  },
+                  "limit": {
+                    "$ref": "#/$defs/__schema9",
+                  },
+                  "metric": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/__schema5",
+                      },
+                      {
+                        "const": "score",
+                        "type": "string",
+                      },
+                    ],
+                  },
+                  "order": {
+                    "$ref": "#/$defs/__schema8",
+                  },
+                  "range": {
+                    "$ref": "#/$defs/__schema1",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "ranking",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "entity",
+                  "metric",
+                  "order",
+                  "limit",
+                  "range",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "__schema8": {
+            "enum": [
+              "desc",
+              "asc",
+            ],
+            "type": "string",
+          },
+          "__schema9": {
+            "type": "integer",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "widget": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/__schema0",
+              },
+              {
+                "$ref": "#/$defs/__schema4",
+              },
+              {
+                "$ref": "#/$defs/__schema6",
+              },
+              {
+                "$ref": "#/$defs/__schema7",
+              },
+              {
+                "$ref": "#/$defs/__schema11",
+              },
+              {
+                "$ref": "#/$defs/__schema15",
+              },
+              {
+                "$ref": "#/$defs/__schema16",
+              },
+              {
+                "$ref": "#/$defs/__schema18",
+              },
+            ],
+            "description": "One catalogue widget (see "Dashboard widget catalogue" in the instructions). Fleet, vehicle and driver fields take a name/regno or an id.",
+          },
+        },
+        "required": [
+          "widget",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Reorder (and optionally resize) the widgets of the current dashboard. \`order\` lists widget ids in reading order (left to right, top to bottom); unlisted widgets follow in their current order. \`sizes\` sets width (1–12 columns) and height (1–24 rows); sizes are clamped to each type's minimum. Dashboard chat only.",
+      "name": "arrange_widgets",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "type": "string",
+          },
+          "__schema1": {
+            "additionalProperties": false,
+            "properties": {
+              "h": {
+                "type": "integer",
+              },
+              "w": {
+                "type": "integer",
+              },
+              "widgetId": {
+                "$ref": "#/$defs/__schema0",
+              },
+            },
+            "required": [
+              "widgetId",
+              "w",
+              "h",
+            ],
+            "type": "object",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "order": {
+            "items": {
+              "$ref": "#/$defs/__schema0",
+            },
+            "minItems": 1,
+            "type": "array",
+          },
+          "sizes": {
+            "items": {
+              "$ref": "#/$defs/__schema1",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "order",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Create a new dashboard owned by the user, with all its widgets in one call (at most 24). Returns its id and URL (/dashboards/<id>). In a dashboard's own chat this creates a separate dashboard.",
+      "name": "create_dashboard",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/__schema1",
+              },
+              {
+                "$ref": "#/$defs/__schema5",
+              },
+              {
+                "$ref": "#/$defs/__schema7",
+              },
+              {
+                "$ref": "#/$defs/__schema8",
+              },
+              {
+                "$ref": "#/$defs/__schema12",
+              },
+              {
+                "$ref": "#/$defs/__schema16",
+              },
+              {
+                "$ref": "#/$defs/__schema17",
+              },
+              {
+                "$ref": "#/$defs/__schema19",
+              },
+            ],
+            "description": "One catalogue widget (see "Dashboard widget catalogue" in the instructions). Fleet, vehicle and driver fields take a name/regno or an id.",
+          },
+          "__schema1": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "driverId": {
+                    "$ref": "#/$defs/__schema3",
+                  },
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema3",
+                  },
+                  "metric": {
+                    "enum": [
+                      "distanceKm",
+                      "driveMs",
+                      "idleMs",
+                      "uptimeMs",
+                      "downtimeMs",
+                      "noGpsMs",
+                      "energyKwh",
+                      "chargeSessions",
+                      "breakdowns",
+                      "harshBrake",
+                      "harshAccel",
+                      "overspeed",
+                      "uptimePct",
+                      "eventsPer100Km",
+                      "score",
+                      "vehicleCount",
+                    ],
+                    "type": "string",
+                  },
+                  "range": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                  "source": {
+                    "const": "analytics",
+                    "type": "string",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "kpi",
+                    "type": "string",
+                  },
+                  "vehicleId": {
+                    "$ref": "#/$defs/__schema3",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "source",
+                  "metric",
+                  "range",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema3",
+                  },
+                  "source": {
+                    "const": "live",
+                    "type": "string",
+                  },
+                  "status": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/__schema4",
+                      },
+                      {
+                        "const": "total",
+                        "type": "string",
+                      },
+                    ],
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "kpi",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "source",
+                  "status",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "__schema10": {
+            "type": "integer",
+          },
+          "__schema11": {
+            "$ref": "#/$defs/__schema3",
+          },
+          "__schema12": {
+            "additionalProperties": false,
+            "properties": {
+              "columns": {
+                "items": {
+                  "$ref": "#/$defs/__schema15",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "filter": {
+                "additionalProperties": false,
+                "properties": {
+                  "assetTypes": {
+                    "$ref": "#/$defs/__schema13",
+                  },
+                  "fleetIds": {
+                    "items": {
+                      "$ref": "#/$defs/__schema3",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                  "fuelTypes": {
+                    "$ref": "#/$defs/__schema13",
+                  },
+                  "makes": {
+                    "$ref": "#/$defs/__schema13",
+                  },
+                  "socMax": {
+                    "type": "number",
+                  },
+                  "socMin": {
+                    "type": "number",
+                  },
+                  "statuses": {
+                    "items": {
+                      "$ref": "#/$defs/__schema4",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                },
+                "type": "object",
+              },
+              "limit": {
+                "$ref": "#/$defs/__schema10",
+              },
+              "sort": {
+                "additionalProperties": false,
+                "properties": {
+                  "column": {
+                    "$ref": "#/$defs/__schema15",
+                  },
+                  "dir": {
+                    "enum": [
+                      "asc",
+                      "desc",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "column",
+                  "dir",
+                ],
+                "type": "object",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "vehicle-list",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "filter",
+              "columns",
+              "sort",
+              "limit",
+            ],
+            "type": "object",
+          },
+          "__schema13": {
+            "items": {
+              "$ref": "#/$defs/__schema14",
+            },
+            "minItems": 1,
+            "type": "array",
+          },
+          "__schema14": {
+            "type": "string",
+          },
+          "__schema15": {
+            "enum": [
+              "regno",
+              "fleet",
+              "status",
+              "speed",
+              "soc",
+              "dte",
+              "odometer",
+              "gpstime",
+              "location",
+            ],
+            "type": "string",
+          },
+          "__schema16": {
+            "additionalProperties": false,
+            "properties": {
+              "fleetId": {
+                "$ref": "#/$defs/__schema3",
+              },
+              "limit": {
+                "$ref": "#/$defs/__schema10",
+              },
+              "q": {
+                "type": "string",
+              },
+              "status": {
+                "enum": [
+                  "active",
+                  "off-duty",
+                  "disabled",
+                ],
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "driver-list",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "limit",
+            ],
+            "type": "object",
+          },
+          "__schema17": {
+            "additionalProperties": false,
+            "properties": {
+              "display": {
+                "enum": [
+                  "counts",
+                  "latest",
+                ],
+                "type": "string",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema3",
+              },
+              "groupBy": {
+                "enum": [
+                  "status",
+                  "type",
+                ],
+                "type": "string",
+              },
+              "limit": {
+                "$ref": "#/$defs/__schema10",
+              },
+              "openOnly": {
+                "type": "boolean",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "requests-summary",
+                "type": "string",
+              },
+              "types": {
+                "items": {
+                  "$ref": "#/$defs/__schema18",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "groupBy",
+              "openOnly",
+              "display",
+              "limit",
+            ],
+            "type": "object",
+          },
+          "__schema18": {
+            "enum": [
+              "breakdown",
+              "replacement",
+              "rsa",
+            ],
+            "type": "string",
+          },
+          "__schema19": {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "text",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "body",
+            ],
+            "type": "object",
+          },
+          "__schema2": {
+            "enum": [
+              "today",
+              "yesterday",
+              "7d",
+              "30d",
+              "90d",
+            ],
+            "type": "string",
+          },
+          "__schema3": {
+            "type": "string",
+          },
+          "__schema4": {
+            "enum": [
+              "running",
+              "stopped",
+              "immobilized",
+              "non-comm",
+              "charging",
+              "pullout",
+              "no-gps",
+              "gps-never",
+            ],
+            "type": "string",
+          },
+          "__schema5": {
+            "additionalProperties": false,
+            "properties": {
+              "chart": {
+                "enum": [
+                  "bar",
+                  "line",
+                  "area",
+                ],
+                "type": "string",
+              },
+              "driverId": {
+                "$ref": "#/$defs/__schema3",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema3",
+              },
+              "metrics": {
+                "items": {
+                  "$ref": "#/$defs/__schema6",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "range": {
+                "enum": [
+                  "7d",
+                  "30d",
+                  "90d",
+                ],
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "daily-chart",
+                "type": "string",
+              },
+              "vehicleId": {
+                "$ref": "#/$defs/__schema3",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "chart",
+              "metrics",
+              "range",
+            ],
+            "type": "object",
+          },
+          "__schema6": {
+            "enum": [
+              "distanceKm",
+              "driveMs",
+              "idleMs",
+              "uptimeMs",
+              "downtimeMs",
+              "noGpsMs",
+              "energyKwh",
+              "chargeSessions",
+              "breakdowns",
+              "harshBrake",
+              "harshAccel",
+              "overspeed",
+            ],
+            "type": "string",
+          },
+          "__schema7": {
+            "additionalProperties": false,
+            "properties": {
+              "display": {
+                "enum": [
+                  "bars",
+                  "donut",
+                ],
+                "type": "string",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema3",
+              },
+              "statuses": {
+                "items": {
+                  "$ref": "#/$defs/__schema4",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "status-breakdown",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "display",
+            ],
+            "type": "object",
+          },
+          "__schema8": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "entity": {
+                    "const": "vehicles",
+                    "type": "string",
+                  },
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema11",
+                  },
+                  "limit": {
+                    "$ref": "#/$defs/__schema10",
+                  },
+                  "metric": {
+                    "$ref": "#/$defs/__schema6",
+                  },
+                  "order": {
+                    "$ref": "#/$defs/__schema9",
+                  },
+                  "range": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "ranking",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "entity",
+                  "metric",
+                  "order",
+                  "limit",
+                  "range",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "entity": {
+                    "const": "drivers",
+                    "type": "string",
+                  },
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema11",
+                  },
+                  "limit": {
+                    "$ref": "#/$defs/__schema10",
+                  },
+                  "metric": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/__schema6",
+                      },
+                      {
+                        "const": "score",
+                        "type": "string",
+                      },
+                    ],
+                  },
+                  "order": {
+                    "$ref": "#/$defs/__schema9",
+                  },
+                  "range": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "ranking",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "entity",
+                  "metric",
+                  "order",
+                  "limit",
+                  "range",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "__schema9": {
+            "enum": [
+              "desc",
+              "asc",
+            ],
+            "type": "string",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string",
+          },
+          "title": {
+            "type": "string",
+          },
+          "widgets": {
+            "items": {
+              "$ref": "#/$defs/__schema0",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "title",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Generate a downloadable report (CSV or PDF) the user gets as a link. Kinds: vehicle-status (current status of every vehicle), utilisation (per-vehicle KPIs over the range), driver-performance (per-driver score and KPIs over the range), no-gps (vehicles without GPS now, with the likely cause), requests (driver requests created in the range). PDF is limited to 5000 rows. Default range: the last 7 days.",
+      "name": "create_report",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "fleet": {
+            "description": "Fleet name or id (includes its sub-fleets).",
+            "type": "string",
+          },
+          "format": {
+            "enum": [
+              "csv",
+              "pdf",
+            ],
+            "type": "string",
+          },
+          "from": {
+            "description": "Start date as an IST date, YYYY-MM-DD (inclusive).",
+            "type": "string",
+          },
+          "kind": {
+            "enum": [
+              "vehicle-status",
+              "utilisation",
+              "driver-performance",
+              "no-gps",
+              "requests",
+            ],
+            "type": "string",
+          },
+          "to": {
+            "description": "End date as an IST date, YYYY-MM-DD (inclusive).",
+            "type": "string",
+          },
+        },
+        "required": [
+          "kind",
+          "format",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Search the drivers the user can see by name or phone fragment, fleet and/or status. Returns up to 25 drivers with their current vehicle, plus the total match count.",
+      "name": "find_drivers",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "fleet": {
+            "description": "Fleet name or id (includes its sub-fleets).",
+            "type": "string",
+          },
+          "query": {
+            "description": "Fragment of the name or phone number.",
+            "type": "string",
+          },
+          "status": {
+            "enum": [
+              "active",
+              "off-duty",
+              "disabled",
+            ],
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Search the vehicles the user can see by regno/VIN/device id fragment, current status and/or fleet. Returns at most \`limit\` vehicles (default 20, max 50) with their status, fleet and last update, plus the total match count and counts by status.",
+      "name": "find_vehicles",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "fleet": {
+            "description": "Fleet name or id (includes its sub-fleets).",
+            "type": "string",
+          },
+          "limit": {
+            "description": "Max vehicles to list, 1–50 (default 20).",
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer",
+          },
+          "query": {
+            "description": "Fragment of a regno, VIN, vehicle id or device id.",
+            "type": "string",
+          },
+          "status": {
+            "description": "Current derived status.",
+            "enum": [
+              "running",
+              "stopped",
+              "immobilized",
+              "non-comm",
+              "charging",
+              "pullout",
+              "no-gps",
+              "gps-never",
+            ],
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "KPI totals for the user's fleets (or one fleet) over a date range: vehicles, distance, drive/idle/downtime hours, uptime %, no-GPS hours, energy, breakdowns, harsh events, events per 100 km and driver score, plus the current status counts. Default range: the last 7 days.",
+      "name": "fleet_summary",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "fleet": {
+            "description": "Fleet name or id (includes its sub-fleets).",
+            "type": "string",
+          },
+          "from": {
+            "description": "Start date as an IST date, YYYY-MM-DD (inclusive).",
+            "type": "string",
+          },
+          "to": {
+            "description": "End date as an IST date, YYYY-MM-DD (inclusive).",
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Read one of the user's own dashboards: title, description, version and every widget with its settings, in reading order. \`dashboard\` is an id or a title (exact or partial); in a dashboard's chat it defaults to that dashboard. Without it in the global chat, lists the user's dashboards.",
+      "name": "get_dashboard",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "dashboard": {
+            "description": "Dashboard id or title.",
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "One driver's details: fleet, status, current vehicle, open requests and KPIs over the last 30 days (distance, score, harsh events). Give the name (or a unique part of it) or the driver id.",
+      "name": "get_driver",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Driver id.",
+            "type": "string",
+          },
+          "name": {
+            "description": "Driver name, or a unique part of it.",
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "One vehicle's current state: status, location, speed, SOC, range, odometer, ignition, last GPS/CAN times, the assigned driver and, when it has no GPS, the likely cause. Give the regno (preferred) or the vehicleId.",
+      "name": "get_vehicle",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "regno": {
+            "description": "Registration number, e.g. MH12AB1234.",
+            "type": "string",
+          },
+          "vehicleId": {
+            "description": "Internal vehicle id.",
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Driver requests (breakdown, replacement, RSA) in the user's fleets, newest first, filtered by type, status, fleet and creation date. Returns counts by type and status and up to 25 requests. Without dates it covers all requests.",
+      "name": "list_requests",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "fleet": {
+            "description": "Fleet name or id (includes its sub-fleets).",
+            "type": "string",
+          },
+          "from": {
+            "description": "Created on or after as an IST date, YYYY-MM-DD (inclusive).",
+            "type": "string",
+          },
+          "status": {
+            "enum": [
+              "open",
+              "acknowledged",
+              "dispatched",
+              "waiting",
+              "suggested",
+              "approved",
+              "assigned",
+              "resolved",
+              "closed",
+              "rejected",
+            ],
+            "type": "string",
+          },
+          "to": {
+            "description": "Created on or before as an IST date, YYYY-MM-DD (inclusive).",
+            "type": "string",
+          },
+          "type": {
+            "enum": [
+              "breakdown",
+              "replacement",
+              "rsa",
+            ],
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Show ONE proposed widget as a live preview card in the chat, without changing any dashboard. The user then adds it (or drags it onto the grid), asks for changes, or discards it. Use this when the user asks for a single widget. \`dashboardId\` is the dashboard it is meant for: in a dashboard's chat that dashboard (it may be omitted); in the global chat optional.",
+      "name": "preview_widget",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "driverId": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                  "metric": {
+                    "enum": [
+                      "distanceKm",
+                      "driveMs",
+                      "idleMs",
+                      "uptimeMs",
+                      "downtimeMs",
+                      "noGpsMs",
+                      "energyKwh",
+                      "chargeSessions",
+                      "breakdowns",
+                      "harshBrake",
+                      "harshAccel",
+                      "overspeed",
+                      "uptimePct",
+                      "eventsPer100Km",
+                      "score",
+                      "vehicleCount",
+                    ],
+                    "type": "string",
+                  },
+                  "range": {
+                    "$ref": "#/$defs/__schema1",
+                  },
+                  "source": {
+                    "const": "analytics",
+                    "type": "string",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "kpi",
+                    "type": "string",
+                  },
+                  "vehicleId": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "source",
+                  "metric",
+                  "range",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                  "source": {
+                    "const": "live",
+                    "type": "string",
+                  },
+                  "status": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/__schema3",
+                      },
+                      {
+                        "const": "total",
+                        "type": "string",
+                      },
+                    ],
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "kpi",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "source",
+                  "status",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "__schema1": {
+            "enum": [
+              "today",
+              "yesterday",
+              "7d",
+              "30d",
+              "90d",
+            ],
+            "type": "string",
+          },
+          "__schema10": {
+            "$ref": "#/$defs/__schema2",
+          },
+          "__schema11": {
+            "additionalProperties": false,
+            "properties": {
+              "columns": {
+                "items": {
+                  "$ref": "#/$defs/__schema14",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "filter": {
+                "additionalProperties": false,
+                "properties": {
+                  "assetTypes": {
+                    "$ref": "#/$defs/__schema12",
+                  },
+                  "fleetIds": {
+                    "items": {
+                      "$ref": "#/$defs/__schema2",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                  "fuelTypes": {
+                    "$ref": "#/$defs/__schema12",
+                  },
+                  "makes": {
+                    "$ref": "#/$defs/__schema12",
+                  },
+                  "socMax": {
+                    "type": "number",
+                  },
+                  "socMin": {
+                    "type": "number",
+                  },
+                  "statuses": {
+                    "items": {
+                      "$ref": "#/$defs/__schema3",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                },
+                "type": "object",
+              },
+              "limit": {
+                "$ref": "#/$defs/__schema9",
+              },
+              "sort": {
+                "additionalProperties": false,
+                "properties": {
+                  "column": {
+                    "$ref": "#/$defs/__schema14",
+                  },
+                  "dir": {
+                    "enum": [
+                      "asc",
+                      "desc",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "column",
+                  "dir",
+                ],
+                "type": "object",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "vehicle-list",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "filter",
+              "columns",
+              "sort",
+              "limit",
+            ],
+            "type": "object",
+          },
+          "__schema12": {
+            "items": {
+              "$ref": "#/$defs/__schema13",
+            },
+            "minItems": 1,
+            "type": "array",
+          },
+          "__schema13": {
+            "type": "string",
+          },
+          "__schema14": {
+            "enum": [
+              "regno",
+              "fleet",
+              "status",
+              "speed",
+              "soc",
+              "dte",
+              "odometer",
+              "gpstime",
+              "location",
+            ],
+            "type": "string",
+          },
+          "__schema15": {
+            "additionalProperties": false,
+            "properties": {
+              "fleetId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "limit": {
+                "$ref": "#/$defs/__schema9",
+              },
+              "q": {
+                "type": "string",
+              },
+              "status": {
+                "enum": [
+                  "active",
+                  "off-duty",
+                  "disabled",
+                ],
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "driver-list",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "limit",
+            ],
+            "type": "object",
+          },
+          "__schema16": {
+            "additionalProperties": false,
+            "properties": {
+              "display": {
+                "enum": [
+                  "counts",
+                  "latest",
+                ],
+                "type": "string",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "groupBy": {
+                "enum": [
+                  "status",
+                  "type",
+                ],
+                "type": "string",
+              },
+              "limit": {
+                "$ref": "#/$defs/__schema9",
+              },
+              "openOnly": {
+                "type": "boolean",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "requests-summary",
+                "type": "string",
+              },
+              "types": {
+                "items": {
+                  "$ref": "#/$defs/__schema17",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "groupBy",
+              "openOnly",
+              "display",
+              "limit",
+            ],
+            "type": "object",
+          },
+          "__schema17": {
+            "enum": [
+              "breakdown",
+              "replacement",
+              "rsa",
+            ],
+            "type": "string",
+          },
+          "__schema18": {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "text",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "body",
+            ],
+            "type": "object",
+          },
+          "__schema2": {
+            "type": "string",
+          },
+          "__schema3": {
+            "enum": [
+              "running",
+              "stopped",
+              "immobilized",
+              "non-comm",
+              "charging",
+              "pullout",
+              "no-gps",
+              "gps-never",
+            ],
+            "type": "string",
+          },
+          "__schema4": {
+            "additionalProperties": false,
+            "properties": {
+              "chart": {
+                "enum": [
+                  "bar",
+                  "line",
+                  "area",
+                ],
+                "type": "string",
+              },
+              "driverId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "metrics": {
+                "items": {
+                  "$ref": "#/$defs/__schema5",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "range": {
+                "enum": [
+                  "7d",
+                  "30d",
+                  "90d",
+                ],
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "daily-chart",
+                "type": "string",
+              },
+              "vehicleId": {
+                "$ref": "#/$defs/__schema2",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "chart",
+              "metrics",
+              "range",
+            ],
+            "type": "object",
+          },
+          "__schema5": {
+            "enum": [
+              "distanceKm",
+              "driveMs",
+              "idleMs",
+              "uptimeMs",
+              "downtimeMs",
+              "noGpsMs",
+              "energyKwh",
+              "chargeSessions",
+              "breakdowns",
+              "harshBrake",
+              "harshAccel",
+              "overspeed",
+            ],
+            "type": "string",
+          },
+          "__schema6": {
+            "additionalProperties": false,
+            "properties": {
+              "display": {
+                "enum": [
+                  "bars",
+                  "donut",
+                ],
+                "type": "string",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "statuses": {
+                "items": {
+                  "$ref": "#/$defs/__schema3",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "status-breakdown",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "display",
+            ],
+            "type": "object",
+          },
+          "__schema7": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "entity": {
+                    "const": "vehicles",
+                    "type": "string",
+                  },
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema10",
+                  },
+                  "limit": {
+                    "$ref": "#/$defs/__schema9",
+                  },
+                  "metric": {
+                    "$ref": "#/$defs/__schema5",
+                  },
+                  "order": {
+                    "$ref": "#/$defs/__schema8",
+                  },
+                  "range": {
+                    "$ref": "#/$defs/__schema1",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "ranking",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "entity",
+                  "metric",
+                  "order",
+                  "limit",
+                  "range",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "entity": {
+                    "const": "drivers",
+                    "type": "string",
+                  },
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema10",
+                  },
+                  "limit": {
+                    "$ref": "#/$defs/__schema9",
+                  },
+                  "metric": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/__schema5",
+                      },
+                      {
+                        "const": "score",
+                        "type": "string",
+                      },
+                    ],
+                  },
+                  "order": {
+                    "$ref": "#/$defs/__schema8",
+                  },
+                  "range": {
+                    "$ref": "#/$defs/__schema1",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "ranking",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "entity",
+                  "metric",
+                  "order",
+                  "limit",
+                  "range",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "__schema8": {
+            "enum": [
+              "desc",
+              "asc",
+            ],
+            "type": "string",
+          },
+          "__schema9": {
+            "type": "integer",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "dashboardId": {
+            "description": "Id of one of your dashboards.",
+            "type": "string",
+          },
+          "widget": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/__schema0",
+              },
+              {
+                "$ref": "#/$defs/__schema4",
+              },
+              {
+                "$ref": "#/$defs/__schema6",
+              },
+              {
+                "$ref": "#/$defs/__schema7",
+              },
+              {
+                "$ref": "#/$defs/__schema11",
+              },
+              {
+                "$ref": "#/$defs/__schema15",
+              },
+              {
+                "$ref": "#/$defs/__schema16",
+              },
+              {
+                "$ref": "#/$defs/__schema18",
+              },
+            ],
+            "description": "One catalogue widget (see "Dashboard widget catalogue" in the instructions). Fleet, vehicle and driver fields take a name/regno or an id.",
+          },
+        },
+        "required": [
+          "widget",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Remove one or more widgets (by id) from the current dashboard. Dashboard chat only.",
+      "name": "remove_widget",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "type": "string",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "widgetIds": {
+            "items": {
+              "$ref": "#/$defs/__schema0",
+            },
+            "minItems": 1,
+            "type": "array",
+          },
+        },
+        "required": [
+          "widgetIds",
+        ],
+        "type": "object",
+      },
+      "strict": true,
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Change the title and/or description of the current dashboard (at least one). Dashboard chat only.",
+      "name": "rename_dashboard",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "type": "string",
+          },
+          "__schema1": {
+            "type": "string",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "$ref": "#/$defs/__schema1",
+          },
+          "title": {
+            "$ref": "#/$defs/__schema0",
+          },
+        },
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Replace one widget of the current dashboard with a new definition (full replacement; the type may change). It keeps its id and place on the grid. Dashboard chat only.",
+      "name": "update_widget",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "driverId": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                  "metric": {
+                    "enum": [
+                      "distanceKm",
+                      "driveMs",
+                      "idleMs",
+                      "uptimeMs",
+                      "downtimeMs",
+                      "noGpsMs",
+                      "energyKwh",
+                      "chargeSessions",
+                      "breakdowns",
+                      "harshBrake",
+                      "harshAccel",
+                      "overspeed",
+                      "uptimePct",
+                      "eventsPer100Km",
+                      "score",
+                      "vehicleCount",
+                    ],
+                    "type": "string",
+                  },
+                  "range": {
+                    "$ref": "#/$defs/__schema1",
+                  },
+                  "source": {
+                    "const": "analytics",
+                    "type": "string",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "kpi",
+                    "type": "string",
+                  },
+                  "vehicleId": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "source",
+                  "metric",
+                  "range",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema2",
+                  },
+                  "source": {
+                    "const": "live",
+                    "type": "string",
+                  },
+                  "status": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/__schema3",
+                      },
+                      {
+                        "const": "total",
+                        "type": "string",
+                      },
+                    ],
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "kpi",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "source",
+                  "status",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "__schema1": {
+            "enum": [
+              "today",
+              "yesterday",
+              "7d",
+              "30d",
+              "90d",
+            ],
+            "type": "string",
+          },
+          "__schema10": {
+            "$ref": "#/$defs/__schema2",
+          },
+          "__schema11": {
+            "additionalProperties": false,
+            "properties": {
+              "columns": {
+                "items": {
+                  "$ref": "#/$defs/__schema14",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "filter": {
+                "additionalProperties": false,
+                "properties": {
+                  "assetTypes": {
+                    "$ref": "#/$defs/__schema12",
+                  },
+                  "fleetIds": {
+                    "items": {
+                      "$ref": "#/$defs/__schema2",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                  "fuelTypes": {
+                    "$ref": "#/$defs/__schema12",
+                  },
+                  "makes": {
+                    "$ref": "#/$defs/__schema12",
+                  },
+                  "socMax": {
+                    "type": "number",
+                  },
+                  "socMin": {
+                    "type": "number",
+                  },
+                  "statuses": {
+                    "items": {
+                      "$ref": "#/$defs/__schema3",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                },
+                "type": "object",
+              },
+              "limit": {
+                "$ref": "#/$defs/__schema9",
+              },
+              "sort": {
+                "additionalProperties": false,
+                "properties": {
+                  "column": {
+                    "$ref": "#/$defs/__schema14",
+                  },
+                  "dir": {
+                    "enum": [
+                      "asc",
+                      "desc",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "column",
+                  "dir",
+                ],
+                "type": "object",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "vehicle-list",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "filter",
+              "columns",
+              "sort",
+              "limit",
+            ],
+            "type": "object",
+          },
+          "__schema12": {
+            "items": {
+              "$ref": "#/$defs/__schema13",
+            },
+            "minItems": 1,
+            "type": "array",
+          },
+          "__schema13": {
+            "type": "string",
+          },
+          "__schema14": {
+            "enum": [
+              "regno",
+              "fleet",
+              "status",
+              "speed",
+              "soc",
+              "dte",
+              "odometer",
+              "gpstime",
+              "location",
+            ],
+            "type": "string",
+          },
+          "__schema15": {
+            "additionalProperties": false,
+            "properties": {
+              "fleetId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "limit": {
+                "$ref": "#/$defs/__schema9",
+              },
+              "q": {
+                "type": "string",
+              },
+              "status": {
+                "enum": [
+                  "active",
+                  "off-duty",
+                  "disabled",
+                ],
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "driver-list",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "limit",
+            ],
+            "type": "object",
+          },
+          "__schema16": {
+            "additionalProperties": false,
+            "properties": {
+              "display": {
+                "enum": [
+                  "counts",
+                  "latest",
+                ],
+                "type": "string",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "groupBy": {
+                "enum": [
+                  "status",
+                  "type",
+                ],
+                "type": "string",
+              },
+              "limit": {
+                "$ref": "#/$defs/__schema9",
+              },
+              "openOnly": {
+                "type": "boolean",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "requests-summary",
+                "type": "string",
+              },
+              "types": {
+                "items": {
+                  "$ref": "#/$defs/__schema17",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "groupBy",
+              "openOnly",
+              "display",
+              "limit",
+            ],
+            "type": "object",
+          },
+          "__schema17": {
+            "enum": [
+              "breakdown",
+              "replacement",
+              "rsa",
+            ],
+            "type": "string",
+          },
+          "__schema18": {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "text",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "body",
+            ],
+            "type": "object",
+          },
+          "__schema2": {
+            "type": "string",
+          },
+          "__schema3": {
+            "enum": [
+              "running",
+              "stopped",
+              "immobilized",
+              "non-comm",
+              "charging",
+              "pullout",
+              "no-gps",
+              "gps-never",
+            ],
+            "type": "string",
+          },
+          "__schema4": {
+            "additionalProperties": false,
+            "properties": {
+              "chart": {
+                "enum": [
+                  "bar",
+                  "line",
+                  "area",
+                ],
+                "type": "string",
+              },
+              "driverId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "metrics": {
+                "items": {
+                  "$ref": "#/$defs/__schema5",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "range": {
+                "enum": [
+                  "7d",
+                  "30d",
+                  "90d",
+                ],
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "daily-chart",
+                "type": "string",
+              },
+              "vehicleId": {
+                "$ref": "#/$defs/__schema2",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "chart",
+              "metrics",
+              "range",
+            ],
+            "type": "object",
+          },
+          "__schema5": {
+            "enum": [
+              "distanceKm",
+              "driveMs",
+              "idleMs",
+              "uptimeMs",
+              "downtimeMs",
+              "noGpsMs",
+              "energyKwh",
+              "chargeSessions",
+              "breakdowns",
+              "harshBrake",
+              "harshAccel",
+              "overspeed",
+            ],
+            "type": "string",
+          },
+          "__schema6": {
+            "additionalProperties": false,
+            "properties": {
+              "display": {
+                "enum": [
+                  "bars",
+                  "donut",
+                ],
+                "type": "string",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema2",
+              },
+              "statuses": {
+                "items": {
+                  "$ref": "#/$defs/__schema3",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "status-breakdown",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "display",
+            ],
+            "type": "object",
+          },
+          "__schema7": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "entity": {
+                    "const": "vehicles",
+                    "type": "string",
+                  },
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema10",
+                  },
+                  "limit": {
+                    "$ref": "#/$defs/__schema9",
+                  },
+                  "metric": {
+                    "$ref": "#/$defs/__schema5",
+                  },
+                  "order": {
+                    "$ref": "#/$defs/__schema8",
+                  },
+                  "range": {
+                    "$ref": "#/$defs/__schema1",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "ranking",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "entity",
+                  "metric",
+                  "order",
+                  "limit",
+                  "range",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "entity": {
+                    "const": "drivers",
+                    "type": "string",
+                  },
+                  "fleetId": {
+                    "$ref": "#/$defs/__schema10",
+                  },
+                  "limit": {
+                    "$ref": "#/$defs/__schema9",
+                  },
+                  "metric": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/__schema5",
+                      },
+                      {
+                        "const": "score",
+                        "type": "string",
+                      },
+                    ],
+                  },
+                  "order": {
+                    "$ref": "#/$defs/__schema8",
+                  },
+                  "range": {
+                    "$ref": "#/$defs/__schema1",
+                  },
+                  "title": {
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "ranking",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "title",
+                  "entity",
+                  "metric",
+                  "order",
+                  "limit",
+                  "range",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "__schema8": {
+            "enum": [
+              "desc",
+              "asc",
+            ],
+            "type": "string",
+          },
+          "__schema9": {
+            "type": "integer",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "widget": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/__schema0",
+              },
+              {
+                "$ref": "#/$defs/__schema4",
+              },
+              {
+                "$ref": "#/$defs/__schema6",
+              },
+              {
+                "$ref": "#/$defs/__schema7",
+              },
+              {
+                "$ref": "#/$defs/__schema11",
+              },
+              {
+                "$ref": "#/$defs/__schema15",
+              },
+              {
+                "$ref": "#/$defs/__schema16",
+              },
+              {
+                "$ref": "#/$defs/__schema18",
+              },
+            ],
+            "description": "One catalogue widget (see "Dashboard widget catalogue" in the instructions). Fleet, vehicle and driver fields take a name/regno or an id.",
+          },
+          "widgetId": {
+            "type": "string",
+          },
+        },
+        "required": [
+          "widgetId",
+          "widget",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "A vehicle's daily KPIs (distance, drive/idle/downtime hours, no-GPS hours, energy, breakdowns, harsh events) over a date range, with totals. Default range: the last 7 days.",
+      "name": "vehicle_history",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "description": "Start date as an IST date, YYYY-MM-DD (inclusive).",
+            "type": "string",
+          },
+          "regno": {
+            "description": "Registration number.",
+            "type": "string",
+          },
+          "to": {
+            "description": "End date as an IST date, YYYY-MM-DD (inclusive).",
+            "type": "string",
+          },
+        },
+        "required": [
+          "regno",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+]
+`;

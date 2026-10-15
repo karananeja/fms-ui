@@ -1,33 +1,50 @@
-import Anthropic from '@anthropic-ai/sdk';
-import type { BetaMessage, BetaMessageParam } from '@anthropic-ai/sdk/resources/beta/messages';
 import type { ChatEvent, ChatTurn } from '@shared/contract/index.ts';
-import {
-  ASSISTANT_EFFORT,
-  ASSISTANT_MAX_ITERATIONS,
-  ASSISTANT_MAX_TOKENS,
-  ASSISTANT_MODEL,
-  FALLBACK_BETA,
-} from './assistant-config.ts';
-import { buildTools, type ToolHost } from './assistant-tools.ts';
-import { SYSTEM_PROMPT, userContext, type UserContext } from './system-prompt.ts';
+import { ASSISTANT_MAX_ITERATIONS } from './assistant-config.ts';
+import type { ToolHost } from './assistant-tools.ts';
+import type { ChatMessage, ChatProvider, Usage } from './provider.ts';
+import { newTurnState, type TurnState } from './tool-kit.ts';
+import { userContext, type UserContext } from './system-prompt.ts';
+
+export { requestPrefix } from './anthropic-provider.ts';
 
 /**
- * F17 run of one question (D-105): the SDK tool runner with streaming, forwarding text deltas,
- * tool start/end, reports and entity refs as `ChatEvent`s. Never throws: every outcome ends
- * with exactly one `done` or `error` event (none if the client went away).
+ * F17 run of one question, provider-neutral since F21 (D-134): the provider runs the streamed
+ * tool loop; this forwards text deltas (tools emit their own start/end, report and dashboard
+ * events), adds the iteration note and entity refs, and maps errors to the chat error codes.
+ * Never throws: every outcome ends with exactly one `done` or `error` event (none if the client
+ * went away).
  */
 
+/** How a run ended (F19: the dashboard chat stores the answer before the final event). */
+export interface RunOutcome {
+  /** The streamed answer text (plus any iteration note). */
+  text: string;
+  /** `client`: the caller went away (nothing more is emitted). */
+  status: 'done' | 'error' | 'client';
+  error?: { code: Extract<ChatEvent, { type: 'error' }>['code']; message: string };
+  stopReason?: string;
+  turn: TurnState;
+}
+
 export interface RunOptions {
-  client: Anthropic;
+  provider: ChatProvider;
   host: Omit<ToolHost, 'emit' | 'entities'>;
   context: UserContext;
-  turns: ChatTurn[];
+  /** The client transcript (F17), or … */
+  turns?: ChatTurn[];
+  /** … prebuilt API messages (F19 dashboard chat, built from the stored thread). */
+  messages?: ChatMessage[];
   emit: (event: ChatEvent) => void;
   signal: AbortSignal;
   /** Why `signal` fired: the 60 s timeout, or the client closing the connection. */
   abortReason: () => 'timeout' | 'client' | undefined;
   log: (msg: string, data?: object) => void;
   maxIterations?: number;
+  /**
+   * Called once when the run ends, before the final `done` / `error` event (also on a client
+   * abort, when no event follows). Awaited.
+   */
+  onFinish?: (outcome: RunOutcome) => void | Promise<void>;
 }
 
 export const REFUSAL_MESSAGE =
@@ -37,7 +54,7 @@ const iterationNote = (n: number) =>
   `\n\nI stopped after ${n} steps without finishing. Try a narrower question.`;
 
 /** Client turns → API messages; the per-user context is the first block of the first user turn. */
-export function toApiMessages(turns: ChatTurn[], context: UserContext): BetaMessageParam[] {
+export function toApiMessages(turns: ChatTurn[], context: UserContext): ChatMessage[] {
   const first = turns.findIndex((t) => t.role === 'user');
   return turns.slice(first).map((t, k) =>
     k === 0
@@ -52,65 +69,41 @@ export function toApiMessages(turns: ChatTurn[], context: UserContext): BetaMess
   );
 }
 
-/** The request parameters that make up the cached prefix (identical for every user). */
-export function requestPrefix() {
-  return {
-    model: ASSISTANT_MODEL,
-    max_tokens: ASSISTANT_MAX_TOKENS,
-    thinking: { type: 'adaptive' as const },
-    output_config: { effort: ASSISTANT_EFFORT },
-    betas: [FALLBACK_BETA],
-    fallbacks: 'default' as const,
-    cache_control: { type: 'ephemeral' as const },
-    tool_choice: { type: 'auto' as const },
-    system: SYSTEM_PROMPT,
-  };
-}
-
 export async function runChat(opts: RunOptions): Promise<void> {
-  const { client, emit, signal, log } = opts;
+  const { provider, emit, signal, log } = opts;
   const entities: ToolHost['entities'] = new Map();
-  const tools = buildTools({ ...opts.host, emit, entities });
-  const usage = { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, cacheCreationInputTokens: 0 };
+  const turn = opts.host.turn ?? newTurnState();
   const maxIterations = opts.maxIterations ?? ASSISTANT_MAX_ITERATIONS;
   let answer = '';
-  let last: BetaMessage | undefined;
-  let iterations = 0;
   const started = Date.now();
 
   try {
-    const runner = client.beta.messages.toolRunner(
-      {
-        ...requestPrefix(),
-        tools,
-        messages: toApiMessages(opts.turns, opts.context),
-        max_iterations: maxIterations,
-        stream: true,
-      },
-      { signal },
-    );
-    for await (const stream of runner) {
-      stream.on('text', (delta) => {
+    const result = await provider.run({
+      host: { ...opts.host, turn, emit, entities },
+      messages: opts.messages ?? toApiMessages(opts.turns ?? [], opts.context),
+      maxIterations,
+      signal,
+      onText: (delta) => {
         answer += delta;
         emit({ type: 'text', delta });
-      });
-      last = await stream.finalMessage();
-      iterations++;
-      usage.inputTokens += last.usage.input_tokens;
-      usage.outputTokens += last.usage.output_tokens;
-      usage.cacheReadInputTokens += last.usage.cache_read_input_tokens ?? 0;
-      usage.cacheCreationInputTokens += last.usage.cache_creation_input_tokens ?? 0;
-    }
-    log('assistant run', { iterations, ms: Date.now() - started, ...usage });
-    if (!last) throw new Error('no message');
+      },
+    });
+    const usage: Usage = result.usage;
+    log('assistant run', {
+      provider: provider.name,
+      model: provider.model,
+      iterations: result.iterations,
+      ms: Date.now() - started,
+      ...usage,
+    });
     // stop_reason before content: a final refusal (after any fallback) ends with an error.
-    if (last.stop_reason === 'refusal') {
-      emit({ type: 'error', code: 'refusal', message: REFUSAL_MESSAGE });
+    if (result.stopReason === 'refusal') {
+      await fail('refusal', REFUSAL_MESSAGE);
       return;
     }
-    let stopReason: string = last.stop_reason ?? 'end_turn';
+    let stopReason = result.stopReason;
     if (stopReason === 'tool_use') {
-      // The runner stopped at the iteration cap with tools still requested.
+      // The loop stopped at the iteration cap with tools still requested.
       stopReason = 'max_iterations';
       const note = iterationNote(maxIterations);
       answer += note;
@@ -118,35 +111,47 @@ export async function runChat(opts: RunOptions): Promise<void> {
     }
     const mentioned = [...entities.values()].filter((e) => answer.includes(e.label));
     if (mentioned.length) emit({ type: 'entities', items: mentioned });
+    await finish({ text: answer, status: 'done', stopReason, turn });
     emit({ type: 'done', stopReason, usage });
   } catch (err) {
     const reason = opts.abortReason();
     if (reason === 'client') {
-      log('assistant run cancelled by the client', { iterations });
+      log('assistant run cancelled by the client', { provider: provider.name });
+      await finish({ text: answer, status: 'client', turn });
       return;
     }
-    if (reason === 'timeout' || err instanceof Anthropic.APIConnectionTimeoutError) {
-      emit({ type: 'error', code: 'timeout', message: 'The assistant took too long. Try again.' });
+    const cls = provider.classify(err);
+    if (reason === 'timeout' || cls.kind === 'timeout') {
+      await fail('timeout', 'The assistant took too long. Try again.');
       return;
     }
-    if (
-      err instanceof Anthropic.RateLimitError ||
-      err instanceof Anthropic.InternalServerError ||
-      err instanceof Anthropic.APIConnectionError ||
-      (err instanceof Anthropic.APIError && (err.status ?? 0) >= 500)
-    ) {
-      log('assistant busy', { status: err instanceof Anthropic.APIError ? err.status : undefined });
-      emit({ type: 'error', code: 'busy', message: BUSY_MESSAGE });
+    if (cls.kind === 'busy') {
+      log('assistant busy', { provider: provider.name, status: cls.status });
+      await fail('busy', BUSY_MESSAGE);
       return;
     }
-    log('assistant run failed', { error: err instanceof Error ? err.message : String(err) });
-    emit({
-      type: 'error',
-      code: 'failed',
-      message:
-        err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError
-          ? 'The assistant is not set up correctly. Ask an administrator.'
-          : 'Something went wrong. Try again.',
+    log('assistant run failed', {
+      provider: provider.name,
+      status: cls.status,
+      error: err instanceof Error ? err.message : String(err),
     });
+    await fail(
+      'failed',
+      cls.kind === 'auth'
+        ? 'The assistant is not set up correctly. Ask an administrator.'
+        : 'Something went wrong. Try again.',
+    );
+  }
+
+  async function finish(outcome: RunOutcome) {
+    try {
+      await opts.onFinish?.(outcome);
+    } catch (err) {
+      log('assistant onFinish failed', { error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  async function fail(code: NonNullable<RunOutcome['error']>['code'], message: string) {
+    await finish({ text: answer, status: 'error', error: { code, message }, turn });
+    emit({ type: 'error', code, message });
   }
 }

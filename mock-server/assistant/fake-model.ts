@@ -1,11 +1,18 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { ASSISTANT_MODEL, FAKE_MODEL_PATH } from './assistant-config.ts';
+import {
+  ASSISTANT_MODEL,
+  FAKE_MODEL_PATH,
+  FAKE_OPENAI_MODEL,
+  FAKE_OPENAI_PATH,
+} from './assistant-config.ts';
 
 /**
  * F17 fake Messages API (D-107): `POST /__fake-anthropic/v1/messages` streams the same SSE wire
  * format as the Anthropic API, so the real SDK, tool runner and tools all run; only the model
- * is canned. It is stateless per request: the step of a scripted conversation is the number of
+ * is canned. F21: `POST /__fake-openai/v1/chat/completions` plays the same scripts and rules in
+ * the OpenAI chat-completions SSE format (`tool_calls` deltas), for the OpenAI-compatible
+ * adapter. It is stateless per request: the step of a scripted conversation is the number of
  * assistant turns since the user's question, and the script is recovered from the tool_use ids
  * it handed out (`toolu_fake_<script>_<step>_<n>`).
  *
@@ -33,7 +40,18 @@ export type FakeStep = z.infer<typeof fakeStepSchema>;
 
 /** `POST /api/dev/assistant/script`: a built-in script by name, or explicit steps. */
 export const fakeScriptBodySchema = z.union([
-  z.object({ name: z.enum(['refusal', 'busy', 'loop', 'slow', 'failed']) }),
+  z.object({
+    name: z.enum([
+      'refusal',
+      'busy',
+      'loop',
+      'slow',
+      'failed',
+      'dash-invalid',
+      'dash-many',
+      'preview',
+    ]),
+  }),
   /** Steps are played in order; the last step repeats if the conversation goes on. */
   z.object({ steps: z.array(fakeStepSchema).min(1).max(20) }),
 ]);
@@ -45,6 +63,38 @@ const BUILTIN: Record<string, FakeStep[]> = {
   failed: [{ error: 400 }],
   /** Always calls a tool: exercises the 8-iteration cap. */
   loop: [{ tools: [{ name: 'find_vehicles', input: { limit: 1 } }] }],
+  /** F19: a widget outside the catalogue → tool error → an apologetic answer. */
+  'dash-invalid': [
+    {
+      tools: [
+        {
+          name: 'add_widget',
+          input: { widget: { type: 'iframe', title: 'Embedded page', url: 'https://example.com' } },
+        },
+      ],
+    },
+    {
+      text: "Sorry, I can't add that: dashboards only support the built-in widget types. ({{result}})",
+    },
+  ],
+  /** D-135: one widget as a preview card (both chats), then a short answer. */
+  preview: [
+    {
+      tools: [
+        {
+          name: 'preview_widget',
+          input: {
+            widget: { type: 'kpi', title: 'Running vehicles', source: 'live', status: 'running' },
+          },
+        },
+      ],
+    },
+    {
+      text: 'Here is a preview of **Running vehicles**. Add it to the dashboard, drag it onto the grid, or ask me to change it.',
+    },
+  ],
+  /** F19: always calls a tool: exercises the 12-step cap of the dashboard chat. */
+  'dash-many': [{ tools: [{ name: 'get_dashboard', input: {} }] }],
   /** A long, slow answer: exercises Stop / abort. */
   slow: [
     {
@@ -71,13 +121,17 @@ const DRIVER_NAME = /driver\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/;
  * - anything else → a plain text answer.
  * After the tool step, the answer is written from the tool results.
  */
-export function ruleScript(question: string): { key: string; steps: FakeStep[] } {
+export function ruleScript(raw: string): { key: string; steps: FakeStep[] } {
+  const dash = parseDashboardBlock(raw);
+  const question = stripBlocks(raw);
   const q = question.toLowerCase();
-  const named = /\[fake:([a-z]+)\]/.exec(q)?.[1];
+  const named = /\[fake:([a-z-]+)\]/.exec(q)?.[1];
   if (named && BUILTIN[named]) return { key: named, steps: BUILTIN[named] };
   const tool = (name: string, input: Record<string, unknown>): FakeStep[] => [
     { tools: [{ name, input }] },
   ];
+  const dashSteps = dashboardRule(question, dash);
+  if (dashSteps) return { key: 'auto', steps: dashSteps };
   if (/\b(export|report|csv|pdf|download)\b/.test(q)) {
     const kind = /no.?gps/.test(q)
       ? 'no-gps'
@@ -94,7 +148,8 @@ export function ruleScript(question: string): { key: string; steps: FakeStep[] }
     };
   }
   const regno = REGNO.exec(question)?.[1];
-  if (regno) return { key: 'auto', steps: tool('get_vehicle', { regno: regno.replace(/\s/g, '') }) };
+  if (regno)
+    return { key: 'auto', steps: tool('get_vehicle', { regno: regno.replace(/\s/g, '') }) };
   const prefix = REGNO_PREFIX.exec(question)?.[1];
   if (prefix) return { key: 'auto', steps: tool('find_vehicles', { query: prefix, limit: 5 }) };
   if (/driver/.test(q)) {
@@ -116,6 +171,149 @@ export function ruleScript(question: string): { key: string; steps: FakeStep[] }
       },
     ],
   };
+}
+
+// ---- F19 dashboard rules (D-126) ----
+
+interface FakeWidget {
+  id: string;
+  type: string;
+  title: string;
+  settings: Record<string, unknown>;
+}
+
+/** The `<dashboard>` block of the latest user turn (dashboard chat), if any. */
+function parseDashboardBlock(text: string): { id: string; widgets: FakeWidget[] } | undefined {
+  const m = /<dashboard>\s*([\s\S]*?)\s*<\/dashboard>/.exec(text);
+  if (!m) return undefined;
+  try {
+    return JSON.parse(m[1]!) as { id: string; widgets: FakeWidget[] };
+  } catch {
+    return undefined;
+  }
+}
+
+const stripBlocks = (text: string) =>
+  text
+    .replace(/<context>[\s\S]*?<\/context>/g, '')
+    .replace(/<dashboard>[\s\S]*?<\/dashboard>/g, '')
+    .trim();
+
+/** The three widgets the fake builds ("running vs stopped and top idle vehicles"). */
+export const FAKE_DASHBOARD_WIDGETS = [
+  { type: 'kpi', title: 'Running vehicles', source: 'live', status: 'running' },
+  { type: 'status-breakdown', title: 'Running vs stopped', display: 'donut' },
+  {
+    type: 'ranking',
+    title: 'Top idle vehicles',
+    entity: 'vehicles',
+    metric: 'idleMs',
+    order: 'desc',
+    limit: 10,
+    range: '7d',
+  },
+];
+
+const STOP_WORDS = new Set(['remove', 'delete', 'widget', 'the', 'and', 'from', 'this', 'please']);
+
+/**
+ * Dashboard rules, checked before the F17 rules: in a dashboard chat (a `<dashboard>` block),
+ * rename / remove / arrange / "30 days" / single widget → `preview_widget` / add a note / build;
+ * in the global chat, build|create|make … dashboard → `create_dashboard`, else a single-widget
+ * phrase → `preview_widget` (D-135).
+ */
+function dashboardRule(
+  question: string,
+  dash: { id: string; widgets: FakeWidget[] } | undefined,
+): FakeStep[] | undefined {
+  const q = question.toLowerCase();
+  const step = (...tools: { name: string; input: Record<string, unknown> }[]): FakeStep[] => [
+    { tools },
+  ];
+  if (!dash) {
+    if (/\bdashboards?\b/.test(q) && /\b(build|create|make)\b/.test(q))
+      return step({
+        name: 'create_dashboard',
+        input: { title: 'Fleet overview', widgets: FAKE_DASHBOARD_WIDGETS },
+      });
+    const single = singleWidget(q);
+    if (single) return step({ name: 'preview_widget', input: { widget: single } });
+    return undefined;
+  }
+  const widgets = dash.widgets;
+  const rename = /\brename\b[\s\S]*?\bto\s+["“']([^"”']+)["”']/i.exec(question);
+  if (rename) return step({ name: 'rename_dashboard', input: { title: rename[1]!.trim() } });
+  if (/\b(remove|delete)\b/.test(q) && widgets.length) {
+    const words = new Set(q.split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !STOP_WORDS.has(w)));
+    // The widget whose title shares the most words with the question, else the last one.
+    let hit = widgets.at(-1)!;
+    let best = 0;
+    for (const w of widgets) {
+      const score = w.title
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter((t) => words.has(t)).length;
+      if (score > best) [hit, best] = [w, score];
+    }
+    return step({ name: 'remove_widget', input: { widgetIds: [hit.id] } });
+  }
+  if (/\b(arrange|rearrange|reorder)\b/.test(q) && widgets.length)
+    return step({
+      name: 'arrange_widgets',
+      input: { order: widgets.map((w) => w.id).reverse() },
+    });
+  if (/\b(change|update|make)\b/.test(q) && /\b30\s*(days?|d)\b/.test(q)) {
+    const ranking = widgets.find((w) => w.type === 'ranking');
+    if (ranking)
+      return step({
+        name: 'update_widget',
+        input: {
+          widgetId: ranking.id,
+          widget: { type: ranking.type, title: ranking.title, ...ranking.settings, range: '30d' },
+        },
+      });
+  }
+  const single = singleWidget(q);
+  if (single)
+    return step({ name: 'preview_widget', input: { dashboardId: dash.id, widget: single } });
+  if (/\badd\b/.test(q) && /\b(note|text)\b/.test(q))
+    return step({
+      name: 'add_widget',
+      input: { widget: { type: 'text', title: 'Note', body: 'Check the no-GPS vehicles first.' } },
+    });
+  if (/\b(build|add)\b/.test(q)) {
+    if (!widgets.length)
+      return step(
+        ...FAKE_DASHBOARD_WIDGETS.map((widget) => ({ name: 'add_widget', input: { widget } })),
+      );
+    return step({
+      name: 'add_widget',
+      input: { widget: { type: 'kpi', title: 'All vehicles', source: 'live', status: 'total' } },
+    });
+  }
+  return undefined;
+}
+
+const FAKE_STATUSES = ['running', 'stopped', 'charging', 'immobilized', 'non-comm', 'no-gps'];
+
+/**
+ * D-135: a single-widget phrase ("add a … widget", "small …", "a kpi …") → the widget to
+ * preview; `undefined` for anything else (multi-widget builds keep the mutating tools).
+ */
+function singleWidget(q: string): Record<string, unknown> | undefined {
+  if (/\bdashboards?\b/.test(q) && !/\bwidget\b/.test(q)) return undefined;
+  const single =
+    /\bsmall\b/.test(q) || /\ban?\s+kpi\b/.test(q) || /\badd\s+an?\s+[^.?!]*\bwidget\b/.test(q);
+  if (!single) return undefined;
+  if (/\b(breakdown|donut)\b/.test(q))
+    return { type: 'status-breakdown', title: 'Fleet status', display: 'donut' };
+  if (/\b(idle|top|ranking)\b/.test(q)) return FAKE_DASHBOARD_WIDGETS[2];
+  const status = FAKE_STATUSES.find((st) => q.includes(st));
+  if (status) {
+    const label = status[0]!.toUpperCase() + status.slice(1);
+    return { type: 'kpi', title: `${label} vehicles`, source: 'live', status };
+  }
+  return { type: 'kpi', title: 'All vehicles', source: 'live', status: 'total' };
 }
 
 // ---- answers written from tool results (built-in rules) ----
@@ -178,7 +376,9 @@ function answerOne(o: ToolOutcome): string {
       if (!items.length) return 'No drivers match that.';
       return [
         `You have ${String(r.total)} matching drivers. The first ${Math.min(5, items.length)}:`,
-        ...items.slice(0, 5).map((d) => `- ${d.name}${d.currentVehicle ? ` (${d.currentVehicle})` : ''}`),
+        ...items
+          .slice(0, 5)
+          .map((d) => `- ${d.name}${d.currentVehicle ? ` (${d.currentVehicle})` : ''}`),
       ].join('\n');
     }
     case 'create_report':
@@ -187,6 +387,28 @@ function answerOne(o: ToolOutcome): string {
       return `There are ${String(r.total)} requests. By status: ${Object.entries(r.byStatus as Json)
         .map(([k, v]) => `${k} ${String(v)}`)
         .join(', ')}.`;
+    case 'create_dashboard': {
+      const ws = r.widgets as unknown[];
+      return `I created **${String(o.input.title)}** with ${ws.length} widgets. [Open it](${String(r.url)})`;
+    }
+    case 'get_dashboard':
+      return r.title !== undefined
+        ? `**${String(r.title)}** has ${(r.widgets as unknown[]).length} widgets.`
+        : `Done: ${o.content.slice(0, 200)}`;
+    case 'add_widget':
+      return `Added **${String((o.input.widget as Json | undefined)?.title)}**.`;
+    case 'preview_widget':
+      return `Here is a preview of **${String((r.widget as Json | undefined)?.title)}**. Add it to the dashboard, drag it onto the grid, or ask me to change it.`;
+    case 'update_widget':
+      return `Updated **${String((o.input.widget as Json | undefined)?.title)}**.`;
+    case 'remove_widget': {
+      const n = (r.removed as unknown[]).length;
+      return `Removed ${n} widget${n === 1 ? '' : 's'}.`;
+    }
+    case 'arrange_widgets':
+      return 'Rearranged the widgets.';
+    case 'rename_dashboard':
+      return `Renamed the dashboard to **${String(r.title)}**.`;
     case 'fleet_summary':
       return `Across ${String(r.vehicles)} vehicles from ${String(r.from)} to ${String(r.to)}: ${String(r.distanceKm)} km driven, uptime ${String(r.uptimePct)} %, ${String(r.breakdowns)} breakdowns.`;
     default:
@@ -194,7 +416,14 @@ function answerOne(o: ToolOutcome): string {
   }
 }
 
-// ---- request parsing ----
+// ---- request parsing (both wire formats → one neutral transcript) ----
+
+interface FakeMessage {
+  role: 'user' | 'assistant';
+  text: string;
+  toolUses: { id: string; name: string; input: Record<string, unknown> }[];
+  toolResults: { toolUseId: string; content: string; isError: boolean }[];
+}
 
 interface WireBlock {
   type: string;
@@ -211,16 +440,79 @@ interface WireMessage {
   content: string | WireBlock[];
 }
 
-const blocks = (m: WireMessage): WireBlock[] =>
-  typeof m.content === 'string' ? [{ type: 'text', text: m.content }] : m.content;
-const isQuestion = (m: WireMessage) =>
-  m.role === 'user' && !blocks(m).some((b) => b.type === 'tool_result');
-const resultText = (b: WireBlock) =>
-  typeof b.content === 'string'
-    ? b.content
-    : (b.content ?? []).map((c) => c.text ?? '').join('');
+/** Anthropic Messages API messages. */
+function fromAnthropic(messages: WireMessage[]): FakeMessage[] {
+  return messages.map((m) => {
+    const blocks: WireBlock[] =
+      typeof m.content === 'string' ? [{ type: 'text', text: m.content }] : m.content;
+    return {
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      text: blocks.map((b) => b.text ?? '').join('\n'),
+      toolUses: blocks
+        .filter((b) => b.type === 'tool_use')
+        .map((b) => ({ id: b.id ?? '', name: b.name ?? '', input: b.input ?? {} })),
+      toolResults: blocks
+        .filter((b) => b.type === 'tool_result')
+        .map((b) => ({
+          toolUseId: b.tool_use_id ?? '',
+          content:
+            typeof b.content === 'string'
+              ? b.content
+              : (b.content ?? []).map((c) => c.text ?? '').join(''),
+          isError: b.is_error === true,
+        })),
+    };
+  });
+}
 
-// ---- SSE writer ----
+interface OaWireMessage {
+  role: string;
+  content?: string | { type: string; text?: string }[] | null;
+  tool_calls?: { id: string; function: { name: string; arguments: string } }[];
+  tool_call_id?: string;
+}
+
+/** Chat-completions messages: the system message is dropped, consecutive `tool` messages merged. */
+function fromOpenAi(messages: OaWireMessage[]): FakeMessage[] {
+  const out: FakeMessage[] = [];
+  const text = (c: OaWireMessage['content']) =>
+    typeof c === 'string' ? c : (c ?? []).map((p) => p.text ?? '').join('\n');
+  for (const m of messages) {
+    if (m.role === 'system' || m.role === 'developer') continue;
+    if (m.role === 'tool') {
+      const content = text(m.content);
+      const isError = content.startsWith('Error: ');
+      const result = {
+        toolUseId: m.tool_call_id ?? '',
+        content: isError ? content.slice('Error: '.length) : content,
+        isError,
+      };
+      const prev = out.at(-1);
+      if (prev?.toolResults.length) prev.toolResults.push(result);
+      else out.push({ role: 'user', text: '', toolUses: [], toolResults: [result] });
+      continue;
+    }
+    out.push({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      text: text(m.content),
+      toolUses: (m.tool_calls ?? []).map((c) => {
+        let input: Record<string, unknown> = {};
+        try {
+          input = JSON.parse(c.function.arguments || '{}') as Record<string, unknown>;
+        } catch {
+          // keep {}
+        }
+        return { id: c.id, name: c.function.name, input };
+      }),
+      toolResults: [],
+    });
+  }
+  return out;
+}
+
+const isQuestion = (m: FakeMessage) => m.role === 'user' && !m.toolResults.length;
+
+// ---- SSE writers ----
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -229,34 +521,209 @@ export interface FakeModelStats {
   /** Streams cut short because the caller went away. */
   aborted: number;
   /** The latest request (caching-hygiene checks). */
-  lastRequest?: { beta: string | undefined; body: unknown };
+  lastRequest?: { beta: string | undefined; body: unknown; wire?: 'anthropic' | 'openai' };
 }
 
-/** Registers the fake endpoint; returns the script queue and stats for the dev routes. */
+type ToolCall = { id: string; name: string; input: Record<string, unknown> };
+
+/** One reply in a wire format. */
+interface WireWriter {
+  start(): void;
+  text(text: string, delayMs?: number): Promise<void>;
+  tools(calls: ToolCall[]): void;
+  finish(stop: 'end_turn' | 'tool_use' | 'refusal'): void;
+}
+
+interface Stream {
+  send: (chunk: string) => void;
+  closed: () => boolean;
+}
+
+/** Splits text into stream parts: word by word with a pause, else 24-char slices. */
+async function streamText(
+  text: string,
+  delayMs: number,
+  closed: () => boolean,
+  part: (s: string) => void,
+) {
+  const parts = delayMs > 0 ? text.split(/(?<= )/) : (text.match(/[\s\S]{1,24}/g) ?? []);
+  for (const p of parts) {
+    if (closed()) return;
+    part(p);
+    if (delayMs > 0) await sleep(delayMs);
+  }
+}
+
+function anthropicWriter(out: Stream, meta: { requests: number; question: string; step: number }) {
+  const send = (event: string, data: unknown) =>
+    out.send(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  let index = 0;
+  let outputTokens = 0;
+  const writer: WireWriter = {
+    start() {
+      send('message_start', {
+        type: 'message_start',
+        message: {
+          id: `msg_fake_${Date.now().toString(36)}_${meta.requests}`,
+          type: 'message',
+          role: 'assistant',
+          model: ASSISTANT_MODEL,
+          content: [],
+          stop_reason: null,
+          stop_sequence: null,
+          usage: {
+            input_tokens: 40 + meta.question.length,
+            output_tokens: 1,
+            cache_creation_input_tokens: meta.step === 0 ? 1800 : 0,
+            cache_read_input_tokens: meta.step === 0 ? 0 : 1800,
+          },
+        },
+      });
+    },
+    async text(text, delayMs = 0) {
+      send('content_block_start', {
+        type: 'content_block_start',
+        index,
+        content_block: { type: 'text', text: '' },
+      });
+      await streamText(text, delayMs, out.closed, (part) => {
+        send('content_block_delta', {
+          type: 'content_block_delta',
+          index,
+          delta: { type: 'text_delta', text: part },
+        });
+        outputTokens++;
+      });
+      if (out.closed()) return;
+      send('content_block_stop', { type: 'content_block_stop', index });
+      index++;
+    },
+    tools(calls) {
+      for (const t of calls) {
+        send('content_block_start', {
+          type: 'content_block_start',
+          index,
+          content_block: { type: 'tool_use', id: t.id, name: t.name, input: {} },
+        });
+        send('content_block_delta', {
+          type: 'content_block_delta',
+          index,
+          delta: { type: 'input_json_delta', partial_json: JSON.stringify(t.input) },
+        });
+        send('content_block_stop', { type: 'content_block_stop', index });
+        index++;
+        outputTokens += 10;
+      }
+    },
+    finish(stop) {
+      send('message_delta', {
+        type: 'message_delta',
+        delta: {
+          stop_reason: stop,
+          stop_sequence: null,
+          ...(stop === 'refusal'
+            ? { stop_details: { type: 'refusal', category: null, explanation: 'fake refusal' } }
+            : {}),
+        },
+        usage: { output_tokens: outputTokens },
+      });
+      send('message_stop', { type: 'message_stop' });
+    },
+  };
+  return writer;
+}
+
+/** Chat-completions chunks: `data: {…}` lines, tool calls split over several `tool_calls` deltas. */
+function openAiWriter(
+  out: Stream,
+  meta: { requests: number; question: string; step: number; model: string },
+) {
+  const id = `chatcmpl-fake-${Date.now().toString(36)}-${meta.requests}`;
+  const created = Math.floor(Date.now() / 1000);
+  let outputTokens = 0;
+  const chunk = (delta: object, finish: string | null = null) =>
+    out.send(
+      `data: ${JSON.stringify({
+        id,
+        object: 'chat.completion.chunk',
+        created,
+        model: meta.model,
+        choices: [{ index: 0, delta, finish_reason: finish }],
+      })}\n\n`,
+    );
+  const writer: WireWriter = {
+    start() {
+      chunk({ role: 'assistant', content: '' });
+    },
+    async text(text, delayMs = 0) {
+      await streamText(text, delayMs, out.closed, (part) => {
+        chunk({ content: part });
+        outputTokens++;
+      });
+    },
+    tools(calls) {
+      calls.forEach((t, n) => {
+        chunk({
+          tool_calls: [
+            { index: n, id: t.id, type: 'function', function: { name: t.name, arguments: '' } },
+          ],
+        });
+        const args = JSON.stringify(t.input);
+        const mid = Math.ceil(args.length / 2);
+        for (const piece of [args.slice(0, mid), args.slice(mid)])
+          if (piece) chunk({ tool_calls: [{ index: n, function: { arguments: piece } }] });
+        outputTokens += 10;
+      });
+    },
+    finish(stop) {
+      chunk(
+        {},
+        stop === 'tool_use' ? 'tool_calls' : stop === 'refusal' ? 'content_filter' : 'stop',
+      );
+      const cached = meta.step === 0 ? 0 : 1800;
+      out.send(
+        `data: ${JSON.stringify({
+          id,
+          object: 'chat.completion.chunk',
+          created,
+          model: meta.model,
+          choices: [],
+          usage: {
+            prompt_tokens: 40 + meta.question.length + cached,
+            completion_tokens: outputTokens,
+            total_tokens: 40 + meta.question.length + cached + outputTokens,
+            prompt_tokens_details: { cached_tokens: cached },
+          },
+        })}\n\n`,
+      );
+      out.send('data: [DONE]\n\n');
+    },
+  };
+  return writer;
+}
+
+/**
+ * Registers the fake endpoints (Anthropic Messages and OpenAI chat completions, same scripts and
+ * rules); returns the script queue and stats for the dev routes.
+ */
 export function registerFakeModel(app: FastifyInstance) {
   const queue: FakeStep[][] = [];
   const custom = new Map<string, FakeStep[]>();
   let seq = 0;
   const stats: FakeModelStats = { requests: 0, aborted: 0 };
 
-  app.post(`${FAKE_MODEL_PATH}/v1/messages`, async (req, reply) => {
-    stats.requests++;
-    stats.lastRequest = { beta: req.headers['anthropic-beta'] as string | undefined, body: req.body };
-    const body = req.body as { messages?: WireMessage[] };
-    const messages = body.messages ?? [];
+  /** The step to play for this transcript (stateless: recovered from the tool ids). */
+  function plan(messages: FakeMessage[]) {
     let start = messages.length - 1;
     while (start > 0 && !isQuestion(messages[start]!)) start--;
-    const question = blocks(messages[start] ?? { role: 'user', content: '' })
-      .map((b) => b.text ?? '')
-      .join('\n');
+    const question = messages[start]?.text ?? '';
     const after = messages.slice(start + 1);
     const step = after.filter((m) => m.role === 'assistant').length;
 
     // Which script: from earlier tool ids, else a queued one, else the rules.
     let key: string | undefined;
     for (const m of after)
-      for (const b of blocks(m))
-        if (b.type === 'tool_use' && b.id?.startsWith('toolu_fake_')) key = b.id.split('_')[2];
+      for (const u of m.toolUses) if (u.id.startsWith('toolu_fake_')) key = u.id.split('_')[2];
     let steps: FakeStep[];
     if (key && key !== 'auto') steps = custom.get(key) ?? BUILTIN[key] ?? [];
     else if (step === 0 && queue.length) {
@@ -273,41 +740,35 @@ export function registerFakeModel(app: FastifyInstance) {
     const last = after.at(-1);
     const prev = after.at(-2);
     const outcomes: ToolOutcome[] = [];
-    if (last && prev && prev.role === 'assistant') {
-      const uses = blocks(prev).filter((b) => b.type === 'tool_use');
-      for (const b of blocks(last))
-        if (b.type === 'tool_result') {
-          const use = uses.find((u) => u.id === b.tool_use_id);
-          outcomes.push({
-            name: use?.name ?? '',
-            input: use?.input ?? {},
-            content: resultText(b),
-            isError: b.is_error === true,
-          });
-        }
-    }
+    if (last && prev && prev.role === 'assistant')
+      for (const r of last.toolResults) {
+        const use = prev.toolUses.find((u) => u.id === r.toolUseId);
+        outcomes.push({
+          name: use?.name ?? '',
+          input: use?.input ?? {},
+          content: r.content,
+          isError: r.isError,
+        });
+      }
 
     let current: FakeStep;
     if (key === 'auto' && step >= steps.length) current = { text: answerFrom(outcomes) };
     else current = steps[Math.min(step, steps.length - 1)] ?? { text: '' };
     if ('text' in current && !('tools' in current) && !('refusal' in current))
-      current = { ...current, text: current.text.replace('{{result}}', outcomes[0]?.content ?? '') };
+      current = {
+        ...current,
+        text: current.text.replace('{{result}}', outcomes[0]?.content ?? ''),
+      };
+    return { current, key, step, question };
+  }
 
-    if ('error' in current) {
-      const type =
-        current.error === 429
-          ? 'rate_limit_error'
-          : current.error === 529
-            ? 'overloaded_error'
-            : current.error >= 500
-              ? 'api_error'
-              : 'invalid_request_error';
-      return reply
-        .code(current.error)
-        .header('x-should-retry', 'false')
-        .send({ type: 'error', error: { type, message: `fake ${type}` } });
-    }
-
+  /** Streams one planned reply with the given writer. */
+  async function play(
+    reply: FastifyReply,
+    planned: ReturnType<typeof plan>,
+    makeWriter: (out: Stream) => WireWriter,
+  ) {
+    const { current, key, step } = planned;
     reply.hijack();
     const res = reply.raw;
     res.writeHead(200, {
@@ -322,95 +783,90 @@ export function registerFakeModel(app: FastifyInstance) {
         stats.aborted++;
       }
     });
-    const send = (event: string, data: unknown) => {
-      if (!closed) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    };
-
-    const id = `msg_fake_${Date.now().toString(36)}_${stats.requests}`;
-    send('message_start', {
-      type: 'message_start',
-      message: {
-        id,
-        type: 'message',
-        role: 'assistant',
-        model: ASSISTANT_MODEL,
-        content: [],
-        stop_reason: null,
-        stop_sequence: null,
-        usage: {
-          input_tokens: 40 + question.length,
-          output_tokens: 1,
-          cache_creation_input_tokens: step === 0 ? 1800 : 0,
-          cache_read_input_tokens: step === 0 ? 0 : 1800,
-        },
+    const out: Stream = {
+      send: (chunk) => {
+        if (!closed) res.write(chunk);
       },
-    });
-    let index = 0;
-    let outputTokens = 0;
-    const textBlock = async (text: string, delayMs = 0) => {
-      send('content_block_start', {
-        type: 'content_block_start',
-        index,
-        content_block: { type: 'text', text: '' },
-      });
-      const parts = delayMs > 0 ? text.split(/(?<= )/) : text.match(/[\s\S]{1,24}/g) ?? [];
-      for (const part of parts) {
-        if (closed) return;
-        send('content_block_delta', {
-          type: 'content_block_delta',
-          index,
-          delta: { type: 'text_delta', text: part },
-        });
-        outputTokens++;
-        if (delayMs > 0) await sleep(delayMs);
-      }
-      send('content_block_stop', { type: 'content_block_stop', index });
-      index++;
+      closed: () => closed,
     };
-
-    let stopReason = 'end_turn';
+    const w = makeWriter(out);
+    w.start();
+    let stop: 'end_turn' | 'tool_use' | 'refusal' = 'end_turn';
     if ('tools' in current) {
-      if (current.text) await textBlock(current.text);
-      current.tools.forEach((t, n) => {
-        send('content_block_start', {
-          type: 'content_block_start',
-          index,
-          content_block: {
-            type: 'tool_use',
-            id: `toolu_fake_${key}_${step}_${n}`,
-            name: t.name,
-            input: {},
-          },
-        });
-        send('content_block_delta', {
-          type: 'content_block_delta',
-          index,
-          delta: { type: 'input_json_delta', partial_json: JSON.stringify(t.input) },
-        });
-        send('content_block_stop', { type: 'content_block_stop', index });
-        index++;
-        outputTokens += 10;
-      });
-      stopReason = 'tool_use';
+      if (current.text) await w.text(current.text);
+      w.tools(
+        current.tools.map((t, n) => ({
+          id: `toolu_fake_${key}_${step}_${n}`,
+          name: t.name,
+          input: t.input,
+        })),
+      );
+      stop = 'tool_use';
     } else if ('refusal' in current) {
-      if (current.text) await textBlock(current.text);
-      stopReason = 'refusal';
-    } else await textBlock(current.text, current.delayMs);
-
+      if (current.text) await w.text(current.text);
+      stop = 'refusal';
+    } else if ('text' in current) await w.text(current.text, current.delayMs);
     if (closed) return;
-    send('message_delta', {
-      type: 'message_delta',
-      delta: {
-        stop_reason: stopReason,
-        stop_sequence: null,
-        ...(stopReason === 'refusal'
-          ? { stop_details: { type: 'refusal', category: null, explanation: 'fake refusal' } }
-          : {}),
-      },
-      usage: { output_tokens: outputTokens },
-    });
-    send('message_stop', { type: 'message_stop' });
+    w.finish(stop);
     res.end();
+  }
+
+  const errorType = (status: number) =>
+    status === 429
+      ? 'rate_limit_error'
+      : status === 529
+        ? 'overloaded_error'
+        : status >= 500
+          ? 'api_error'
+          : 'invalid_request_error';
+
+  app.post(`${FAKE_MODEL_PATH}/v1/messages`, async (req, reply) => {
+    stats.requests++;
+    stats.lastRequest = {
+      beta: req.headers['anthropic-beta'] as string | undefined,
+      body: req.body,
+      wire: 'anthropic',
+    };
+    const body = req.body as { messages?: WireMessage[] };
+    const planned = plan(fromAnthropic(body.messages ?? []));
+    const { current } = planned;
+    if ('error' in current) {
+      const type = errorType(current.error);
+      return reply
+        .code(current.error)
+        .header('x-should-retry', 'false')
+        .send({ type: 'error', error: { type, message: `fake ${type}` } });
+    }
+    await play(reply, planned, (out) =>
+      anthropicWriter(out, {
+        requests: stats.requests,
+        question: planned.question,
+        step: planned.step,
+      }),
+    );
+  });
+
+  /** F21: the same scripts over the OpenAI-compatible chat-completions wire format. */
+  app.post(`${FAKE_OPENAI_PATH}/chat/completions`, async (req, reply) => {
+    stats.requests++;
+    stats.lastRequest = { beta: undefined, body: req.body, wire: 'openai' };
+    const body = req.body as { model?: string; messages?: OaWireMessage[] };
+    const planned = plan(fromOpenAi(body.messages ?? []));
+    const { current } = planned;
+    if ('error' in current) {
+      const type = errorType(current.error);
+      return reply
+        .code(current.error)
+        .send({ error: { message: `fake ${type}`, type, code: type } });
+    }
+    await play(reply, planned, (out) =>
+      openAiWriter(out, {
+        requests: stats.requests,
+        question: planned.question,
+        step: planned.step,
+        model: body.model ?? FAKE_OPENAI_MODEL,
+      }),
+    );
   });
 
   return {

@@ -16,6 +16,8 @@ import type {
   LivePush,
   LiveStats,
   LiveTrackingWorkerApi,
+  LiveWidgetBatch,
+  LiveWidgetQuery,
   MapFrame,
   MapViewport,
   CsvRequest,
@@ -421,6 +423,14 @@ export class LiveTrackingStore {
     onProgress: (done: number, total: number) => void,
   ): Promise<CsvResult | null> {
     return (await this.api?.exportCsv(req, proxy(onProgress))) ?? null;
+  }
+
+  /** F20 (D-129): read-only widget queries; null while the worker isn't running. */
+  async queryWidgets(
+    queries: LiveWidgetQuery[],
+    sinceVersion?: number,
+  ): Promise<LiveWidgetBatch | null> {
+    return (await this.api?.queryWidgets(queries, sinceVersion)) ?? null;
   }
 
   async getTray(bbox: Bbox): Promise<TrayCard[]> {

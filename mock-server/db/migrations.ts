@@ -60,4 +60,13 @@ CREATE TABLE dashboard_changes (
 CREATE INDEX dashboard_changes_dash ON dashboard_changes (dashboard_id, created_at DESC);
 `,
   },
+  {
+    version: 2,
+    name: 'dashboard_message_previews',
+    // D-135: widget previews per assistant message; existing rows read as [].
+    sql: `
+ALTER TABLE dashboard_messages
+  ADD COLUMN previews_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(previews_json));
+`,
+  },
 ];

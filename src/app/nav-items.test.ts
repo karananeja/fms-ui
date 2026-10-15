@@ -11,6 +11,7 @@ describe('F03-R2: nav filtered by permission', () => {
       'Live tracking',
       'Requests',
       'Analytics',
+      'Dashboards',
       'Admin',
       'Fleets',
       'Users',
@@ -44,6 +45,11 @@ describe('F03-R2: nav filtered by permission', () => {
 
   it('live tracking only with live.view', () => {
     expect(labels('fleets.manage', 'users.manage')).toEqual(['Admin', 'Fleets', 'Users']);
+  });
+
+  it('F20: Dashboards only with dashboards.use', () => {
+    expect(labels('dashboards.use')).toEqual(['Dashboards']);
+    expect(labels('live.view', 'analytics.view')).toEqual(['Live tracking', 'Analytics']);
   });
 
   it('nothing for no permissions or signed out', () => {

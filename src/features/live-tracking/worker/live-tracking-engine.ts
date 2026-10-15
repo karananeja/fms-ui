@@ -30,6 +30,7 @@ import { detailsConfig } from '../config/details-config.ts';
 import { StatusTracker } from './status-deriver.ts';
 import { TableQueryEngine, type TableQuery, type TableResult } from './table-query.ts';
 import { trayQuery, type TrayCard } from './tray-query.ts';
+import { WidgetQueryEngine, type LiveWidgetBatch, type LiveWidgetQuery } from './widget-query.ts';
 import type {
   Bbox,
   ConnectionState,
@@ -94,6 +95,8 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   readonly table: TableQueryEngine;
   /** F12-R6: driver-name search (D-095). */
   readonly drivers: DriverSearch;
+  /** F20: dashboard widget queries (D-129). */
+  readonly widgets: WidgetQueryEngine;
   private fleetNames: Record<string, string> = {};
   pushCount = 0;
   private readonly clock: Clock;
@@ -148,6 +151,14 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
       () => this.state.version + this.statusEpoch + this.filters.version,
       () => this.clock.now(),
     );
+    this.widgets = new WidgetQueryEngine({
+      state: this.state,
+      dataVersion: () => this.state.version + this.statusEpoch,
+      ready: () => this.snapshotComplete,
+      statusCounts: () => this.status.statusCounts(),
+      fleetNames: () => this.fleetNames,
+      row: (i) => this.table.row(i),
+    });
     this.client = new WsClient({
       url: deps.url,
       createSocket: deps.createSocket,
@@ -218,6 +229,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
   setFleetNames(names: Record<string, string>): void {
     this.fleetNames = names;
     this.table.setFleetNames(names);
+    this.widgets.setFleetNamesChanged();
   }
 
   queryTable(query: TableQuery): TableResult {
@@ -233,6 +245,12 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
 
   getTray(bbox: Bbox, limit?: number): TrayCard[] {
     return trayQuery(this.state, (i) => this.filters.matches(i), this.rules.priority, bbox, limit);
+  }
+
+  // ---- F20: dashboard widgets ----
+
+  queryWidgets(queries: LiveWidgetQuery[], sinceVersion?: number): LiveWidgetBatch {
+    return this.widgets.query(queries, sinceVersion);
   }
 
   get connection(): ConnectionState {
@@ -280,6 +298,7 @@ export class LiveTrackingEngine implements LiveTrackingWorkerApi {
 
   setFleets(fleets: FleetNode[]): void {
     this.filters.setFleets(fleets);
+    this.widgets.setFleets(fleets);
     this.rebuildNow = true;
     this.markDirty();
   }

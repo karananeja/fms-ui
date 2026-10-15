@@ -454,3 +454,23 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "approved" (all recommendations).
 
 **Assistant:** Signed off both specs with the resolved answers, accepted D-122…D-133, and started F19 ∥ F20 on `feature/part3-f19-f20`.
+
+**Implementation (F19 ∥ F20, then F21):** F19 committed (78/78 targeted). F20 core committed (vitest 19/19, e2e 4/4, `dashboard-page` 35.3 kB gz). The F19 browser e2e found chips stuck on "Updating widget…"; fixed in the dashboard chat store.
+
+**User:** "as i have to test the actual ai as well and have you created tools for ai to be guided?" → explained the 7 dashboard tools, the 8 read-only tools, the catalogue prompt generated from the contract, and validation errors fed back to the model.
+
+**User:** "also i have grok api for ai first and may get anthropic/openai api keys" / "update the env example file as well" → F21 (D-134, Proposed): an `openai`/`xai` fetch adapter and provider selection by env; `.env.example` updated. Implemented: 80/80 targeted tests.
+
+**User:** "1. add voice" → voice input (D-110 dictation, EN/HI) in both assistant chats; `useDictation` moved to `src/shared/hooks`.
+
+**User:** "also when i ask for a small widget, it should appear in the chat first, then i can drag out to the dashboard…" → proposed a widget-preview flow (see below); waiting for the user's choice.
+
+**User:** "the feature catalog value is not updated?" → updated the catalogue for F19, F20 and F21. The full `pnpm check` found the nav test missing "Dashboards" (fixed) and the known F11-T3 flake; build clean.
+
+**Widget previews (D-135):** the server and client agents finished (server 506/506; client 36/36, e2e 8/8). Combined branch: `pnpm check` 1097/1097, build clean, full chromium e2e 82 passed / 1 failed / 17 skipped (screenshot tests). The failure (F14-T6) was a race caused by the `FMS_SHOTS` gating: a screenshot-only scroll after the card re-mounts. Fixed; `requests.spec` 6/6.
+
+**User:** "explain how chats are stored and the dashboard and widgets stored in the be?" → explained the SQLite tables (dashboards, shares, messages, changes), that widget data is never stored, and that the global chat is client-only.
+
+**User:** "why are user accounts kept in in-memory? they should be in db right?" → explained the F01 mock design and proposed F22 (persist accounts and admin data in SQLite); waiting for the user's choice.
+
+**Status/Next:** F19, F20, F21, voice and previews are ready for UAT on `feature/part3-f19-f20`; the Grok smoke test needs the user's key.

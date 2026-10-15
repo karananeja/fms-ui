@@ -64,10 +64,14 @@ describe('F17-T2 reports', () => {
     ).length;
     const t = table('vehicle-status');
     expect(t.rows.length).toBe(inScope);
-    expect(t.rows.find((r) => r[10])![10]).toMatch(/^\d{2} [A-Z][a-z]{2} \d{2} \| \d{2}:\d{2}:\d{2}$/);
+    expect(t.rows.find((r) => r[10])![10]).toMatch(
+      /^\d{2} [A-Z][a-z]{2} \d{2} \| \d{2}:\d{2}:\d{2}$/,
+    );
     // 2026-10-14 06:30 UTC = 12:00 IST
     expect(formatIst(Date.UTC(2026, 9, 14, 6, 30, 0))).toBe('14 Oct 26 | 12:00:00');
-    expect(reportFilename('no-gps', 'pdf', Date.UTC(2026, 9, 14, 6, 30))).toBe('no-gps-2026-10-14-1200.pdf');
+    expect(reportFilename('no-gps', 'pdf', Date.UTC(2026, 9, 14, 6, 30))).toBe(
+      'no-gps-2026-10-14-1200.pdf',
+    );
   });
 
   it('no-gps lists only vehicles without GPS, each with a likely cause', () => {
@@ -92,7 +96,11 @@ describe('F17-T2 reports', () => {
   it('store: owner only, expires after 15 min', () => {
     let now = 1_000_000;
     const store = new ReportStore(() => now);
-    const d = store.put('u-ops', { kind: 'no-gps', format: 'csv', filename: 'x.csv', rows: 1 }, 'a\r\n');
+    const d = store.put(
+      'u-ops',
+      { kind: 'no-gps', format: 'csv', filename: 'x.csv', rows: 1 },
+      'a\r\n',
+    );
     expect(d.url).toBe(`/api/chat/reports/${d.id}`);
     expect(d.expiresAt).toBe(now + REPORT_TTL_MS);
     expect(store.get(d.id, 'u-ops')?.contentType).toBe('text/csv; charset=utf-8');
@@ -114,7 +122,9 @@ describe('F17-T2 reports', () => {
     t0 = performance.now();
     const pdf = await toPdf(pdfTable);
     const pdfMs = performance.now() - t0;
-    console.info(`[F17 budgets] CSV 1 lakh rows ${csvMs.toFixed(0)} ms, PDF 5k rows ${pdfMs.toFixed(0)} ms (${(pdf.length / 1e6).toFixed(1)} MB)`);
+    console.info(
+      `[F17 budgets] CSV 1 lakh rows ${csvMs.toFixed(0)} ms, PDF 5k rows ${pdfMs.toFixed(0)} ms (${(pdf.length / 1e6).toFixed(1)} MB)`,
+    );
     expect(csvMs).toBeLessThan(3000);
     expect(pdfMs).toBeLessThan(3000);
   }, 30_000);

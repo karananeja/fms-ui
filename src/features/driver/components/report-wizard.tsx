@@ -19,7 +19,7 @@ import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/shared/ui/sheet';
 import type { NewRequest } from '../api/driver-api';
-import type { RecognitionFactory } from '../use-dictation';
+import type { RecognitionFactory } from '@/shared/hooks/use-dictation';
 import { VoiceNoteField } from './voice-note-field';
 import {
   currentPosition,

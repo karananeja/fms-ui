@@ -10,7 +10,7 @@ import {
 import { request as apiRequest, type APIRequestContext, type Page } from '@playwright/test';
 import { adminApi, mailLink } from './auth-helpers.ts';
 import { expect, test } from './fixtures.ts';
-import { shot } from './shots.ts';
+import { shot, SHOTS_ON } from './shots.ts';
 
 const SHOTS = 'docs/features/f14-operator-request-desk/screenshots';
 const PASSWORD = 'Drive@1234';
@@ -348,12 +348,14 @@ test('F14-T6: no-GPS insight — signal-derived chips; driver-reported reason li
     timeout: 10_000,
   });
   await expect(s2.getByTestId('no-gps-reported')).toContainText('GPS device not working');
-  await s2.scrollIntoViewIfNeeded();
+  // Only to frame the UAT screenshot.
+  if (SHOTS_ON) await s2.scrollIntoViewIfNeeded();
   await shot(page, { path: `${SHOTS}/no-gps-insight-reported.png` });
   // Mobile: the card re-mounts as a bottom sheet.
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(s2.getByTestId('no-gps-reported')).toBeVisible({ timeout: 10_000 });
-  await s2.scrollIntoViewIfNeeded();
+  // Only to frame the UAT screenshot.
+  if (SHOTS_ON) await s2.scrollIntoViewIfNeeded();
   await shot(page, { path: `${SHOTS}/no-gps-insight-mobile.png` });
   await page.setViewportSize({ width: 1280, height: 720 });
   await expect(s2.getByTestId('no-gps-reported')).toBeVisible({ timeout: 10_000 });

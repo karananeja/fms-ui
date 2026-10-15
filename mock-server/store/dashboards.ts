@@ -36,6 +36,8 @@ import {
   type User,
   type Widget,
   type WidgetInput,
+  type WidgetPreview,
+  type WidgetPreviewStatus,
 } from '@shared/contract/index.ts';
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
@@ -86,6 +88,7 @@ interface MessageRow {
   text: string;
   chips: string;
   change_id: string | null;
+  previews_json: string;
   created_at: number;
 }
 
@@ -332,7 +335,7 @@ export class Dashboards {
     const changes = this.changeSets(row);
     const rows = this.db
       .prepare(
-        'SELECT id, seq, role, text, chips, change_id, created_at FROM dashboard_messages WHERE dashboard_id = ? ORDER BY seq',
+        'SELECT id, seq, role, text, chips, change_id, previews_json, created_at FROM dashboard_messages WHERE dashboard_id = ? ORDER BY seq',
       )
       .all(id) as unknown as MessageRow[];
     return { messages: rows.map((m) => this.toMessage(m, changes)) };
@@ -355,11 +358,12 @@ export class Dashboards {
         text: input.text,
         chips: JSON.stringify(input.chips satisfies ToolChip[]),
         change_id: input.changeId ?? null,
+        previews_json: JSON.stringify(input.previews satisfies WidgetPreview[]),
         created_at: this.clock.now(),
       };
       this.db
         .prepare(
-          'INSERT INTO dashboard_messages (id, dashboard_id, seq, role, text, chips, change_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO dashboard_messages (id, dashboard_id, seq, role, text, chips, change_id, previews_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run(
           message.id,
@@ -369,6 +373,7 @@ export class Dashboards {
           message.text,
           message.chips,
           message.change_id,
+          message.previews_json,
           message.created_at,
         );
       this.db
@@ -379,29 +384,85 @@ export class Dashboards {
   }
 
   /**
-   * One assistant turn in one transaction: snapshot, `mutate(draft)`, validate + normalise,
-   * write `version + 1` and one change set. Throws 409 `version_conflict` on a stale version.
+   * D-135: records a preview card's state (`added` / `discarded`) on its thread message. Owner
+   * only (shared → 403, else 404); 404 for an unknown preview. Adding the widget is a separate
+   * dashboard PATCH by the client.
+   */
+  setPreviewStatus(
+    ownerId: string,
+    id: string,
+    previewId: string,
+    status: WidgetPreviewStatus,
+  ): WidgetPreview {
+    return transaction(this.db, () => {
+      this.requireOwned(ownerId, id);
+      const rows = this.db
+        .prepare(
+          "SELECT id, previews_json FROM dashboard_messages WHERE dashboard_id = ? AND previews_json <> '[]'",
+        )
+        .all(id) as unknown as Pick<MessageRow, 'id' | 'previews_json'>[];
+      for (const r of rows) {
+        const previews = JSON.parse(r.previews_json) as WidgetPreview[];
+        const p = previews.find((x) => x.id === previewId);
+        if (!p) continue;
+        p.status = status;
+        this.db
+          .prepare('UPDATE dashboard_messages SET previews_json = ? WHERE id = ?')
+          .run(JSON.stringify(previews), r.id);
+        return p;
+      }
+      throw new HttpError(404, 'not_found', 'Preview not found');
+    });
+  }
+
+  /**
+   * One assistant tool call in one transaction: snapshot, `mutate(draft)`, validate + normalise,
+   * write `version + 1` and record a change set. Throws 409 `version_conflict` on a stale version.
+   *
+   * F19 §6 `extend`: when that change set is still the latest, not undone and nothing was written
+   * after it (`version === after_version`), it is extended (new `after_version` and `summary`,
+   * same `before` snapshot) instead of inserting a new one. `summary` may be a function of
+   * whether it extends.
    */
   applyTurn(
     ownerId: string,
     id: string,
     expectedVersion: number,
-    summary: string,
+    summary: string | ((extending: boolean) => string),
     mutate: (draft: DashboardDraft) => void,
-  ): { dashboard: Dashboard; change: ChangeSet } {
+    opts: { extend?: string } = {},
+  ): { dashboard: Dashboard; change: ChangeSet; extended: boolean } {
     return transaction(this.db, () => {
       const row = this.requireOwned(ownerId, id);
       this.requireVersion(row, expectedVersion);
+      const prior = opts.extend ? this.changeRow(id, opts.extend) : undefined;
+      const extending =
+        !!prior &&
+        prior.id === this.latestChangeId(id) &&
+        prior.undone_at === null &&
+        row.version === prior.after_version;
+      const text = (typeof summary === 'function' ? summary(extending) : summary).slice(0, 500);
       const before = this.content(row);
       const draft: DashboardDraft = structuredClone(before);
       mutate(draft);
       const parsed = parse(draftSchema, draft);
       const content = this.commitContent(ownerId, before.widgets, parsed);
       const dashboard = this.write(row, content);
+      if (extending) {
+        const change: ChangeRow = { ...prior, summary: text, after_version: dashboard.version };
+        this.db
+          .prepare('UPDATE dashboard_changes SET summary = ?, after_version = ? WHERE id = ?')
+          .run(change.summary, change.after_version, change.id);
+        return {
+          dashboard,
+          change: this.toChange(change, change.id, dashboard.version),
+          extended: true,
+        };
+      }
       const change: ChangeRow = {
         id: `chg-${randomUUID()}`,
         dashboard_id: id,
-        summary: summary.slice(0, 500),
+        summary: text,
         before: JSON.stringify(before),
         before_version: row.version,
         after_version: dashboard.version,
@@ -428,7 +489,11 @@ export class Dashboards {
              ORDER BY created_at DESC, rowid DESC LIMIT ?)`,
         )
         .run(id, id, CHANGE_SETS_KEPT);
-      return { dashboard, change: this.toChange(change, change.id, dashboard.version) };
+      return {
+        dashboard,
+        change: this.toChange(change, change.id, dashboard.version),
+        extended: false,
+      };
     });
   }
 
@@ -699,6 +764,7 @@ export class Dashboards {
       text: m.text,
       chips: JSON.parse(m.chips) as ToolChip[],
       change: (m.change_id && changes.get(m.change_id)) || null,
+      previews: JSON.parse(m.previews_json || '[]') as WidgetPreview[],
       createdAt: m.created_at,
     };
   }

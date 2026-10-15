@@ -8,7 +8,7 @@ import {
   useDictation,
   type DictationLang,
   type RecognitionFactory,
-} from '../use-dictation';
+} from '@/shared/hooks/use-dictation';
 
 /**
  * F13 / D-110: the problem note, typed or spoken. The mic dictates into the note (English or

@@ -186,6 +186,32 @@ const analyticsRoute = createRoute({
   ),
 });
 
+// F20: dashboards list + detail, each a lazy chunk; only the detail chunk carries react-grid-layout.
+const dashboardsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: 'dashboards',
+  staticData: { title: 'Dashboards', permission: ROUTE_PERMISSIONS['/dashboards'] },
+  validateSearch: (s: Record<string, unknown>): { tab?: 'shared' } =>
+    s.tab === 'shared' ? { tab: 'shared' } : {},
+  component: lazyRouteComponent(
+    () => import('@/features/dashboards/pages/dashboards-page'),
+    'DashboardsPage',
+  ),
+});
+const dashboardRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: 'dashboards/$id',
+  staticData: { title: 'Dashboard', permission: ROUTE_PERMISSIONS['/dashboards'] },
+  validateSearch: (s: Record<string, unknown>): { ask?: string } => {
+    const ask = optionalString(s.ask);
+    return ask ? { ask: ask.slice(0, 2000) } : {};
+  },
+  component: lazyRouteComponent(
+    () => import('@/features/dashboards/pages/dashboard-page'),
+    'DashboardPage',
+  ),
+});
+
 // Admin pages are a separate chunk each (no map code); F03a / F03b own the page files.
 const adminRoute = createRoute({ getParentRoute: () => appLayoutRoute, path: 'admin' });
 const adminIndexRoute = createRoute({
@@ -254,6 +280,8 @@ const routeTree = rootRoute.addChildren([
     liveTrackingRoute,
     requestsRoute.addChildren([requestsIndexRoute, requestDetailRoute]),
     analyticsRoute,
+    dashboardsRoute,
+    dashboardRoute,
     adminRoute.addChildren([
       adminIndexRoute,
       adminFleetsRoute,

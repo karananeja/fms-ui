@@ -417,6 +417,32 @@ export const changeSetSchema = z.object({
 });
 export type ChangeSet = z.infer<typeof changeSetSchema>;
 
+// ---- widget previews in chat (F19/F20 addendum, D-135) ----
+
+export const WIDGET_PREVIEW_STATUSES = ['pending', 'added', 'discarded'] as const;
+export const widgetPreviewStatusSchema = z.enum(WIDGET_PREVIEW_STATUSES);
+export type WidgetPreviewStatus = z.infer<typeof widgetPreviewStatusSchema>;
+
+/** A widget the assistant proposed (`preview_widget`); not on the dashboard until the user adds it. */
+export const widgetPreviewSchema = z.object({
+  id: z.string(),
+  /** `null` in the global chat when no dashboard was named. */
+  dashboardId: z.string().nullable(),
+  widget: widgetSchema,
+  /** Default lg size of the widget type (`WIDGET_SIZES`). */
+  size: z.object({ w: z.number().int().min(1), h: z.number().int().min(1) }),
+  status: widgetPreviewStatusSchema,
+  createdAt: epochMsSchema,
+});
+export type WidgetPreview = z.infer<typeof widgetPreviewSchema>;
+
+/** `PATCH /api/dashboards/:id/previews/:previewId`: records the card state only. */
+export const updatePreviewBodySchema = z.strictObject({ status: z.enum(['added', 'discarded']) });
+export type UpdatePreviewBody = z.infer<typeof updatePreviewBodySchema>;
+
+/** Previews stored per assistant message. */
+export const PREVIEWS_PER_MESSAGE_MAX = 30;
+
 export const threadRoleSchema = z.enum(['user', 'assistant']);
 export const threadMessageSchema = z.object({
   id: z.string(),
@@ -425,6 +451,8 @@ export const threadMessageSchema = z.object({
   text: z.string().max(MESSAGE_TEXT_MAX),
   chips: z.array(toolChipSchema),
   change: changeSetSchema.nullable(),
+  /** D-135: widget previews made in this (assistant) message. */
+  previews: z.array(widgetPreviewSchema).default([]),
   createdAt: epochMsSchema,
 });
 export type ThreadMessage = z.infer<typeof threadMessageSchema>;
@@ -441,6 +469,7 @@ export const appendMessageSchema = z.strictObject({
   text: z.string().max(MESSAGE_TEXT_MAX),
   chips: z.array(toolChipSchema).max(50).default([]),
   changeId: z.string().optional(),
+  previews: z.array(widgetPreviewSchema).max(PREVIEWS_PER_MESSAGE_MAX).default([]),
 });
 export type AppendMessage = z.input<typeof appendMessageSchema>;
 
