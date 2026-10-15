@@ -7,7 +7,6 @@ import {
   History,
   Loader2,
   MessageSquare,
-  PanelRightClose,
   PanelRightOpen,
   RotateCw,
   Share2,
@@ -229,7 +228,8 @@ export function DashboardTitleBar({
               {a.label}
             </Button>
           ))}
-        {chat && (chat.desktop ? !compact : true) && (
+        {/* Desktop: the open dock has its own collapse button, so this only reopens it. */}
+        {chat && (chat.desktop ? !compact && !chat.open : true) && (
           <Button
             variant={chat.desktop ? 'ghost' : 'outline'}
             size="sm"
@@ -237,16 +237,8 @@ export function DashboardTitleBar({
             aria-expanded={chat.open}
             data-testid="chat-toggle"
           >
-            {chat.desktop ? (
-              chat.open ? (
-                <PanelRightClose aria-hidden />
-              ) : (
-                <PanelRightOpen aria-hidden />
-              )
-            ) : (
-              <MessageSquare aria-hidden />
-            )}
-            {chat.desktop ? (chat.open ? 'Hide chat' : 'Ask FMS') : 'Ask FMS'}
+            {chat.desktop ? <PanelRightOpen aria-hidden /> : <MessageSquare aria-hidden />}
+            Ask FMS
           </Button>
         )}
         {compact && (
