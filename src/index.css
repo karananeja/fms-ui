@@ -84,6 +84,20 @@
     font-weight: 400;
     letter-spacing: 0;
   }
+  /*
+   * Inside the app shell every page scrolls in its own area (`main`, the dashboard grid, docks),
+   * so the window itself must never scroll: a stray tall element or a focus()/scrollIntoView()
+   * would otherwise scroll the whole shell off-screen (user report, 2026-10-16).
+   */
+  /* `hidden` on html keeps body's own overflow; `clip` on body caps the document at the viewport
+     height, so there is nothing left for the window to scroll, even programmatically. */
+  html:has([data-app-shell]) {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  html:has([data-app-shell]) body {
+    overflow: clip;
+  }
 }
 
 @utility glass {

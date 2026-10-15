@@ -151,16 +151,20 @@ export function DayChart({ title, days, series, kind, unit, yMax }: DayChartProp
 
   return (
     <figure className="m-0" data-testid="day-chart" data-kind={kind}>
-      <figcaption className="mb-2 flex items-center gap-3 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
-        <span className="flex-1">{title}</span>
+      {/* Wraps in narrow cards: the legend never pushes the card wider. */}
+      <figcaption className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
+        <span className="min-w-0 flex-1">{title}</span>
         {series.length > 1 &&
           series.map((s) => (
-            <span key={s.label} className="flex items-center gap-1 tracking-normal normal-case">
+            <span
+              key={s.label}
+              className="flex items-center gap-1 tracking-normal whitespace-nowrap normal-case"
+            >
               <span className="size-2 rounded-full" style={{ background: s.color }} />
               {s.label}
             </span>
           ))}
-        <span className="tracking-normal normal-case">{unit}</span>
+        <span className="tracking-normal whitespace-nowrap normal-case">{unit}</span>
       </figcaption>
       {!hasData ? (
         <p
@@ -232,29 +236,33 @@ export function DayChart({ title, days, series, kind, unit, yMax }: DayChartProp
           {tip}
         </div>
       )}
-      <table id={`${id}-table`} className="sr-only">
-        <caption>{title}</caption>
-        <thead>
-          <tr>
-            <th scope="col">Day</th>
-            {series.map((s) => (
-              <th key={s.label} scope="col">
-                {s.label} ({unit})
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {days.map((d, k) => (
-            <tr key={d}>
-              <th scope="row">{d}</th>
+      {/* sr-only on a div, not the table: a table never shrinks below its content, so a 1 px
+          sr-only table still spans ~600 px and pushes narrow panels sideways. */}
+      <div className="sr-only">
+        <table id={`${id}-table`}>
+          <caption>{title}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Day</th>
               {series.map((s) => (
-                <td key={s.label}>{s.values[k] === null ? '' : formatNum(s.values[k]!)}</td>
+                <th key={s.label} scope="col">
+                  {s.label} ({unit})
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {days.map((d, k) => (
+              <tr key={d}>
+                <th scope="row">{d}</th>
+                {series.map((s) => (
+                  <td key={s.label}>{s.values[k] === null ? '' : formatNum(s.values[k]!)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }

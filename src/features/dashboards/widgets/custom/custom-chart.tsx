@@ -96,7 +96,11 @@ export function CustomChart({
   }
 
   return (
-    <figure className="m-0 flex h-full min-h-0 flex-col" data-testid="custom-chart" data-kind={kind}>
+    <figure
+      className="m-0 flex h-full min-h-0 flex-col"
+      data-testid="custom-chart"
+      data-kind={kind}
+    >
       {series.length > 1 && (
         <figcaption className="mb-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-text-muted">
           {series.map((s) => (
@@ -179,28 +183,31 @@ export function CustomChart({
           </div>
         )}
       </div>
-      <table id={`${id}-table`} className="sr-only" data-testid="chart-table">
-        <thead>
-          <tr>
-            <th scope="col">Category</th>
-            {series.map((s) => (
-              <th key={s.label} scope="col">
-                {s.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {labels.map((l, k) => (
-            <tr key={k}>
-              <th scope="row">{l}</th>
+      {/* sr-only on a wrapper: a table never shrinks to 1 px and would widen the widget. */}
+      <div className="sr-only">
+        <table id={`${id}-table`} data-testid="chart-table">
+          <thead>
+            <tr>
+              <th scope="col">Category</th>
               {series.map((s) => (
-                <td key={s.label}>{format(s.values[k] ?? null)}</td>
+                <th key={s.label} scope="col">
+                  {s.label}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {labels.map((l, k) => (
+              <tr key={k}>
+                <th scope="row">{l}</th>
+                {series.map((s) => (
+                  <td key={s.label}>{format(s.values[k] ?? null)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }
