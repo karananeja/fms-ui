@@ -352,4 +352,18 @@ ALTER TABLE dashboard_messages
 ALTER TABLE dashboard_messages ADD COLUMN error_code TEXT;
 `,
   },
+  {
+    version: 12,
+    name: 'dashboard_message_outcome_backfill',
+    // D-155: replies saved before v11 kept their outcome only as a text note (`(error: …)`, or
+    // `(stopped)` for any client abort, Stop or leaving the page), so Retry was missing on them.
+    sql: `
+UPDATE dashboard_messages SET outcome = 'error'
+  WHERE role = 'assistant' AND outcome = 'done'
+    AND (text LIKE '(error:%' OR text LIKE '%' || char(10) || char(10) || '(error:%');
+UPDATE dashboard_messages SET outcome = 'interrupted'
+  WHERE role = 'assistant' AND outcome = 'done'
+    AND (text = '(stopped)' OR text LIKE '%' || char(10) || char(10) || '(stopped)');
+`,
+  },
 ];

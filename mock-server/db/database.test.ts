@@ -130,6 +130,31 @@ describe('F22-T1: migrations v3–v7 and atomic()', () => {
     again.close();
   });
 
+  it('D-155 v12: pre-v11 failure notes get their outcome back; normal replies stay done', () => {
+    const path = join(dir, 'pre-v11.db');
+    const v10 = openDatabase(path, MIGRATIONS.filter((m) => m.version <= 10));
+    v10.exec(`INSERT INTO dashboards (id, owner_id, title, widgets, layout, created_at, updated_at)
+      VALUES ('d1', 'u', 't', '[]', '{}', 1, 1)`);
+    const put = v10.prepare(
+      "INSERT INTO dashboard_messages (id, dashboard_id, seq, role, text, created_at) VALUES (?, 'd1', ?, ?, ?, 0)",
+    );
+    put.run('m1', 1, 'user', '(error: typed by a user)');
+    put.run('m2', 2, 'assistant', '(error: The assistant is not set up correctly.)');
+    put.run('m3', 3, 'assistant', 'Half an answer\n\n(stopped)');
+    put.run('m4', 4, 'assistant', '(stopped)');
+    put.run('m5', 5, 'assistant', 'Added a chart (stopped) earlier.');
+    v10.close();
+    const db = openDatabase(path);
+    expect(db.prepare('SELECT id, outcome FROM dashboard_messages ORDER BY seq').all()).toEqual([
+      { id: 'm1', outcome: 'done' },
+      { id: 'm2', outcome: 'error' },
+      { id: 'm3', outcome: 'interrupted' },
+      { id: 'm4', outcome: 'interrupted' },
+      { id: 'm5', outcome: 'done' },
+    ]);
+    db.close();
+  });
+
   it('atomic is re-entrant and rolls back the outermost transaction on throw', () => {
     const db = openDatabase(':memory:');
     const put = db.prepare('INSERT INTO fleet_settings (fleet_idx, auto_assign) VALUES (?, 1)');

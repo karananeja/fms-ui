@@ -1,6 +1,27 @@
 import { adminApi, createUser } from './auth-helpers.ts';
 import { expect, SIGNED_OUT, test } from './fixtures.ts';
 
+/** The DOM bits used in `evaluate` (the e2e tsconfig has no DOM lib). */
+interface El {
+  style: { height: string };
+  remove(): void;
+  scrollIntoView(): void;
+  scrollTo(x: number, y: number): void;
+  scrollHeight: number;
+  scrollWidth: number;
+  clientWidth: number;
+  parentElement: El | null;
+}
+interface Dom {
+  document: {
+    createElement(tag: string): El;
+    body: { appendChild(el: El): void };
+    querySelector(selector: string): El | null;
+  };
+  scrollTo(x: number, y: number): void;
+  scrollY: number;
+}
+
 /**
  * User-reported layout bugs (2026-10-16): the window must never scroll past the app shell on a
  * dashboard, and the driver performance drill-down must not scroll sideways.
@@ -32,6 +53,8 @@ test.describe('layout overflow', () => {
     await page.waitForTimeout(6000);
     // Worst case: something taller than the window lands in <body> and the window is asked to scroll.
     const scrolled = await page.evaluate(() => {
+      const window = globalThis as unknown as Dom;
+      const { document } = window;
       const stray = document.createElement('div');
       stray.style.height = '3000px';
       document.body.appendChild(stray);
@@ -44,7 +67,10 @@ test.describe('layout overflow', () => {
     expect(scrolled).toBe(0);
     // The grid area itself still scrolls to the last widget.
     const grid = page.getByTestId('dashboard-scroll');
-    await grid.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    await grid.evaluate((node) => {
+      const el = node as unknown as El;
+      el.scrollTo(0, el.scrollHeight);
+    });
     await expect(page.locator('.react-grid-item').last()).toBeInViewport();
   });
 });
@@ -64,8 +90,8 @@ for (const size of [
     await expect(sheet.getByTestId('day-chart').first()).toBeVisible();
     // The panel's scroll area (the drill-down's parent) must not be wider than itself: before the
     // fix, the charts' screen-reader tables made it 666 px wide in a 418 px panel.
-    const widths = await sheet.evaluate((el) => {
-      const area = el.parentElement!;
+    const widths = await sheet.evaluate((node) => {
+      const area = (node as unknown as El).parentElement!;
       return { scroll: area.scrollWidth, client: area.clientWidth };
     });
     expect(widths.scroll).toBeLessThanOrEqual(widths.client);

@@ -47,6 +47,7 @@ Cause: a failed / interrupted / stopped turn lived only in the client `Dashboard
 
 - Server: `mock-server/tests/d155-turn-outcome.test.ts` (error / refusal / client abort / provider cut / Stop stored; user message stored when setup fails; `retryOf` replaces in place with the change set carried over and still undoable; 409 when not latest, already done or another user's thread). `f19-dashboard-chat` client-abort note now "(interrupted)".
 - Client: `dashboard-chat.test.tsx` (Retry shown after a fresh load for each outcome; Stop posts `/chat/stop` then aborts; retry after load sends `retryOf` and keeps one user message; 409 reloads; global panel unmount/remount keeps Retry); `chat-ux.test.tsx` F23-T2 retry now sends `retryOf`.
+- Follow-up (user: "i dont see the retry option in one of the dashboards"): replies saved before v11 were all marked `done`, so an old failed turn had no Retry. Migration v12 backfills them from their stored note: `(error: …)` → `error`, `(stopped)` → `interrupted` (the old note covered both Stop and leaving the page). Test in `mock-server/db/database.test.ts`; applied to the dev DB (4 replies: 1 error, 3 interrupted).
 - e2e `d155-retry-persists.spec.ts`: leave mid-answer → `/dashboards` → back → Interrupted + Retry → done with one user message; provider cut → reload → Retry → done, thread `done` ×2; global panel close/reopen keeps Retry.
 
 ## Screenshots (`FMS_SHOTS=1`)
