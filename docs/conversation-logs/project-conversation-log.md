@@ -412,3 +412,23 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Assistant:** Accepted D-105…D-107, merged `feature/f17-assistant` into `main` (--no-ff), deleted the branch. Part 2 (F11–F17) is complete.
 
 **Status/Next:** open items — real-key assistant smoke test; flakes F09-T8, F11-T3 (time-of-day) and F06-T6 (auto-fit tolerance after D-111); one full e2e + perf run on `main` was skipped during Part 2 at the user's request.
+
+## 2026-10-15: Part 3 planning (`requirement-part-3.md`)
+
+**User:** "i have created a new requirement md file, go through it and first devise the plan, lets work through the requirement"
+
+**Assistant:** Read `requirement-part-3.md` (AI-built dashboards with custom widgets, saved with CRUD, per-dashboard chat resume, multiple dashboards, own route, empty states; theme support with a lighter theme, Doto used sparingly and Inter everywhere else). Proposed the split DS3 (themes + fonts) ∥ F18 (dashboard store, contract, widget catalogue) → F19 (AI dashboard builder tools) → F20 (`/dashboards` route & UI), plus open questions on storage, widget approach, sharing, layout editing, theme default and the Inter font package.
+
+**Status/Next:** waiting for the user's answers; then write the intents (D-112 onwards) for sign-off.
+
+**User:** "1. node:sqlite 2. private to the person but can share the dashboard with view-only action 3. use react-grid-layout 4. yes 5. yes 6. we dont need those files right? we can just add the import statement in css file na? 7. yes"
+
+**Assistant:** Confirmed that Inter needs no package (a Google Fonts `<link>` with preconnect in `index.html`). Wrote the intents for DS3, F18, F19 and F20, added them to the catalogue, and proposed D-112…D-116.
+
+**Status/Next:** waiting for intent sign-off; then specs (DS3 ∥ F18 first).
+
+**User:** "approved"
+
+**Assistant:** Signed off the DS3/F18/F19/F20 intents, accepted D-112…D-116, committed the docs to `main`, and started the DS3 and F18 specs in parallel.
+
+**Status/Next:** waiting for spec sign-off for DS3 and F18.
