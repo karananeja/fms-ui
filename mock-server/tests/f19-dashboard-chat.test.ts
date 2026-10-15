@@ -209,7 +209,7 @@ describe('F19-T5 POST /api/dashboards/:id/chat', () => {
 });
 
 describe('F19-T6 resume: transcript rebuilt from the thread', () => {
-  it('carries earlier turns, change notes and undo notes; context in the first turn only', async () => {
+  it('carries earlier turns, change notes and undo notes; context in the latest turn only', async () => {
     const d = await newDashboard();
     const built = await chat(d.id, 'build it');
     const change = built.find((e) => e.type === 'dashboard_changed') as Extract<
@@ -220,12 +220,11 @@ describe('F19-T6 resume: transcript rebuilt from the thread', () => {
     const msgs = (await lastRequest()).body.messages;
     const flat = (m: (typeof msgs)[number]) =>
       typeof m.content === 'string' ? m.content : m.content.map((b) => b.text).join('\n');
-    expect(flat(msgs[0]!)).toContain('<context>');
-    expect(flat(msgs[0]!)).toContain('build it');
-    expect(flat(msgs[0]!)).not.toContain('<dashboard>');
+    // F24 (D-141): earlier turns are plain text; both blocks lead the latest user turn.
+    expect(msgs[0]!.content).toBe('build it');
     expect(flat(msgs[1]!)).toMatch(/\[Changes: Added widget "Running vehicles" \(w-[0-9a-f]+\); /);
     expect(flat(msgs[2]!)).toContain('<dashboard>');
-    expect(flat(msgs[2]!)).not.toContain('<context>');
+    expect(flat(msgs[2]!)).toContain('<context>');
     expect(flat(msgs[2]!)).toContain('how are we doing?');
     expect(msgs.filter((m) => flat(m).includes('<dashboard>'))).toHaveLength(1);
     // A turn without changes leaves the earlier change undoable.

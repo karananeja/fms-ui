@@ -29,6 +29,10 @@ export const emptyUsage = (): Usage => ({
   cacheCreationInputTokens: 0,
 });
 
+/** F24: all input tokens of a run (uncached + read from cache + written to cache). */
+export const totalInput = (u: Usage) =>
+  u.inputTokens + u.cacheReadInputTokens + u.cacheCreationInputTokens;
+
 export interface ProviderTurn {
   /** Tool host of the turn (the tools emit their own `tool_*` / report / dashboard events). */
   host: ToolHost;
@@ -37,6 +41,11 @@ export interface ProviderTurn {
   signal: AbortSignal;
   /** Called for every streamed text delta of every reply. */
   onText: (delta: string) => void;
+  /**
+   * F24 (D-141): opaque, stable per user + chat (hashed). OpenAI sends it as `prompt_cache_key`,
+   * xAI as the `x-grok-conv-id` header; Anthropic does not need it.
+   */
+  cacheKey?: string;
 }
 
 export interface ProviderResult {
@@ -70,6 +79,16 @@ export class ProviderHttpError extends Error {
     readonly status: number,
     message: string,
   ) {
+    super(message);
+  }
+}
+
+/**
+ * F24: the provider's stream ended without a finish (no `[DONE]` / `finish_reason`). Classified
+ * as `busy` (worth a retry); logged as the `provider-cut` end reason.
+ */
+export class ProviderCutError extends Error {
+  constructor(message = 'the provider stream ended before the reply finished') {
     super(message);
   }
 }

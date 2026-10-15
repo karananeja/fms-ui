@@ -1,10 +1,12 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import {
   ASSISTANT_MODEL,
   FAKE_MODEL_PATH,
   FAKE_OPENAI_MODEL,
   FAKE_OPENAI_PATH,
+  XAI_CONV_ID_HEADER,
 } from './assistant-config.ts';
 
 /**
@@ -30,6 +32,8 @@ export const fakeStepSchema = z.union([
   z.object({ refusal: z.literal(true), text: z.string().optional() }),
   /** An HTTP error from the API (429 → busy, 5xx → busy, others → failed). */
   z.object({ error: z.number().int().min(400).max(599) }),
+  /** F24: some text, then the stream ends without a finish (a provider cut). */
+  z.object({ cut: z.literal(true), text: z.string().optional() }),
   /**
    * A final text answer (stop_reason `end_turn`). `{{result}}` is replaced by the first tool
    * result of the previous step. `delayMs` streams it word by word with that pause.
@@ -50,6 +54,7 @@ export const fakeScriptBodySchema = z.union([
       'dash-invalid',
       'dash-many',
       'preview',
+      'cut',
     ]),
   }),
   /** Steps are played in order; the last step repeats if the conversation goes on. */
@@ -60,6 +65,7 @@ export type FakeScriptBody = z.infer<typeof fakeScriptBodySchema>;
 const BUILTIN: Record<string, FakeStep[]> = {
   refusal: [{ refusal: true }],
   busy: [{ error: 429 }],
+  cut: [{ cut: true, text: 'Partial answer that never' }],
   failed: [{ error: 400 }],
   /** Always calls a tool: exercises the 8-iteration cap. */
   loop: [{ tools: [{ name: 'find_vehicles', input: { limit: 1 } }] }],
@@ -512,6 +518,96 @@ function fromOpenAi(messages: OaWireMessage[]): FakeMessage[] {
 
 const isQuestion = (m: FakeMessage) => m.role === 'user' && !m.toolResults.length;
 
+// ---- F24: fake prompt cache ----
+
+/**
+ * A copy without `cache_control` keys (markers do not change the cached bytes), with string
+ * message content as one text block (both render the same prompt).
+ */
+function stripMarkers(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(stripMarkers);
+  if (!v || typeof v !== 'object') return v;
+  const o = v as Record<string, unknown>;
+  const content =
+    typeof o.role === 'string' && typeof o.content === 'string'
+      ? { content: [{ type: 'text', text: o.content }] }
+      : {};
+  return Object.fromEntries(
+    Object.entries({ ...o, ...content })
+      .filter(([k]) => k !== 'cache_control')
+      .map(([k, x]) => [k, stripMarkers(x)]),
+  );
+}
+
+const hasMarker = (v: unknown) => JSON.stringify(v ?? null).includes('"cache_control"');
+
+/** Fake token count of a JSON part (≈ 4 characters per token). */
+const tokensOf = (chars: number) => Math.ceil(chars / 4);
+
+export interface FakeCacheUse {
+  /** All prompt tokens. */
+  total: number;
+  /** Tokens read from the cache (the longest prefix written by an earlier request). */
+  cached: number;
+  /** Tokens newly written (up to the last write point, minus what was read). */
+  written: number;
+}
+
+/**
+ * F24 (D-141): a fake prompt cache. A request is a list of parts (the fixed prefix, then each
+ * message); chained digests identify every prefix. A read is the longest prefix an earlier
+ * request wrote; writes go at `writeAt` (Anthropic: its breakpoints) or at every part (OpenAI's
+ * automatic prefix caching). So turn 2 of a chat, and step 2 of a tool loop, report a hit.
+ */
+export class FakePromptCache {
+  private seen = new Set<string>();
+
+  use(namespace: string, parts: unknown[], writeAt?: ReadonlySet<number>): FakeCacheUse {
+    let digest = createHash('sha256').update(namespace).digest('hex');
+    let chars = 0;
+    let cachedChars = 0;
+    let writtenChars = 0;
+    const writes: string[] = [];
+    parts.forEach((part, k) => {
+      const bytes = JSON.stringify(stripMarkers(part));
+      chars += bytes.length;
+      digest = createHash('sha256').update(digest).update(bytes).digest('hex');
+      if (this.seen.has(digest)) cachedChars = chars;
+      if (!writeAt || writeAt.has(k)) {
+        writes.push(digest);
+        writtenChars = chars;
+      }
+    });
+    if (this.seen.size > 50_000) this.seen.clear();
+    for (const d of writes) this.seen.add(d);
+    const cached = tokensOf(cachedChars);
+    return {
+      total: tokensOf(chars),
+      cached,
+      written: Math.max(0, tokensOf(writtenChars) - cached),
+    };
+  }
+}
+
+/** Anthropic request → cache parts (tools + system, then messages) and its breakpoints. */
+function anthropicCacheParts(body: {
+  tools?: unknown;
+  system?: unknown;
+  messages?: unknown[];
+  cache_control?: unknown;
+}) {
+  const parts: unknown[] = [{ tools: body.tools ?? [], system: body.system ?? '' }];
+  const writeAt = new Set<number>();
+  if (hasMarker(body.system) || hasMarker(body.tools)) writeAt.add(0);
+  for (const m of body.messages ?? []) {
+    if (hasMarker(m)) writeAt.add(parts.length);
+    parts.push(m);
+  }
+  // Top-level automatic caching: a breakpoint on the last block.
+  if (body.cache_control) writeAt.add(parts.length - 1);
+  return { parts, writeAt };
+}
+
 // ---- SSE writers ----
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -521,7 +617,13 @@ export interface FakeModelStats {
   /** Streams cut short because the caller went away. */
   aborted: number;
   /** The latest request (caching-hygiene checks). */
-  lastRequest?: { beta: string | undefined; body: unknown; wire?: 'anthropic' | 'openai' };
+  lastRequest?: {
+    beta: string | undefined;
+    body: unknown;
+    wire?: 'anthropic' | 'openai';
+    /** F24: the xAI conversation-id header, if sent. */
+    convId?: string;
+  };
 }
 
 type ToolCall = { id: string; name: string; input: Record<string, unknown> };
@@ -554,7 +656,7 @@ async function streamText(
   }
 }
 
-function anthropicWriter(out: Stream, meta: { requests: number; question: string; step: number }) {
+function anthropicWriter(out: Stream, meta: { requests: number; cache: FakeCacheUse }) {
   const send = (event: string, data: unknown) =>
     out.send(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   let index = 0;
@@ -572,10 +674,10 @@ function anthropicWriter(out: Stream, meta: { requests: number; question: string
           stop_reason: null,
           stop_sequence: null,
           usage: {
-            input_tokens: 40 + meta.question.length,
+            input_tokens: Math.max(0, meta.cache.total - meta.cache.cached - meta.cache.written),
             output_tokens: 1,
-            cache_creation_input_tokens: meta.step === 0 ? 1800 : 0,
-            cache_read_input_tokens: meta.step === 0 ? 0 : 1800,
+            cache_creation_input_tokens: meta.cache.written,
+            cache_read_input_tokens: meta.cache.cached,
           },
         },
       });
@@ -636,7 +738,7 @@ function anthropicWriter(out: Stream, meta: { requests: number; question: string
 /** Chat-completions chunks: `data: {…}` lines, tool calls split over several `tool_calls` deltas. */
 function openAiWriter(
   out: Stream,
-  meta: { requests: number; question: string; step: number; model: string },
+  meta: { requests: number; model: string; cache: FakeCacheUse; usage: boolean },
 ) {
   const id = `chatcmpl-fake-${Date.now().toString(36)}-${meta.requests}`;
   const created = Math.floor(Date.now() / 1000);
@@ -680,22 +782,23 @@ function openAiWriter(
         {},
         stop === 'tool_use' ? 'tool_calls' : stop === 'refusal' ? 'content_filter' : 'stop',
       );
-      const cached = meta.step === 0 ? 0 : 1800;
-      out.send(
-        `data: ${JSON.stringify({
-          id,
-          object: 'chat.completion.chunk',
-          created,
-          model: meta.model,
-          choices: [],
-          usage: {
-            prompt_tokens: 40 + meta.question.length + cached,
-            completion_tokens: outputTokens,
-            total_tokens: 40 + meta.question.length + cached + outputTokens,
-            prompt_tokens_details: { cached_tokens: cached },
-          },
-        })}\n\n`,
-      );
+      // Usage only when asked for (`stream_options.include_usage`), as the OpenAI API does.
+      if (meta.usage)
+        out.send(
+          `data: ${JSON.stringify({
+            id,
+            object: 'chat.completion.chunk',
+            created,
+            model: meta.model,
+            choices: [],
+            usage: {
+              prompt_tokens: meta.cache.total,
+              completion_tokens: outputTokens,
+              total_tokens: meta.cache.total + outputTokens,
+              prompt_tokens_details: { cached_tokens: meta.cache.cached },
+            },
+          })}\n\n`,
+        );
       out.send('data: [DONE]\n\n');
     },
   };
@@ -711,6 +814,7 @@ export function registerFakeModel(app: FastifyInstance) {
   const custom = new Map<string, FakeStep[]>();
   let seq = 0;
   const stats: FakeModelStats = { requests: 0, aborted: 0 };
+  const cache = new FakePromptCache();
 
   /** The step to play for this transcript (stateless: recovered from the tool ids). */
   function plan(messages: FakeMessage[]) {
@@ -754,7 +858,12 @@ export function registerFakeModel(app: FastifyInstance) {
     let current: FakeStep;
     if (key === 'auto' && step >= steps.length) current = { text: answerFrom(outcomes) };
     else current = steps[Math.min(step, steps.length - 1)] ?? { text: '' };
-    if ('text' in current && !('tools' in current) && !('refusal' in current))
+    if (
+      'text' in current &&
+      !('tools' in current) &&
+      !('refusal' in current) &&
+      !('cut' in current)
+    )
       current = {
         ...current,
         text: current.text.replace('{{result}}', outcomes[0]?.content ?? ''),
@@ -805,6 +914,10 @@ export function registerFakeModel(app: FastifyInstance) {
     } else if ('refusal' in current) {
       if (current.text) await w.text(current.text);
       stop = 'refusal';
+    } else if ('cut' in current) {
+      if (current.text) await w.text(current.text);
+      res.end();
+      return;
     } else if ('text' in current) await w.text(current.text, current.delayMs);
     if (closed) return;
     w.finish(stop);
@@ -827,7 +940,13 @@ export function registerFakeModel(app: FastifyInstance) {
       body: req.body,
       wire: 'anthropic',
     };
-    const body = req.body as { messages?: WireMessage[] };
+    const body = req.body as {
+      model?: string;
+      messages?: WireMessage[];
+      tools?: unknown;
+      system?: unknown;
+      cache_control?: unknown;
+    };
     const planned = plan(fromAnthropic(body.messages ?? []));
     const { current } = planned;
     if ('error' in current) {
@@ -837,20 +956,24 @@ export function registerFakeModel(app: FastifyInstance) {
         .header('x-should-retry', 'false')
         .send({ type: 'error', error: { type, message: `fake ${type}` } });
     }
+    const { parts, writeAt } = anthropicCacheParts(body);
+    const use = cache.use(`anthropic\n${body.model ?? ''}`, parts, writeAt);
     await play(reply, planned, (out) =>
-      anthropicWriter(out, {
-        requests: stats.requests,
-        question: planned.question,
-        step: planned.step,
-      }),
+      anthropicWriter(out, { requests: stats.requests, cache: use }),
     );
   });
 
   /** F21: the same scripts over the OpenAI-compatible chat-completions wire format. */
   app.post(`${FAKE_OPENAI_PATH}/chat/completions`, async (req, reply) => {
     stats.requests++;
-    stats.lastRequest = { beta: undefined, body: req.body, wire: 'openai' };
-    const body = req.body as { model?: string; messages?: OaWireMessage[] };
+    const convId = req.headers[XAI_CONV_ID_HEADER] as string | undefined;
+    stats.lastRequest = { beta: undefined, body: req.body, wire: 'openai', convId };
+    const body = req.body as {
+      model?: string;
+      messages?: OaWireMessage[];
+      tools?: unknown;
+      stream_options?: { include_usage?: boolean };
+    };
     const planned = plan(fromOpenAi(body.messages ?? []));
     const { current } = planned;
     if ('error' in current) {
@@ -859,12 +982,19 @@ export function registerFakeModel(app: FastifyInstance) {
         .code(current.error)
         .send({ error: { message: `fake ${type}`, type, code: type } });
     }
+    // Automatic prefix caching: tools + leading system message, then each message.
+    const [first, ...rest] = body.messages ?? [];
+    const parts =
+      first?.role === 'system'
+        ? [{ tools: body.tools ?? [], system: first }, ...rest]
+        : [{ tools: body.tools ?? [] }, ...(body.messages ?? [])];
+    const use = cache.use(`openai\n${body.model ?? ''}`, parts);
     await play(reply, planned, (out) =>
       openAiWriter(out, {
         requests: stats.requests,
-        question: planned.question,
-        step: planned.step,
         model: body.model ?? FAKE_OPENAI_MODEL,
+        cache: use,
+        usage: body.stream_options?.include_usage === true,
       }),
     );
   });

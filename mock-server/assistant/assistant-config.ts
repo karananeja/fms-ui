@@ -53,6 +53,23 @@ export const DEFAULT_BASE_URL: Record<Exclude<ProviderName, 'anthropic'>, string
   xai: 'https://api.x.ai/v1',
 };
 
+/** F24 (D-141): xAI conversation-id header for cache routing (xAI prompt-caching docs). */
+export const XAI_CONV_ID_HEADER = 'x-grok-conv-id';
+
+/**
+ * F24: ask xAI for usage on streamed replies (`stream_options.include_usage`). Not confirmed by
+ * the xAI docs, so `FMS_XAI_STREAM_USAGE=0` turns it off. On by default.
+ */
+export const xaiStreamUsage = (env: NodeJS.ProcessEnv = process.env) =>
+  env.FMS_XAI_STREAM_USAGE?.trim() !== '0';
+
+/** F23/F24: `: ping` interval of the chat streams; `FMS_SSE_HEARTBEAT_MS` overrides it. */
+export const SSE_HEARTBEAT_MS = 15_000;
+export const sseHeartbeatMs = (env: NodeJS.ProcessEnv = process.env) => {
+  const n = Number(env.FMS_SSE_HEARTBEAT_MS?.trim());
+  return Number.isFinite(n) && n > 0 ? n : SSE_HEARTBEAT_MS;
+};
+
 export type AssistantMode = 'real' | 'fake' | 'not-configured';
 
 export interface AssistantEnv {

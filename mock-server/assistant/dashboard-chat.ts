@@ -9,7 +9,7 @@ import {
 import type { MockContext } from '../context.ts';
 import { HttpError } from '../http-error.ts';
 import { DASHBOARD_CHAT_MAX_ITERATIONS } from './assistant-config.ts';
-import { runChat, type RunOptions, type RunOutcome } from './assistant-runner.ts';
+import { chatCacheKey, runChat, type RunOptions, type RunOutcome } from './assistant-runner.ts';
 import { permittedWidgetTypes, readingOrder } from './dashboard-tools.ts';
 import type { ChatMessage } from './provider.ts';
 import { dashboardBlock, userContext, type UserContext } from './system-prompt.ts';
@@ -67,9 +67,9 @@ export function changeNote(m: ThreadMessage): string {
 }
 
 /**
- * Thread → API messages: the last ≤ 30 messages starting at a user message, text only. The
- * `<context>` block leads the first user turn; the `<dashboard>` block goes before the text of
- * the latest user turn only, so earlier turns stay byte-stable.
+ * Thread → API messages: the last ≤ 30 messages starting at a user message, text only. F24
+ * (D-141): the `<context>` and `<dashboard>` blocks go before the text of the latest user turn
+ * only, so earlier turns stay byte-stable from turn to turn.
  */
 export function threadToMessages(
   thread: readonly ThreadMessage[],
@@ -83,12 +83,15 @@ export function threadToMessages(
   return recent.map((m, k): ChatMessage => {
     if (m.role === 'assistant')
       return { role: 'assistant', content: `${m.text.trim() || '(no answer)'}${changeNote(m)}` };
-    const blocks: { type: 'text'; text: string }[] = [];
-    if (k === 0) blocks.push({ type: 'text', text: context });
-    if (k === lastUser) blocks.push({ type: 'text', text: dashboard });
-    if (!blocks.length) return { role: 'user', content: m.text };
-    blocks.push({ type: 'text', text: m.text });
-    return { role: 'user', content: blocks };
+    if (k !== lastUser) return { role: 'user', content: m.text };
+    return {
+      role: 'user',
+      content: [
+        { type: 'text', text: context },
+        { type: 'text', text: dashboard },
+        { type: 'text', text: m.text },
+      ],
+    };
   });
 }
 
@@ -108,7 +111,7 @@ export function storedText(outcome: Pick<RunOutcome, 'text' | 'status' | 'error'
 
 export interface DashboardTurnOptions extends Pick<
   RunOptions,
-  'provider' | 'signal' | 'abortReason' | 'log' | 'emit'
+  'provider' | 'signal' | 'abortReason' | 'log' | 'emit' | 'onUsage'
 > {
   ctx: MockContext;
   host: Omit<RunOptions['host'], 'mode' | 'turn'>;
@@ -117,8 +120,11 @@ export interface DashboardTurnOptions extends Pick<
   context: UserContext;
 }
 
-/** Runs one turn; the caller holds the lock and releases it afterwards. Never throws. */
-export async function runDashboardTurn(opts: DashboardTurnOptions): Promise<void> {
+/**
+ * Runs one turn; the caller holds the lock and releases it afterwards. Never throws once the
+ * user message is stored; resolves with how the run ended.
+ */
+export async function runDashboardTurn(opts: DashboardTurnOptions): Promise<RunOutcome> {
   const { ctx, dashboardId, emit } = opts;
   const { user, permissions } = opts.host;
   const store = ctx.dashboards;
@@ -137,7 +143,7 @@ export async function runDashboardTurn(opts: DashboardTurnOptions): Promise<void
   );
   const turn = newTurnState();
 
-  await runChat({
+  return runChat({
     provider: opts.provider,
     host: { ...opts.host, mode: { kind: 'dashboard', dashboardId }, turn },
     context: opts.context,
@@ -147,6 +153,8 @@ export async function runDashboardTurn(opts: DashboardTurnOptions): Promise<void
     abortReason: opts.abortReason,
     log: opts.log,
     maxIterations: DASHBOARD_CHAT_MAX_ITERATIONS,
+    cacheKey: chatCacheKey(user.id, `d:${dashboardId}`),
+    onUsage: opts.onUsage,
     onFinish: (outcome) => {
       const saved = saveAssistant(opts, outcome, userMessage);
       if (saved && outcome.status !== 'client') emit(saved);

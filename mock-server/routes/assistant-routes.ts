@@ -16,11 +16,20 @@ import {
   DEFAULT_BASE_URL,
   FAKE_MODEL_PATH,
   FAKE_OPENAI_PATH,
+  sseHeartbeatMs,
+  xaiStreamUsage,
+  type ProviderName,
 } from '../assistant/assistant-config.ts';
 import { AnthropicProvider } from '../assistant/anthropic-provider.ts';
 import { OpenAiCompatibleProvider } from '../assistant/openai-provider.ts';
-import type { ChatProvider } from '../assistant/provider.ts';
-import { runChat } from '../assistant/assistant-runner.ts';
+import type { ChatProvider, Usage } from '../assistant/provider.ts';
+import {
+  cacheLog,
+  chatCacheKey,
+  END_REASONS,
+  runChat,
+  type EndReason,
+} from '../assistant/assistant-runner.ts';
 import { runDashboardTurn, storedText, takeChatLock } from '../assistant/dashboard-chat.ts';
 import { permittedWidgetTypes } from '../assistant/dashboard-tools.ts';
 import type { UserContext } from '../assistant/system-prompt.ts';
@@ -72,7 +81,10 @@ export async function assistantRoutes(app: FastifyInstance) {
     return reason !== undefined;
   };
 
-  /** Hijacks the reply into an SSE stream; `emit` writes one `ChatEvent` per `data:` line. */
+  /**
+   * Hijacks the reply into an SSE stream; `emit` writes one `ChatEvent` per `data:` line. F23:
+   * a `: ping` comment line every 15 s keeps proxies and the browser from timing the stream out.
+   */
   function openStream(reply: FastifyReply) {
     reply.hijack();
     const res = reply.raw;
@@ -82,11 +94,41 @@ export async function assistantRoutes(app: FastifyInstance) {
       connection: 'keep-alive',
       'x-accel-buffering': 'no',
     });
+    const open = () => !res.writableEnded && !res.destroyed;
     const emit = (event: ChatEvent) => {
-      if (!res.writableEnded && !res.destroyed) res.write(`data: ${JSON.stringify(event)}\n\n`);
+      if (open()) res.write(`data: ${JSON.stringify(event)}\n\n`);
     };
+    const heartbeat = setInterval(() => {
+      if (open()) res.write(': ping\n\n');
+    }, sseHeartbeatMs());
+    heartbeat.unref();
+    res.on('close', () => clearInterval(heartbeat));
+    res.on('finish', () => clearInterval(heartbeat));
     return { res, emit };
   }
+
+  // ---- F24 cache stats and F23 stream end reasons (dev stats + one log line each) ----
+
+  const cacheStats = new Map<
+    ProviderName,
+    { turns: number; inputTokens: number; cachedTokens: number }
+  >();
+  const onUsage = (provider: ProviderName, usage: Usage) => {
+    const s = cacheStats.get(provider) ?? { turns: 0, inputTokens: 0, cachedTokens: 0 };
+    const { inputTokens, cachedTokens } = cacheLog(usage);
+    s.turns++;
+    s.inputTokens += inputTokens;
+    s.cachedTokens += cachedTokens;
+    cacheStats.set(provider, s);
+  };
+  const streamEnds = Object.fromEntries(END_REASONS.map((r) => [r, 0])) as Record<
+    EndReason,
+    number
+  >;
+  const streamEnded = (chat: 'global' | 'dashboard', endReason: EndReason, started: number) => {
+    streamEnds[endReason]++;
+    app.log.info({ chat, endReason, ms: Date.now() - started }, 'assistant stream ended');
+  };
 
   const NOT_CONFIGURED: ChatEvent = {
     type: 'error',
@@ -114,6 +156,8 @@ export async function assistantRoutes(app: FastifyInstance) {
       baseURL: env.baseURL ?? (isFake ? ownBaseUrl(FAKE_OPENAI_PATH) : DEFAULT_BASE_URL[provider]),
       model: env.model ?? '',
       maxRetries: isFake ? 0 : 2,
+      // F24 (D-141): usage on streamed replies; unconfirmed for xAI, so it can be turned off.
+      streamUsage: provider === 'openai' || xaiStreamUsage(),
     });
   }
 
@@ -171,18 +215,21 @@ export async function assistantRoutes(app: FastifyInstance) {
     const sid = req.cookies[SESSION_COOKIE]!;
     const env = assistantEnv();
 
+    const started = Date.now();
     const { res, emit } = openStream(reply);
     if (unconfigured(env)) {
       emit(NOT_CONFIGURED);
       res.end();
+      streamEnded('global', 'error', started);
       return;
     }
 
     const run = runSetup(env, res, ASSISTANT_TIMEOUT_MS);
     const question = body.messages.at(-1)!.content;
+    let endReason: EndReason = 'error';
     activeRuns++;
     try {
-      await runChat({
+      const outcome = await runChat({
         provider: run.provider,
         host: hostFor(user, permissions, sid),
         context: contextFor(user, permissions),
@@ -190,6 +237,8 @@ export async function assistantRoutes(app: FastifyInstance) {
         emit,
         signal: run.signal,
         abortReason: run.abortReason,
+        cacheKey: chatCacheKey(user.id, 'global'),
+        onUsage,
         log: (msg, data) => app.log.info({ mode: env.mode, ...data }, msg),
         // F19 Q2: a dashboard created here gets the creating turn as its thread.
         onFinish: (outcome) => {
@@ -207,10 +256,12 @@ export async function assistantRoutes(app: FastifyInstance) {
           }
         },
       });
+      endReason = outcome.endReason ?? 'error';
     } finally {
       activeRuns--;
       run.clear();
       if (!res.writableEnded) res.end();
+      streamEnded('global', endReason, started);
     }
   });
 
@@ -225,21 +276,24 @@ export async function assistantRoutes(app: FastifyInstance) {
     const { message } = parse(dashboardChatRequestSchema, req.body);
     const sid = req.cookies[SESSION_COOKIE]!;
     const env = assistantEnv();
+    const started = Date.now();
     if (unconfigured(env)) {
       const { res, emit } = openStream(reply);
       emit(NOT_CONFIGURED);
       res.end();
+      streamEnded('dashboard', 'error', started);
       return;
     }
     const release = takeChatLock(ctx, dashboardId);
     let run: ReturnType<typeof runSetup> | undefined;
     let res: FastifyReply['raw'] | undefined;
+    let endReason: EndReason = 'error';
     activeRuns++;
     try {
       const stream = openStream(reply);
       res = stream.res;
       run = runSetup(env, res, DASHBOARD_CHAT_TIMEOUT_MS);
-      await runDashboardTurn({
+      const outcome = await runDashboardTurn({
         ctx,
         provider: run.provider,
         host: hostFor(user, permissions, sid),
@@ -249,8 +303,10 @@ export async function assistantRoutes(app: FastifyInstance) {
         emit: stream.emit,
         signal: run.signal,
         abortReason: run.abortReason,
+        onUsage,
         log: (msg, data) => app.log.info({ mode: env.mode, dashboardId, ...data }, msg),
       });
+      endReason = outcome.endReason ?? 'error';
     } catch (err) {
       app.log.error(err);
       if (res && !res.writableEnded)
@@ -262,6 +318,7 @@ export async function assistantRoutes(app: FastifyInstance) {
       release();
       run?.clear();
       if (res && !res.writableEnded) res.end();
+      if (res) streamEnded('dashboard', endReason, started);
     }
   });
 
@@ -297,6 +354,17 @@ export async function assistantRoutes(app: FastifyInstance) {
       reports: reports.size,
       fakeRequests: fake.stats.requests,
       fakeAborted: fake.stats.aborted,
+      // F24: cached / all input tokens per provider since start; F23: stream end reasons.
+      cache: Object.fromEntries(
+        [...cacheStats].map(([p, s]) => [
+          p,
+          {
+            ...s,
+            hitRate: s.inputTokens ? Math.round((s.cachedTokens / s.inputTokens) * 1000) / 1000 : 0,
+          },
+        ]),
+      ),
+      streamEnds,
     }));
     app.get('/api/dev/assistant/last-request', async () => fake.stats.lastRequest ?? null);
   }

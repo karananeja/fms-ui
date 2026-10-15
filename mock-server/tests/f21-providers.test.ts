@@ -425,7 +425,8 @@ describe('F21-T3 F17/F19 scenarios through the OpenAI-compatible adapter', () =>
       const last = await lastRequest();
       expect(last.wire).toBe('openai');
       expect(JSON.stringify(last.body.tools)).not.toContain('"strict"');
-      expect(last.body).not.toHaveProperty('stream_options');
+      // F24 (D-141): usage is requested from xAI too (FMS_XAI_STREAM_USAGE=0 turns it off).
+      expect(last.body).toHaveProperty('stream_options', { include_usage: true });
     } finally {
       setProvider('openai');
     }

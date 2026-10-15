@@ -155,7 +155,7 @@ describe('F19-T2 prompt and caching', () => {
     expect((a as { strict: boolean }[]).every((t) => t.strict)).toBe(true);
   });
 
-  it('<dashboard> goes in the latest user turn only, <context> in the first', () => {
+  it('<context> and <dashboard> go in the latest user turn only (F24, D-141)', () => {
     const m = (seq: number, role: 'user' | 'assistant', text: string) => ({
       id: `m${seq}`,
       seq,
@@ -181,19 +181,14 @@ describe('F19-T2 prompt and caching', () => {
       '<context>C</context>',
       '<dashboard>D</dashboard>',
     );
-    expect(msgs[0]).toEqual({
-      role: 'user',
-      content: [
-        { type: 'text', text: '<context>C</context>' },
-        { type: 'text', text: 'q1' },
-      ],
-    });
+    expect(msgs[0]).toEqual({ role: 'user', content: 'q1' });
     expect(msgs[1]!.content).toBe(
       'a1\n\n[Changes: Added widget "A" (w-1)]\n[The user undid these changes]',
     );
     expect(msgs[2]).toEqual({
       role: 'user',
       content: [
+        { type: 'text', text: '<context>C</context>' },
         { type: 'text', text: '<dashboard>D</dashboard>' },
         { type: 'text', text: 'q2' },
       ],
