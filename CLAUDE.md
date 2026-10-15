@@ -26,13 +26,14 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F16 | Performance dashboard | Done, accepted |
 | F17 | Fleet assistant | Done, accepted. Real-key smoke test pending |
 | DS3, F18 | Themes & fonts; dashboard store (node:sqlite) | Done, accepted 2026-10-15 |
-| F19, F20 | AI dashboard builder; `/dashboards` route & UI | Spec signed off 2026-10-15; implementing |
+| F19, F20, F21 | AI dashboard builder (+ widget previews D-135, voice input); `/dashboards` route & UI; AI provider choice (xAI/OpenAI/Anthropic, D-134) | Done, accepted 2026-10-15. Real-key (Grok) smoke test pending |
+| F22 | Persist accounts & admin data in SQLite | Intent signed off 2026-10-15; spec in progress |
 
-Last `main` baseline (2026-10-15, after DS3 + F18): `pnpm check` 955/955, build clean, e2e chromium 89 passed (2 re-run flakes), clock 4/5 (F15-T4 order-dependent), `status-bar.perf` long task 60–63 ms vs 50 ms budget (same as on the F03 report). Last decision: **D-121** (Part 3: D-112…D-121).
+Last `main` baseline (2026-10-15, after F19–F21): `pnpm check` 1097/1097, build clean, e2e chromium 82 passed + F14-T6 fixed (re-run 6/6), 17 screenshot tests skipped without `FMS_SHOTS`. Last decision: **D-135** (Part 3: D-112…D-135).
 
 ### Pending work: Part 3 (`requirement-part-3.md`), DS3 + F18–F20
-- Order: (DS3 ∥ F18) done → F19 → F20. Accepted decisions D-112…D-121 (node:sqlite, react-grid-layout, Inter via Google Fonts link + Doto display-only, light/dark/system themes, generative dashboards from a fixed widget catalogue with view-only sharing; DS3 basemap/tokens; F18 DB layout, contract, sharing/threads/undo).
-- F18 store API for F19/F20: `mock-server/store/dashboards.ts` (`appendMessage`, `applyTurn`, `undo`, `shareCandidates`…); contract `shared/contract/dashboards.ts`. `status-breakdown` / `vehicle-list` widgets need a new read-only worker query (F20).
+- Order: DS3, F18, F19, F20, F21 done → F22 (persist admin data). Accepted decisions D-112…D-121 (node:sqlite, react-grid-layout, Inter via Google Fonts link + Doto display-only, light/dark/system themes, generative dashboards from a fixed widget catalogue with view-only sharing; DS3 basemap/tokens; F18 DB layout, contract, sharing/threads/undo).
+- F18 store API for F19/F20: `mock-server/store/dashboards.ts` (`appendMessage`, `applyTurn`, `undo`, `shareCandidates`…); contract `shared/contract/dashboards.ts`. Live widgets use the worker's read-only `queryWidgets` (D-129). AI provider: `FMS_ASSISTANT_PROVIDER`/`FMS_ASSISTANT_MODEL` + per-provider keys in `.env` (D-134, see `.env.example`).
 
 ### Done: Part 2 (`requirement-part-2.md`), F11–F17
 - All intents and specs are signed off (2026-10-14); see `docs/02-feature-catalog.md` and `docs/features/f11-…`–`f17-…/spec.md`.

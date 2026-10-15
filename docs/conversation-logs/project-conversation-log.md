@@ -474,3 +474,11 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "why are user accounts kept in in-memory? they should be in db right?" → explained the F01 mock design and proposed F22 (persist accounts and admin data in SQLite); waiting for the user's choice.
 
 **Status/Next:** F19, F20, F21, voice and previews are ready for UAT on `feature/part3-f19-f20`; the Grok smoke test needs the user's key.
+
+**User:** "yes" (F22, with sessions that survive a restart) → wrote the F22 intent (signed off); a spec agent started.
+
+**User:** "approved" (UAT of F19, F20, F21, voice, widget previews).
+
+**Assistant:** Merged `feature/part3-f19-f20` into `main` (--no-ff), deleted the branch, accepted D-134 and D-135, and updated the catalogue and CLAUDE.md.
+
+**Status/Next:** Grok smoke test pending (user's key); F22 spec for sign-off.
