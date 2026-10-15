@@ -1,6 +1,6 @@
 # F22 — Persist Accounts & Admin Data in SQLite · Spec
 
-**Status:** Draft, awaiting sign-off
+**Status:** Signed off: 2026-10-15 (user)
 
 | Field | Value |
 |---|---|
@@ -213,10 +213,10 @@ README.md                              MOCK_DB_RESET, /api/dev/reset, "delete mo
 - **Clock e2e**: unaffected (`:memory:`, memory slide exact); a dev who restarts after shifting the clock sees future-dated rows (harmless).
 - **F11-T3 replacement flake** remains time-of-day dependent (live sim state, not stored state); boot `tick()` may now advance persisted `waiting` replacements at start (recorded like any other step).
 
-## 13. Open questions
-1. **Should dev reset also wipe dashboards?** Recommendation: yes; a reset means "fresh seed", and kept dashboards would point at deleted runtime users/fleets.
-2. **Seed or vehicle-count mismatch on an existing DB: refuse or auto-reseed?** Recommendation: refuse with a clear message and `MOCK_DB_RESET=1`; silent wipes lose data.
-3. **Persist the dev mailbox?** Recommendation: no; it is a dev aid holding raw tokens, and "Resend invite" covers a restart.
-4. **Small internal route edits** (access-routes, driver-routes) although the intent says routes don't change? Recommendation: accept; the HTTP surface is identical and it removes hidden state.
-5. **Notification retention cap?** Recommendation: none for now; revisit if the full-DB start budget is exceeded.
-6. **F17 assistant reports (generated PDFs)**: persist too? Recommendation: no, out of the intent's list; they are re-generated on demand.
+## 13. Resolved questions (user, 2026-10-15)
+1. Dev reset also wipes dashboards.
+2. A seed or vehicle-count mismatch with an existing DB refuses to start, with a `MOCK_DB_RESET=1` hint.
+3. The dev mailbox is not persisted.
+4. Small internal route edits are accepted; HTTP stays identical.
+5. No cap on stored notifications for now.
+6. F17 assistant reports are not persisted (15 min in memory).

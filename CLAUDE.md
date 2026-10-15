@@ -32,7 +32,7 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 Last `main` baseline (2026-10-15, after F19–F21): `pnpm check` 1097/1097, build clean, e2e chromium 82 passed + F14-T6 fixed (re-run 6/6), 17 screenshot tests skipped without `FMS_SHOTS`. Last decision: **D-135** (Part 3: D-112…D-135).
 
 ### Pending work: Part 3 (`requirement-part-3.md`), DS3 + F18–F20
-- Order: DS3, F18, F19, F20, F21 done → F22 (persist admin data). Accepted decisions D-112…D-121 (node:sqlite, react-grid-layout, Inter via Google Fonts link + Doto display-only, light/dark/system themes, generative dashboards from a fixed widget catalogue with view-only sharing; DS3 basemap/tokens; F18 DB layout, contract, sharing/threads/undo).
+- Order: DS3, F18, F19, F20, F21 done → F22 (persist admin data). Accepted decisions D-112…D-140 (F22: D-136…D-140 SQLite write-through stores, seed marker, hashed tokens, vehicle moves only, atomic(); node:sqlite, react-grid-layout, Inter via Google Fonts link + Doto display-only, light/dark/system themes, generative dashboards from a fixed widget catalogue with view-only sharing; DS3 basemap/tokens; F18 DB layout, contract, sharing/threads/undo).
 - F18 store API for F19/F20: `mock-server/store/dashboards.ts` (`appendMessage`, `applyTurn`, `undo`, `shareCandidates`…); contract `shared/contract/dashboards.ts`. Live widgets use the worker's read-only `queryWidgets` (D-129). AI provider: `FMS_ASSISTANT_PROVIDER`/`FMS_ASSISTANT_MODEL` + per-provider keys in `.env` (D-134, see `.env.example`).
 
 ### Done: Part 2 (`requirement-part-2.md`), F11–F17
