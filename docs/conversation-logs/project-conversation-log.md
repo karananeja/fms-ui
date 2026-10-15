@@ -522,3 +522,7 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "yes do it" → D-156 (Proposed): a `credits` error class for all providers and the F25 key check; the client shows the server's message for `failed`, and reloaded threads no longer show the raw `(error: …)` note. Tests: `provider-credits.test.ts`, client test, e2e D-155 + F23 11/11; typecheck and lint clean. Verified on the dev mock.
 
 **Status/Next:** UAT of F22–F27 needs either xAI credits, another provider key, or the fake assistant. Decisions D-141, D-143…D-146, D-150…D-156 (and old D-065…D-067) await approval.
+
+**User:** "approved and update the artifact as well" → UAT of F22–F27 (with D-142 snapshots, D-155, D-156 and the layout fixes) accepted; D-065…D-067, D-141…D-146 and D-150…D-156 accepted. Merged `feature/f22-persist-admin-data` into `main` (--no-ff), deleted the branch, updated the catalogue and CLAUDE.md, and updated the architecture explainer artifact for F22–F27.
+
+**Status/Next:** Part 3 done. Pending: real-key Grok smoke test (xAI team needs credits); known flakes F11-T3, F09-T8, F06-T6.

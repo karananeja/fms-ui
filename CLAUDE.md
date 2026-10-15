@@ -4,7 +4,7 @@ Fleet management web app: live tracking of up to 1 lakh vehicles, admin screens 
 React 19 + Vite + TypeScript + TanStack Router/Table/Virtual + Tailwind v4/shadcn + MapLibre + Comlink worker, with a Fastify mock backend (`mock-server/`) and a zod contract in `shared/contract/`.
 Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-accounts.md`.
 
-## Project status (2026-10-14)
+## Project status (2026-10-16)
 
 | ID | Feature | State |
 |---|---|---|
@@ -27,12 +27,12 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F17 | Fleet assistant | Done, accepted. Real-key smoke test pending |
 | DS3, F18 | Themes & fonts; dashboard store (node:sqlite) | Done, accepted 2026-10-15 |
 | F19, F20, F21 | AI dashboard builder (+ widget previews D-135, voice input); `/dashboards` route & UI; AI provider choice (xAI/OpenAI/Anthropic, D-134) | Done, accepted 2026-10-15. Real-key (Grok) smoke test pending |
-| F22 | Persist accounts & admin data in SQLite | Spec signed off 2026-10-15; implementing |
+| F22–F27 | Persist admin data in SQLite; chat & dashboard UX (+ Retry after return D-155); prompt caching; user AI keys (needs `FMS_SECRET_KEY`); dynamic widgets; edit/view sharing; card snapshots (D-142); out-of-credits errors (D-156) | Done, accepted 2026-10-16. Real-key (Grok) smoke test pending (xAI team out of credits) |
 
-Last `main` baseline (2026-10-15, after F19–F21): `pnpm check` 1097/1097, build clean, e2e chromium 82 passed + F14-T6 fixed (re-run 6/6), 17 screenshot tests skipped without `FMS_SHOTS`. Last decision: **D-135** (Part 3: D-112…D-135).
+Last `main` baseline (2026-10-16, after F22–F27): `pnpm check` 1242/1244 (F11-T3 time-of-day flake; `widget-query.perf` under load, passes alone), build clean, e2e chromium 114 passed, 17 screenshot tests skipped without `FMS_SHOTS`. Last decision: **D-156** (Part 3: D-112…D-156; no D-147…D-149). Chat DB schema v12.
 
-### Pending work: Part 3 (`requirement-part-3.md`), DS3 + F18–F20
-- Order: DS3, F18, F19, F20, F21 done → F22 (persist admin data). Accepted decisions D-112…D-140 (F22: D-136…D-140 SQLite write-through stores, seed marker, hashed tokens, vehicle moves only, atomic(); node:sqlite, react-grid-layout, Inter via Google Fonts link + Doto display-only, light/dark/system themes, generative dashboards from a fixed widget catalogue with view-only sharing; DS3 basemap/tokens; F18 DB layout, contract, sharing/threads/undo).
+### Done: Part 3 (`requirement-part-3.md`), DS3 + F18–F27
+- Order: DS3, F18, F19, F20, F21, F22–F27 all done. Accepted decisions D-112…D-156 (F22: D-136…D-140 SQLite write-through stores, seed marker, hashed tokens, vehicle moves only, atomic(); node:sqlite, react-grid-layout, Inter via Google Fonts link + Doto display-only, light/dark/system themes, generative dashboards from a fixed widget catalogue with view-only sharing; DS3 basemap/tokens; F18 DB layout, contract, sharing/threads/undo).
 - F18 store API for F19/F20: `mock-server/store/dashboards.ts` (`appendMessage`, `applyTurn`, `undo`, `shareCandidates`…); contract `shared/contract/dashboards.ts`. Live widgets use the worker's read-only `queryWidgets` (D-129). AI provider: `FMS_ASSISTANT_PROVIDER`/`FMS_ASSISTANT_MODEL` + per-provider keys in `.env` (D-134, see `.env.example`).
 
 ### Done: Part 2 (`requirement-part-2.md`), F11–F17
