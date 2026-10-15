@@ -482,3 +482,9 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Assistant:** Merged `feature/part3-f19-f20` into `main` (--no-ff), deleted the branch, accepted D-134 and D-135, and updated the catalogue and CLAUDE.md.
 
 **Status/Next:** Grok smoke test pending (user's key); F22 spec for sign-off.
+
+**User:** "create the .env file and i will add the key" → created `.env` from `.env.example` with `FMS_ASSISTANT_PROVIDER=xai` and `FMS_ASSISTANT_MODEL=grok-4` (to be checked against the key); e2e now forces the fake model.
+
+**Assistant:** F22 spec drafted (write-through caches, migrations v3–v7, seed marker, hashed tokens, dev reset; F22-T1…T8). Asked 6 questions, each with a recommendation.
+
+**User:** "approved" → spec signed off, D-136…D-140 accepted; F22 implementation started on `feature/f22-persist-admin-data`.

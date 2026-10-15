@@ -27,7 +27,7 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F17 | Fleet assistant | Done, accepted. Real-key smoke test pending |
 | DS3, F18 | Themes & fonts; dashboard store (node:sqlite) | Done, accepted 2026-10-15 |
 | F19, F20, F21 | AI dashboard builder (+ widget previews D-135, voice input); `/dashboards` route & UI; AI provider choice (xAI/OpenAI/Anthropic, D-134) | Done, accepted 2026-10-15. Real-key (Grok) smoke test pending |
-| F22 | Persist accounts & admin data in SQLite | Intent signed off 2026-10-15; spec in progress |
+| F22 | Persist accounts & admin data in SQLite | Spec signed off 2026-10-15; implementing |
 
 Last `main` baseline (2026-10-15, after F19–F21): `pnpm check` 1097/1097, build clean, e2e chromium 82 passed + F14-T6 fixed (re-run 6/6), 17 screenshot tests skipped without `FMS_SHOTS`. Last decision: **D-135** (Part 3: D-112…D-135).
 
