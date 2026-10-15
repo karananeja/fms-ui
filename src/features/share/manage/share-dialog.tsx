@@ -33,10 +33,10 @@ export function ShareDialog({ open, onOpenChange, vehicleId, regno }: ShareDialo
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/55 data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none" />
         <Dialog.Content
           data-share-dialog
-          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] flex-col overflow-hidden rounded-t-[var(--radius-panel)] border border-glass-border bg-surface-solid text-text shadow-[0_30px_80px_rgb(0_0_0/0.55)] outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-[480px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[var(--radius-panel)]"
+          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] flex-col overflow-hidden rounded-t-[var(--radius-panel)] border border-glass-border bg-surface-solid text-text shadow-float outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-[480px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[var(--radius-panel)]"
         >
           <div
             aria-hidden
@@ -44,7 +44,7 @@ export function ShareDialog({ open, onOpenChange, vehicleId, regno }: ShareDialo
           />
           <header className="flex items-start justify-between gap-3 px-5 pt-4 pb-1 sm:pt-5">
             <div className="min-w-0">
-              <Dialog.Title className="text-base font-extrabold tracking-[0.04em]">
+              <Dialog.Title className="text-base font-semibold tracking-[0.04em]">
                 Share live location
               </Dialog.Title>
               <Dialog.Description className="mt-0.5 truncate text-xs text-text-muted">
@@ -101,7 +101,7 @@ function ShareDialogBody({ vehicleId }: { vehicleId: string }) {
             aria-controls="share-tabpanel"
             onClick={() => setTab(t.id)}
             className={cn(
-              'flex-1 rounded-[9px] py-[7px] text-xs font-extrabold outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'flex-1 rounded-[9px] py-[7px] text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring',
               tab === t.id ? 'bg-tile-border text-text' : 'text-text-muted hover:text-text',
             )}
           >

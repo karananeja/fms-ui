@@ -199,7 +199,7 @@ const TreeRow = memo(function TreeRow({
         </span>
       )}
       <span
-        className="shrink-0 px-2 text-xs font-extrabold text-text-muted tabular-nums"
+        className="shrink-0 px-2 text-xs font-semibold text-text-muted tabular-nums"
         data-testid="fleet-count"
         title={`${counts.format(f.vehicleCount)} vehicles in this fleet and below`}
       >

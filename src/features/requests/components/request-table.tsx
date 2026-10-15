@@ -56,7 +56,7 @@ export function RequestTable({
 
   return (
     <div
-      className="overflow-hidden rounded-[var(--radius-panel)] shadow-[0_30px_80px_rgb(0_0_0/0.35)] glass"
+      className="overflow-hidden rounded-[var(--radius-panel)] shadow-panel glass"
       role="table"
       aria-label="Requests"
       aria-rowcount={rows.length}
@@ -66,7 +66,7 @@ export function RequestTable({
         role="row"
         className={cn(
           COLS,
-          'h-10 border-b border-glass-border bg-surface-solid text-[11px] font-black tracking-[0.12em] whitespace-nowrap text-text-muted uppercase',
+          'h-10 border-b border-glass-border bg-surface-solid text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap text-text-muted uppercase',
         )}
       >
         <span role="columnheader">
@@ -136,7 +136,7 @@ export function RequestTable({
                     to="/live-tracking"
                     search={{ vehicle: r.vehicleId }}
                     onClick={(e) => e.stopPropagation()}
-                    className="block truncate font-extrabold text-accent hover:underline"
+                    className="block truncate font-semibold text-accent hover:underline"
                   >
                     {regno ?? r.vehicleId}
                   </Link>

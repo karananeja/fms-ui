@@ -53,7 +53,7 @@ function SuggestionRow({ s, prefix }: { s: Suggestion; prefix: string }) {
       <>
         <span className="size-2 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-extrabold">
+          <span className="block truncate text-sm font-semibold">
             <DriverHighlight name={s.driverName ?? ''} prefix={prefix} />
             <span className="text-text-muted"> · {s.regno || '—'}</span>
           </span>
@@ -65,7 +65,7 @@ function SuggestionRow({ s, prefix }: { s: Suggestion; prefix: string }) {
     <>
       <span className="size-2 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-extrabold">
+        <span className="block truncate text-sm font-semibold">
           <Highlight value={s.regno || '—'} prefix={prefix} on={s.matchedField === 'regno'} />
         </span>
         <span className="block truncate text-[11px] text-text-muted">
@@ -217,7 +217,7 @@ export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingS
           className="h-full min-w-0 flex-1 bg-transparent text-sm text-text uppercase outline-none placeholder:text-text-muted placeholder:normal-case"
         />
         {!text && (
-          <kbd className="hidden rounded-md border border-glass-border px-1.5 py-px text-[11px] font-extrabold text-text-faint lg:block">
+          <kbd className="hidden rounded-md border border-glass-border px-1.5 py-px text-[11px] font-semibold text-text-faint lg:block">
             /
           </kbd>
         )}
@@ -226,7 +226,7 @@ export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingS
             <button
               type="button"
               aria-label={`Search field: ${fieldLabel}`}
-              className="flex h-8 items-center gap-1 rounded-[10px] px-2 text-[11px] font-black tracking-[0.1em] uppercase outline-none hover:bg-tile hover:text-text focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-8 items-center gap-1 rounded-[10px] px-2 text-[11px] font-semibold tracking-[0.1em] uppercase outline-none hover:bg-tile hover:text-text focus-visible:ring-2 focus-visible:ring-ring"
             >
               {fieldLabel}
               <ChevronDown className="size-3.5" aria-hidden />
@@ -246,7 +246,7 @@ export function SearchBox({ store = liveTrackingStore }: { store?: LiveTrackingS
                   <DropdownMenu.RadioItem
                     key={f.id}
                     value={f.id}
-                    className="cursor-pointer rounded px-2.5 py-1.5 text-xs font-extrabold tracking-[0.1em] text-text-muted uppercase outline-none data-highlighted:bg-accent-soft data-highlighted:text-accent data-[state=checked]:text-accent"
+                    className="cursor-pointer rounded px-2.5 py-1.5 text-xs font-semibold tracking-[0.1em] text-text-muted uppercase outline-none data-highlighted:bg-accent-soft data-highlighted:text-accent data-[state=checked]:text-accent"
                   >
                     {f.label}
                   </DropdownMenu.RadioItem>

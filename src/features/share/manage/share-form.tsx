@@ -33,7 +33,7 @@ function FieldLabel({ children, id }: { children: ReactNode; id?: string }) {
   return (
     <span
       id={id}
-      className="mb-2 block text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase"
+      className="mb-2 block text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase"
     >
       {children}
     </span>
@@ -74,7 +74,7 @@ function CheckRow({
         className="mt-0.5 size-4 shrink-0 accent-[var(--accent)] disabled:opacity-70"
       />
       <span className="min-w-0">
-        <span className="flex items-center gap-1.5 text-sm font-extrabold">
+        <span className="flex items-center gap-1.5 text-sm font-semibold">
           {label}
           {disabled && <Lock aria-hidden className="size-3 text-text-faint" />}
         </span>
@@ -114,7 +114,7 @@ function ShareResult({ link, onAnother }: { link: ShareLink; onAnother: () => vo
         <FieldLabel>Link ready</FieldLabel>
         <p className="mb-3 text-xs text-text-muted">
           Anyone with this link can follow the vehicle until{' '}
-          <span className="font-extrabold text-text">{formatExpiryIst(link.expiresAt)}</span>.
+          <span className="font-semibold text-text">{formatExpiryIst(link.expiresAt)}</span>.
         </p>
         <div className="flex gap-2">
           <input

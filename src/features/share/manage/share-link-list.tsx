@@ -36,7 +36,7 @@ export function OptionChips({ link, className }: { link: ShareLink; className?: 
       {optionChips(link).map((c) => (
         <li
           key={c}
-          className="rounded-full border border-tile-border bg-tile px-2 py-0.5 text-[10px] font-extrabold tracking-[0.06em] whitespace-nowrap text-text-muted uppercase"
+          className="rounded-full border border-tile-border bg-tile px-2 py-0.5 text-[10px] font-semibold tracking-[0.06em] whitespace-nowrap text-text-muted uppercase"
         >
           {c}
         </li>
@@ -190,7 +190,7 @@ export function ShareLinkList({
             type="button"
             aria-expanded={showInactive}
             onClick={() => setShowInactive((v) => !v)}
-            className="flex items-center gap-1.5 self-start rounded-md px-1 py-1 text-xs font-extrabold tracking-[0.08em] text-text-muted uppercase outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex items-center gap-1.5 self-start rounded-md px-1 py-1 text-xs font-semibold tracking-[0.08em] text-text-muted uppercase outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ChevronDown
               aria-hidden

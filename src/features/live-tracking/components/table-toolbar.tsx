@@ -21,7 +21,7 @@ function ToolButton({ className, ...props }: ComponentProps<'button'>) {
     <button
       type="button"
       className={cn(
-        'flex h-9 shrink-0 items-center gap-2 rounded-[10px] px-3 text-xs font-extrabold tracking-[0.1em] text-text-muted uppercase outline-none hover:bg-tile hover:text-text focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 aria-pressed:bg-accent-soft aria-pressed:text-accent [&_svg]:size-4',
+        'flex h-9 shrink-0 items-center gap-2 rounded-[10px] px-3 text-xs font-semibold tracking-[0.1em] text-text-muted uppercase outline-none hover:bg-tile hover:text-text focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 aria-pressed:bg-accent-soft aria-pressed:text-accent [&_svg]:size-4',
         className,
       )}
       {...props}
@@ -76,7 +76,7 @@ export function TableToolbar({
       </div>
       <span
         data-testid="table-count"
-        className="px-2 text-xs font-extrabold tracking-[0.12em] whitespace-nowrap uppercase"
+        className="px-2 text-xs font-semibold tracking-[0.06em] whitespace-nowrap uppercase"
       >
         {scope === 'all' ? 'All' : 'Viewport'} · {total === null ? '…' : count.format(total)}{' '}
         vehicles
@@ -85,7 +85,7 @@ export function TableToolbar({
         {paused && (
           <span
             data-testid="paused-badge"
-            className="rounded-full bg-warn/15 px-2.5 py-1 text-[11px] font-extrabold tracking-[0.08em] whitespace-nowrap text-warn uppercase"
+            className="rounded-full bg-warn/15 px-2.5 py-1 text-[11px] font-semibold tracking-[0.08em] whitespace-nowrap text-warn uppercase"
           >
             Paused · {pending} {pending === 1 ? 'update' : 'updates'}
           </span>
@@ -119,7 +119,7 @@ export function TableToolbar({
                   disabled={c.id === 'regno'}
                   onCheckedChange={() => store.toggleColumn(c.id)}
                   onSelect={(e) => e.preventDefault()}
-                  className="flex cursor-pointer items-center gap-2 rounded px-2.5 py-1.5 text-xs font-extrabold text-text-muted outline-none data-disabled:opacity-50 data-highlighted:bg-accent-soft data-highlighted:text-accent data-[state=checked]:text-text"
+                  className="flex cursor-pointer items-center gap-2 rounded px-2.5 py-1.5 text-xs font-semibold text-text-muted outline-none data-disabled:opacity-50 data-highlighted:bg-accent-soft data-highlighted:text-accent data-[state=checked]:text-text"
                 >
                   <span
                     aria-hidden

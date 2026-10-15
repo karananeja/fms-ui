@@ -15,7 +15,7 @@ export function RequestsNavBadge({ variant }: { variant: 'rail' | 'drawer' }) {
     <span
       data-testid={`requests-badge-${variant}`}
       className={cn(
-        'min-w-[18px] rounded-full bg-danger px-1 text-center text-[10px] leading-[18px] font-black text-white tabular-nums',
+        'min-w-[18px] rounded-full bg-danger px-1 text-center text-[10px] leading-[18px] font-semibold text-on-danger tabular-nums',
         variant === 'rail' ? 'absolute -top-1 -right-1' : 'ml-auto',
       )}
     >

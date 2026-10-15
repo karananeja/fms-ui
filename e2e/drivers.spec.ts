@@ -7,6 +7,7 @@ import {
 import type { APIRequestContext, Page } from '@playwright/test';
 import { adminApi } from './auth-helpers.ts';
 import { expect, SIGNED_OUT, test } from './fixtures.ts';
+import { shot, SHOTS_ON, SHOTS_SKIP_REASON } from './shots.ts';
 
 const SHOTS = 'docs/features/f12-drivers-assignment/screenshots';
 const VIEWER = { email: 'viewer@fms.local', password: 'View@1234' };
@@ -196,6 +197,7 @@ test.describe('F12-T5: Viewer', () => {
 });
 
 test('F12-T6: UAT screenshots', async ({ page, baseURL }) => {
+  test.skip(!SHOTS_ON, SHOTS_SKIP_REASON);
   test.setTimeout(90_000);
   const api = await adminApi(baseURL!);
   const [v] = await freeVehicles(api, 1);
@@ -205,31 +207,31 @@ test('F12-T6: UAT screenshots', async ({ page, baseURL }) => {
 
   await page.goto('/admin/drivers');
   await expect(page.getByRole('row').nth(3)).toBeVisible({ timeout: 10_000 });
-  await page.screenshot({ path: `${SHOTS}/drivers-page.png` });
+  await shot(page, { path: `${SHOTS}/drivers-page.png` });
 
   await page.getByRole('button', { name: 'Add driver' }).click();
   await page.getByTestId('driver-form').getByRole('button', { name: 'Add driver' }).click();
-  await page.screenshot({ path: `${SHOTS}/driver-form.png` });
+  await shot(page, { path: `${SHOTS}/driver-form.png` });
   await page.keyboard.press('Escape');
 
   await openVehicle(page, v!);
   const section = panel(page).getByTestId('driver-section');
   await expect(section.getByTestId('driver-name')).toHaveText(first.name, { timeout: 10_000 });
-  await section.screenshot({ path: `${SHOTS}/card-driver-section.png` });
-  await page.screenshot({ path: `${SHOTS}/card-desktop.png` });
+  await shot(section, { path: `${SHOTS}/card-driver-section.png` });
+  await shot(page, { path: `${SHOTS}/card-desktop.png` });
 
   await section.getByRole('button', { name: 'Change' }).click();
   const dialog = page.getByRole('dialog', { name: /Assign a driver to/ });
   await dialog.getByLabel('Search drivers by name').fill(second.name);
   await dialog.getByRole('button', { name: new RegExp(second.name) }).click();
   await expect(dialog.getByTestId('assign-conflict')).toContainText('is driven by');
-  await page.screenshot({ path: `${SHOTS}/assign-conflict.png` });
+  await shot(page, { path: `${SHOTS}/assign-conflict.png` });
   await page.keyboard.press('Escape');
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/live-tracking?vehicle=${v!.vehicleId}`);
   await expect(page.getByTestId('driver-name')).toHaveText(first.name, { timeout: 20_000 });
   await page.getByTestId('driver-section').scrollIntoViewIfNeeded();
-  await page.screenshot({ path: `${SHOTS}/card-mobile.png` });
+  await shot(page, { path: `${SHOTS}/card-mobile.png` });
   await api.dispose();
 });

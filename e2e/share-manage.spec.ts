@@ -2,6 +2,7 @@ import type { APIRequestContext, Page } from '@playwright/test';
 import type { Fleet, Permission, ShareLink, VehicleMeta } from '@shared/contract/index.ts';
 import { adminApi, mailLink } from './auth-helpers.ts';
 import { expect, SIGNED_OUT, test } from './fixtures.ts';
+import { shot } from './shots.ts';
 
 const SHOTS = 'docs/features/f10-share-live-location/screenshots';
 const HOUR = 3_600_000;
@@ -61,7 +62,7 @@ test('F10-T3: super admin creates from the details card, copies, revokes from th
   await dialog(page)
     .getByRole('checkbox', { name: /Show trail/ })
     .check();
-  await page.screenshot({ path: `${SHOTS}/share-dialog-create.png` });
+  await shot(page, { path: `${SHOTS}/share-dialog-create.png` });
 
   await dialog(page).getByRole('button', { name: 'Create link' }).click();
   const urlField = dialog(page).getByRole('textbox', { name: 'Share link URL' });
@@ -75,7 +76,7 @@ test('F10-T3: super admin creates from the details card, copies, revokes from th
     ).navigator.clipboard.readText(),
   );
   expect(copied).toBe(url);
-  await page.screenshot({ path: `${SHOTS}/share-dialog-result.png` });
+  await shot(page, { path: `${SHOTS}/share-dialog-result.png` });
 
   const token = tokenOf(url);
   expect((await page.request.get(`/api/public/share/${token}`)).status()).toBe(200);
@@ -84,7 +85,7 @@ test('F10-T3: super admin creates from the details card, copies, revokes from th
   const row = dialog(page).locator('li[data-status="active"]').first();
   await expect(row).toContainText('Trail 1 h');
   await expect(row).toContainText('by You');
-  await page.screenshot({ path: `${SHOTS}/share-dialog-links.png` });
+  await shot(page, { path: `${SHOTS}/share-dialog-links.png` });
 
   await row.getByRole('button', { name: 'Revoke link' }).click();
   const confirm = page.getByRole('alertdialog', { name: 'Revoke this link?' });
@@ -130,7 +131,7 @@ test('F10-T3: admin share links page lists, filters, searches and revokes', asyn
   await expect(row).toContainText('Trail 15 min');
   await expect(row.locator('[data-status]')).toHaveAttribute('data-status', 'active');
   await page.getByRole('searchbox', { name: 'Search by regno' }).fill('');
-  await page.screenshot({ path: `${SHOTS}/share-admin-links.png`, fullPage: true });
+  await shot(page, { path: `${SHOTS}/share-admin-links.png`, fullPage: true });
 
   // The revoked link shows under Revoked only.
   await expect(table.locator(`tr[data-row-key="${gone.id}"]`)).toHaveCount(0);

@@ -4,6 +4,7 @@ import { SESSION_COOKIE, WS_CLOSE, WS_PATH } from '@shared/contract/index.ts';
 import Fastify, { LogController, type FastifyError } from 'fastify';
 import { Clock } from './clock.ts';
 import { loadConfig, type MockConfig } from './config.ts';
+import { openDatabase } from './db/database.ts';
 import { setSessionCookie, type MockContext } from './context.ts';
 import { FleetTree } from './generator/fleet-tree.ts';
 import { HistorySim } from './generator/history-sim.ts';
@@ -14,6 +15,7 @@ import { accessRoutes } from './routes/access-routes.ts';
 import { analyticsRoutes } from './routes/analytics-routes.ts';
 import { assistantRoutes } from './routes/assistant-routes.ts';
 import { authRoutes } from './routes/auth-routes.ts';
+import { dashboardRoutes } from './routes/dashboard-routes.ts';
 import { devRoutes } from './routes/dev-routes.ts';
 import { driverRoutes } from './routes/driver-routes.ts';
 import { notificationRoutes } from './routes/notification-routes.ts';
@@ -21,6 +23,7 @@ import { requestRoutes } from './routes/request-routes.ts';
 import { shareRoutes } from './routes/share-routes.ts';
 import { vehicleRoutes } from './routes/vehicle-routes.ts';
 import { Accounts, DRIVER_USER_ID } from './store/accounts.ts';
+import { Dashboards } from './store/dashboards.ts';
 import { Drivers } from './store/drivers.ts';
 import { Notifications } from './store/notifications.ts';
 import { Requests } from './store/requests.ts';
@@ -50,6 +53,12 @@ export function buildServer({ logLevel = 'warn', ...overrides }: BuildOptions = 
   ctx.requests = new Requests(ctx);
   ctx.notifications = new Notifications(ctx);
   ctx.hub = new LiveHub(ctx);
+  const dbStarted = performance.now();
+  ctx.db = openDatabase(config.dbPath, undefined, () => clock.now());
+  ctx.dashboards = new Dashboards(ctx.db, clock, ctx.accounts, tree);
+  app.log.debug(
+    `database ${config.dbPath} ready in ${(performance.now() - dbStarted).toFixed(1)} ms`,
+  );
   ctx.drivers.onAssignment = (a) => {
     const i = sim.indexOf(a.vehicleId);
     ctx.hub.publish('assignment', a, {
@@ -101,6 +110,7 @@ export function buildServer({ logLevel = 'warn', ...overrides }: BuildOptions = 
   app.register(requestRoutes, { prefix: '/api' });
   app.register(notificationRoutes, { prefix: '/api' });
   app.register(analyticsRoutes, { prefix: '/api' });
+  app.register(dashboardRoutes, { prefix: '/api' });
   app.register(assistantRoutes);
   if (config.dev) app.register(devRoutes, { prefix: '/api/dev' });
 
@@ -135,6 +145,7 @@ export function buildServer({ logLevel = 'warn', ...overrides }: BuildOptions = 
   app.addHook('onClose', async () => {
     ctx.hub.stop();
     ctx.notifications.stop();
+    if (ctx.db.isOpen) ctx.db.close();
   });
   return app;
 }

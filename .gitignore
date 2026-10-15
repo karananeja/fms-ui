@@ -17,3 +17,6 @@ e2e/.auth/
 
 # Agent worktrees inside the project (avoids permission prompts)
 .worktrees/
+
+# F18 mock-server SQLite database (D-119)
+mock-server/data/

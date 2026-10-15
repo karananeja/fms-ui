@@ -3,6 +3,7 @@ import { LogOut } from 'lucide-react';
 import { Popover } from 'radix-ui';
 import type { Me } from '@shared/contract/index.ts';
 import { cn } from '@/shared/lib/utils';
+import { ThemeToggle } from '@/shared/ui/theme-toggle';
 import { initials } from '../lib/initials.ts';
 import { selectMe, useSession, useSessionStore } from '../session/use-session.ts';
 
@@ -11,7 +12,7 @@ function Avatar({ name, className }: { name: string; className?: string }) {
     <span
       aria-hidden
       className={cn(
-        'grid size-[34px] shrink-0 place-items-center rounded-full border border-glass-border bg-linear-135 from-tile-border to-surface-solid text-xs font-black text-text-muted',
+        'grid size-[34px] shrink-0 place-items-center rounded-full border border-glass-border bg-linear-135 from-tile-border to-surface-solid text-xs font-semibold text-text-muted',
         className,
       )}
     >
@@ -23,9 +24,9 @@ function Avatar({ name, className }: { name: string; className?: string }) {
 function Identity({ me }: { me: Me }) {
   return (
     <div className="min-w-0">
-      <p className="truncate text-sm font-extrabold text-text">{me.user.name}</p>
+      <p className="truncate text-sm font-semibold text-text">{me.user.name}</p>
       <p className="truncate text-xs text-text-muted">{me.user.email}</p>
-      <p className="mt-1 text-[11px] font-bold tracking-[0.12em] text-accent uppercase">
+      <p className="mt-1 text-[11px] font-bold tracking-[0.06em] text-accent uppercase">
         {me.role.name}
       </p>
     </div>
@@ -70,6 +71,9 @@ export function UserMenu({ variant }: { variant: 'rail' | 'drawer' }) {
           <Avatar name={me.user.name} />
           <Identity me={me} />
         </div>
+        <div className="px-3 pb-2">
+          <ThemeToggle variant="menu" />
+        </div>
         <SignOutButton />
       </section>
     );
@@ -94,6 +98,9 @@ export function UserMenu({ variant }: { variant: 'rail' | 'drawer' }) {
           <div className="flex items-center gap-3 px-2 pt-1 pb-3">
             <Avatar name={me.user.name} />
             <Identity me={me} />
+          </div>
+          <div className="border-t border-glass-border px-2 py-2">
+            <ThemeToggle variant="menu" />
           </div>
           <div className="border-t border-glass-border pt-1">
             <SignOutButton />

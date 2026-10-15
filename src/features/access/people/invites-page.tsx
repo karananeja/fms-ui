@@ -141,7 +141,7 @@ export function InvitesPage() {
     {
       id: 'email',
       header: 'Email',
-      cell: (i) => <span className="font-extrabold">{i.email}</span>,
+      cell: (i) => <span className="font-semibold">{i.email}</span>,
     },
     { id: 'role', header: 'Role', cell: (i) => roleName(i.roleId, rolesById) },
     {

@@ -50,7 +50,7 @@ export const Speedometer = memo(function Speedometer({
                 y={ty + 3}
                 textAnchor="middle"
                 fontSize="8"
-                fontWeight="800"
+                fontWeight="600"
                 style={{ fill: 'var(--text-faint)' }}
               >
                 {v}
@@ -73,7 +73,7 @@ export const Speedometer = memo(function Speedometer({
         y={CY - 8}
         textAnchor="middle"
         fontSize="30"
-        fontWeight="900"
+        fontWeight="600"
         style={{ fill: 'var(--text)' }}
         data-testid="speedo-value"
       >
@@ -84,7 +84,7 @@ export const Speedometer = memo(function Speedometer({
         y={CY + 6}
         textAnchor="middle"
         fontSize="9"
-        fontWeight="800"
+        fontWeight="600"
         style={{ fill: 'var(--text-muted)' }}
       >
         KM/H

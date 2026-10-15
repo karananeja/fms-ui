@@ -8,7 +8,7 @@ export function SectionLabel({ children, className }: { children: ReactNode; cla
   return (
     <span
       className={cn(
-        'text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase',
+        'text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase',
         className,
       )}
     >
@@ -22,7 +22,11 @@ export function Tile({
   children,
   className,
   ...rest
-}: { children: ReactNode; className?: string; 'data-testid'?: string }) {
+}: {
+  children: ReactNode;
+  className?: string;
+  'data-testid'?: string;
+}) {
   return (
     <div
       {...rest}
@@ -54,11 +58,11 @@ export function StatTile({
 }) {
   return (
     <Tile className={cn('p-2.5', className)}>
-      <div className="flex items-center gap-1 text-[10px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
+      <div className="flex items-center gap-1 text-[10px] font-semibold tracking-[0.1em] text-text-muted uppercase">
         {label}
         {children}
       </div>
-      <div className="mt-0.5 truncate text-xl font-black" style={{ color }} data-testid={testId}>
+      <div className="mt-0.5 truncate text-xl font-semibold" style={{ color }} data-testid={testId}>
         {value}
       </div>
     </Tile>

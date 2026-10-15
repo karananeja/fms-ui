@@ -214,7 +214,7 @@ function DrawerBody(props: RequestDrawerProps & { request: DriverRequest }) {
             <Link
               to="/live-tracking"
               search={{ vehicle: r.vehicleId }}
-              className="font-extrabold text-accent hover:underline"
+              className="font-semibold text-accent hover:underline"
             >
               {regnoOf(r.vehicleId) ?? r.vehicleId}
             </Link>
@@ -253,7 +253,7 @@ function DrawerBody(props: RequestDrawerProps & { request: DriverRequest }) {
       <section className="flex items-center gap-3 rounded-tile border border-tile-border bg-tile p-3">
         <UserRound aria-hidden className="size-5 shrink-0 text-text-muted" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-extrabold" data-testid="request-driver">
+          <p className="truncate text-sm font-semibold" data-testid="request-driver">
             {driver === undefined ? 'Loading…' : (driver?.name ?? 'Driver')}
           </p>
           {driver && <p className="truncate text-xs text-text-muted">{driver.phone}</p>}
@@ -293,7 +293,7 @@ function DrawerBody(props: RequestDrawerProps & { request: DriverRequest }) {
       )}
 
       <section aria-label="Timeline">
-        <h3 className="mb-2 text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+        <h3 className="mb-2 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
           Timeline
         </h3>
         <ol className="flex flex-col gap-2 border-l border-tile-border pl-3" data-testid="timeline">
@@ -306,7 +306,7 @@ function DrawerBody(props: RequestDrawerProps & { request: DriverRequest }) {
                   className="absolute top-1.5 -left-[17px] size-2 rounded-full"
                   style={{ background: STATUS_META[t.status].color }}
                 />
-                <span className="font-extrabold">{title}</span>
+                <span className="font-semibold">{title}</span>
                 <span className="text-xs text-text-muted">
                   {' '}
                   · {by} · {formatIstShort(t.at)}

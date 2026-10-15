@@ -1,9 +1,8 @@
 import type { GeoPoint } from '@shared/contract/index.ts';
 import { MapPinOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-
-/** The F06 dark style (e2e points it at the offline blank style). */
-const STYLE_URL = import.meta.env.VITE_MAP_STYLE_URL || 'https://tiles.openfreemap.org/styles/dark';
+import { MAP_STYLE_URLS } from '@/features/live-tracking/config/basemap-urls';
+import { themeStore } from '@/shared/theme/theme-store';
 
 function supportsWebGL(): boolean {
   if (typeof WebGLRenderingContext === 'undefined') return false;
@@ -35,7 +34,7 @@ export function RequestMiniMap({ location }: { location: GeoPoint | null }) {
         void import('./mini-map-controller').then(({ createMiniMap }) => {
           if (cancelled || !container.current) return;
           try {
-            destroy = createMiniMap(container.current, STYLE_URL, { lat, lng });
+            destroy = createMiniMap(container.current, MAP_STYLE_URLS, themeStore(), { lat, lng });
           } catch (e) {
             console.error('[request-map]', e);
             setFailed(true);

@@ -27,7 +27,7 @@ export function ActiveFilterChips({ store = liveTrackingStore }: { store?: LiveT
       {chips.map((c) => (
         <li
           key={c.key}
-          className="flex h-8 items-center gap-1 rounded-full pr-1 pl-3 text-xs font-extrabold glass"
+          className="flex h-8 items-center gap-1 rounded-full pr-1 pl-3 text-xs font-semibold glass"
         >
           {c.label}
           <button
@@ -44,7 +44,7 @@ export function ActiveFilterChips({ store = liveTrackingStore }: { store?: LiveT
         <button
           type="button"
           onClick={() => store.clearFilter()}
-          className="h-8 rounded-full px-3 text-xs font-extrabold tracking-[0.08em] text-accent uppercase outline-none hover:bg-accent-soft focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-8 rounded-full px-3 text-xs font-semibold tracking-[0.08em] text-accent uppercase outline-none hover:bg-accent-soft focus-visible:ring-2 focus-visible:ring-ring"
         >
           Clear all
         </button>

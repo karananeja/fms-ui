@@ -74,12 +74,12 @@ export function FleetPulseCard({ store = liveTrackingStore }: { store?: LiveTrac
         onClick={toggle}
         className="flex w-full items-center gap-2 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <span className="text-[11px] font-black tracking-[0.14em] text-text-muted uppercase">
+        <span className="text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
           Fleet pulse
         </span>
         <span
           data-testid="pulse-scope"
-          className="ml-auto truncate text-[11px] font-extrabold tracking-[0.1em] text-text-faint uppercase"
+          className="ml-auto truncate text-[11px] font-semibold tracking-[0.1em] text-text-faint uppercase"
         >
           {scopeLabel(filter.fleetIds, names)}
         </span>
@@ -94,7 +94,7 @@ export function FleetPulseCard({ store = liveTrackingStore }: { store?: LiveTrac
       <div className="mt-2.5 flex items-end gap-1.5">
         <span
           data-testid="pulse-total"
-          className="text-[40px] leading-none font-black tracking-[0.02em]"
+          className="font-display text-[40px] leading-none font-black tracking-[0.02em]"
         >
           {formatCount(total)}
         </span>
@@ -121,12 +121,12 @@ export function FleetPulseCard({ store = liveTrackingStore }: { store?: LiveTrac
                   style={{ background: STATUS_META[s].color }}
                 />
                 <dt className="truncate">{STATUS_META[s].label}</dt>
-                <dd className="ml-auto font-extrabold text-text">{formatCount(shown(s))}</dd>
+                <dd className="ml-auto font-semibold text-text">{formatCount(shown(s))}</dd>
               </div>
             ))}
           </dl>
           <div className="mt-3.5 border-t border-glass-border pt-3">
-            <div className="flex items-center text-[11px] font-black tracking-[0.14em] text-text-muted uppercase">
+            <div className="flex items-center text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
               Running · last hour
               {change !== null && (
                 <span

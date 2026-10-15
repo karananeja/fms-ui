@@ -42,6 +42,19 @@ class MapView {
     for (const l of this.listeners) l();
   }
 
+  /** DS3-R14: basemap swaps after a theme change (shown in the dev debug overlay). */
+  private swaps = 0;
+  private readonly swapListeners = new Set<() => void>();
+  themeSwaps = (): number => this.swaps;
+  subscribeSwaps = (listener: () => void): (() => void) => {
+    this.swapListeners.add(listener);
+    return () => this.swapListeners.delete(listener);
+  };
+  noteThemeSwap(): void {
+    this.swaps++;
+    for (const l of this.swapListeners) l();
+  }
+
   zoom(delta: 1 | -1): void {
     for (const l of this.commandListeners) l({ type: 'zoom', delta });
   }

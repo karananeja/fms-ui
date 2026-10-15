@@ -17,7 +17,8 @@ const STROKE = 3.2;
 
 /**
  * Status donut for a cluster (DS1-R5): one ring segment per status (in `colors` order, sized
- * by `breakdown`) around a glass centre (`.fms-cluster-core`, styled in `index.css`) holding
+ * by `breakdown`; `colors` are CSS values such as `var(--st-running)`, so the donut follows the
+ * theme with no re-render, DS3 §3) around a glass centre (`.fms-cluster-core`, styled in `index.css`) holding
  * the short count. Plain DOM string: hundreds of these update per frame, so no React here.
  */
 export function clusterMarkerSvg(
@@ -34,7 +35,7 @@ export function clusterMarkerSvg(
     const n = breakdown[k]!;
     if (!n) continue;
     const len = (n / count) * c;
-    ring += `<circle r="${r}" cx="${d / 2}" cy="${d / 2}" fill="none" stroke="${colors[k]}" stroke-width="${STROKE}" stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-offset}"/>`;
+    ring += `<circle r="${r}" cx="${d / 2}" cy="${d / 2}" fill="none" style="stroke:${colors[k]}" stroke-width="${STROKE}" stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-offset}"/>`;
     offset += len;
   }
   return `<svg width="${d}" height="${d}" viewBox="0 0 ${d} ${d}" aria-hidden="true"><g transform="rotate(-90 ${d / 2} ${d / 2})">${ring}</g></svg><span class="fms-cluster-core" aria-hidden="true">${shortCount(count)}</span>`;

@@ -90,7 +90,7 @@ function Body({ entity, params }: { entity: Entity; params: AnalyticsParams }) {
         <Link
           to="/live-tracking"
           search={{ vehicle: entity.id }}
-          className="inline-flex items-center gap-2 self-start text-sm font-extrabold text-accent hover:underline"
+          className="inline-flex items-center gap-2 self-start text-sm font-semibold text-accent hover:underline"
           data-testid="drilldown-live-link"
         >
           <MapPinned className="size-4" aria-hidden /> Open on the live map
@@ -100,9 +100,9 @@ function Body({ entity, params }: { entity: Entity; params: AnalyticsParams }) {
         {defs.map((d) => (
           <div key={d.id} className="rounded-tile border border-tile-border bg-tile p-2.5">
             <dt className="truncate text-[11px] text-text-muted">{d.label}</dt>
-            <dd className="text-lg font-black tabular-nums">
+            <dd className="font-display text-lg font-black tabular-nums">
               {formatValue(d.value(summary.kpis))}
-              <span className="ml-1 text-[11px] font-normal text-text-muted">{d.unit}</span>
+              <span className="ml-1 font-sans text-[11px] font-normal text-text-muted">{d.unit}</span>
             </dd>
           </div>
         ))}
@@ -110,7 +110,7 @@ function Body({ entity, params }: { entity: Entity; params: AnalyticsParams }) {
       <AnalyticsCharts tab={entity.kind === 'vehicle' ? 'vehicles' : 'drivers'} series={series} />
       {entity.kind === 'driver' && (
         <section>
-          <h3 className="mb-2 text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+          <h3 className="mb-2 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
             Vehicles driven
           </h3>
           {driven === null ? (
@@ -129,7 +129,7 @@ function Body({ entity, params }: { entity: Entity; params: AnalyticsParams }) {
                   <Link
                     to="/live-tracking"
                     search={{ vehicle: v.vehicleId }}
-                    className="font-extrabold text-accent hover:underline"
+                    className="font-semibold text-accent hover:underline"
                   >
                     {v.regno}
                   </Link>

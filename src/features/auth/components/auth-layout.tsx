@@ -18,7 +18,7 @@ export function AuthLayout({ title, children }: { title: string; children: React
           <BrandMark className="fms-pulse" />
           <h1
             id="auth-title"
-            className="text-xs font-extrabold tracking-[0.16em] text-text-muted uppercase"
+            className="font-display text-xs font-extrabold tracking-[0.12em] text-text-muted uppercase"
           >
             {title}
           </h1>

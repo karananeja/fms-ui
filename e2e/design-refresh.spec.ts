@@ -1,10 +1,10 @@
 import type { Page } from '@playwright/test';
 import { expect, mapState, settled, test, type Win } from './fixtures.ts';
+import { shot, SHOTS_ON, SHOTS_SKIP_REASON } from './shots.ts';
 
 /** The DOM bits used in `evaluate` (the e2e tsconfig has no DOM lib). */
 interface Dom {
   getComputedStyle(el: unknown): { fontFamily: string };
-  document: { fonts: Iterable<{ family: string }> };
 }
 
 // One worker for this file: each test streams a full snapshot, and parallel copies starve F06-T6.
@@ -26,7 +26,7 @@ const fontOf = (page: Page, selector: string) =>
     .first()
     .evaluate((el) => (globalThis as unknown as Dom).getComputedStyle(el).fontFamily);
 
-test('DS1-T2: body, buttons, inputs and map labels use Doto', async ({ page }) => {
+test('DS1-T2 (DS3 update): body, buttons, inputs and map labels use Inter', async ({ page }) => {
   await openFitted(page, '/live-tracking?debug=1');
   for (const sel of [
     'body',
@@ -35,12 +35,10 @@ test('DS1-T2: body, buttons, inputs and map labels use Doto', async ({ page }) =
     '[data-testid="map-cluster"]',
     '.maplibregl-ctrl-attrib',
   ]) {
-    expect(await fontOf(page, sel), sel).toMatch(/^"?Doto/);
+    expect(await fontOf(page, sel), sel).toMatch(/^"?Inter/);
   }
-  const fonts = await page.evaluate(() =>
-    [...(globalThis as unknown as Dom).document.fonts].map((f) => f.family),
-  );
-  expect(fonts.join()).not.toMatch(/Inter/);
+  // Doto stays for display text only (DS3-R11): the brand mark.
+  expect(await fontOf(page, '[role="img"][aria-label="FMS"]')).toMatch(/^"?Doto/);
 });
 
 test('DS1-R10/R11: LIVE pill shows the feed; 2D/3D pitches the map and is remembered', async ({
@@ -55,7 +53,7 @@ test('DS1-R10/R11: LIVE pill shows the feed; 2D/3D pitches the map and is rememb
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(pitch, { timeout: 5_000 }).toBeCloseTo(55, 0);
-  await page.screenshot({ path: `${SHOTS}/desktop-3d.png` });
+  await shot(page, { path: `${SHOTS}/desktop-3d.png` });
   await openFitted(page);
   expect(await pitch()).toBeCloseTo(55, 0);
   await page.getByRole('button', { name: '3D view' }).click();
@@ -63,10 +61,11 @@ test('DS1-R10/R11: LIVE pill shows the feed; 2D/3D pitches the map and is rememb
 });
 
 test('DS1-T4: UAT screenshots (desktop clusters, zoom 15 + selection)', async ({ page }) => {
+  test.skip(!SHOTS_ON, SHOTS_SKIP_REASON);
   await page.setViewportSize({ width: 1440, height: 900 });
   await openFitted(page);
   await expect(page.getByTestId('map-cluster').first()).toBeVisible({ timeout: 10_000 });
-  await page.screenshot({ path: `${SHOTS}/desktop-clusters.png` });
+  await shot(page, { path: `${SHOTS}/desktop-clusters.png` });
 
   await page.goto('/live-tracking?debug=1');
   await expect
@@ -89,15 +88,16 @@ test('DS1-T4: UAT screenshots (desktop clusters, zoom 15 + selection)', async ({
     .poll(async () => (await mapState(page))?.zoom, { timeout: 10_000 })
     .toBeCloseTo(15, 1);
   await settled(page);
-  await page.screenshot({ path: `${SHOTS}/desktop-zoom15-selection.png` });
+  await shot(page, { path: `${SHOTS}/desktop-zoom15-selection.png` });
 });
 
 test.describe('DS1-T4: phone', () => {
   test.use({ viewport: { width: 390, height: 844 } });
   test('390 px screenshot', async ({ page }) => {
+    test.skip(!SHOTS_ON, SHOTS_SKIP_REASON);
     await openFitted(page);
     await expect(page.getByRole('button', { name: '3D view' })).toBeHidden();
     await expect(page.getByTestId('map-cluster').first()).toBeVisible({ timeout: 10_000 });
-    await page.screenshot({ path: `${SHOTS}/mobile-390.png` });
+    await shot(page, { path: `${SHOTS}/mobile-390.png` });
   });
 });

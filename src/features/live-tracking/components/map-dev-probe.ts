@@ -11,8 +11,13 @@ declare global {
 export function exposeMapProbe(
   map: MapLibre,
   store: LiveTrackingStore,
-  highlight: () => LngLat | null,
+  probe: {
+    highlight: () => LngLat | null;
+    styleUrl: () => string;
+    viewportsSent: () => number;
+  },
 ): void {
+  const { highlight, styleUrl, viewportsSent } = probe;
   const frame = () => store.getSnapshot().mapFrame;
   window.__fmsMap = {
     get center() {
@@ -59,6 +64,16 @@ export function exposeMapProbe(
       return store.getSnapshot().trail?.length ?? null;
     },
     highlight: () => highlight(),
+    /** DS3-T6: basemap URL in use, layer presence and rendered vehicle features. */
+    get styleUrl() {
+      return styleUrl();
+    },
+    get viewportsSent() {
+      return viewportsSent();
+    },
+    hasLayer: (id: string) => !!map.getLayer(id),
+    renderedVehicles: () =>
+      map.getLayer('vehicles') ? map.queryRenderedFeatures({ layers: ['vehicles'] }).length : 0,
     /** Points of the current frame in client (page) coordinates. */
     points: (limit = 20) => {
       const p = frame()?.points;

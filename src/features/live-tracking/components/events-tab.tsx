@@ -33,7 +33,7 @@ export const EventsTimeline = memo(function EventsTimeline({ items }: { items: E
               )}
             </span>
             <span className="pb-2">
-              <b className="block font-black">{e.title}</b>
+              <b className="block font-semibold">{e.title}</b>
               <span className="text-[11px] text-text-muted">{e.detail}</span>
             </span>
           </li>

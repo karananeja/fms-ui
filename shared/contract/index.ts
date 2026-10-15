@@ -3,6 +3,7 @@ export * from './analytics.ts';
 export * from './assistant.ts';
 export * from './auth.ts';
 export * from './common.ts';
+export * from './dashboards.ts';
 export * from './dev.ts';
 export * from './drivers.ts';
 export * from './no-gps-insight.ts';

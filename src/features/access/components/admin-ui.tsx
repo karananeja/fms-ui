@@ -69,7 +69,7 @@ export function DataTable<T>({
     }
   };
   return (
-    <div className="overflow-hidden rounded-[var(--radius-panel)] shadow-[0_30px_80px_rgb(0_0_0/0.35)] glass">
+    <div className="overflow-hidden rounded-[var(--radius-panel)] shadow-panel glass">
       <div className="overflow-x-auto">
         <table aria-label={label} aria-busy={loading || undefined} className="w-full text-sm">
           <thead className="bg-surface-solid">
@@ -79,7 +79,7 @@ export function DataTable<T>({
                   key={c.id}
                   scope="col"
                   className={cn(
-                    'px-3 text-left text-[11px] font-black tracking-[0.12em] whitespace-nowrap text-text-muted uppercase',
+                    'px-3 text-left text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap text-text-muted uppercase',
                     c.className,
                   )}
                 >
@@ -147,11 +147,11 @@ export function SidePanel({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none" />
         <Dialog.Content
           data-side-panel={desktop ? 'card' : 'sheet'}
           className={cn(
-            'fixed z-50 flex flex-col overflow-hidden border border-glass-border bg-surface-solid shadow-[0_30px_80px_rgb(0_0_0/0.55)] outline-none data-[state=open]:animate-in motion-reduce:animate-none',
+            'fixed z-50 flex flex-col overflow-hidden border border-glass-border bg-surface-solid shadow-float outline-none data-[state=open]:animate-in motion-reduce:animate-none',
             desktop
               ? 'top-[72px] right-3.5 bottom-3.5 w-[420px] rounded-[var(--radius-panel)]'
               : 'inset-x-0 bottom-0 max-h-[88dvh] rounded-t-[var(--radius-panel)] data-[state=open]:slide-in-from-bottom',
@@ -162,7 +162,7 @@ export function SidePanel({
           )}
           <div className="flex items-start gap-3 border-b border-glass-border p-4">
             <div className="min-w-0 flex-1">
-              <Dialog.Title className="truncate text-base font-extrabold">{title}</Dialog.Title>
+              <Dialog.Title className="truncate text-base font-semibold">{title}</Dialog.Title>
               {description ? (
                 <Dialog.Description className="mt-0.5 truncate text-xs text-text-muted">
                   {description}
@@ -206,11 +206,11 @@ export function Modal({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 flex max-h-[90dvh] w-[min(480px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid shadow-[0_30px_80px_rgb(0_0_0/0.55)] outline-none data-[state=open]:animate-in data-[state=open]:zoom-in-95 motion-reduce:animate-none">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none" />
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 flex max-h-[90dvh] w-[min(480px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid shadow-float outline-none data-[state=open]:animate-in data-[state=open]:zoom-in-95 motion-reduce:animate-none">
           <div className="flex items-start gap-3 p-5 pb-2">
             <div className="min-w-0 flex-1">
-              <Dialog.Title className="text-lg font-extrabold">{title}</Dialog.Title>
+              <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
               {description ? (
                 <Dialog.Description className="mt-1 text-sm text-text-muted">
                   {description}
@@ -253,9 +253,9 @@ export function ConfirmDialog({
   return (
     <AlertDialog.Root open={open} onOpenChange={onOpenChange}>
       <AlertDialog.Portal>
-        <AlertDialog.Overlay className="fixed inset-0 z-[60] bg-black/50" />
-        <AlertDialog.Content className="fixed top-1/2 left-1/2 z-[60] w-[min(400px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid p-5 shadow-[0_30px_80px_rgb(0_0_0/0.55)] outline-none">
-          <AlertDialog.Title className="text-base font-extrabold">{title}</AlertDialog.Title>
+        <AlertDialog.Overlay className="fixed inset-0 z-[60] bg-scrim" />
+        <AlertDialog.Content className="fixed top-1/2 left-1/2 z-[60] w-[min(400px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid p-5 shadow-float outline-none">
+          <AlertDialog.Title className="text-base font-semibold">{title}</AlertDialog.Title>
           <AlertDialog.Description className="mt-2 text-sm text-text-muted">
             {description}
           </AlertDialog.Description>
@@ -414,7 +414,7 @@ export function Segmented<V extends string>({
           aria-pressed={o.value === value}
           disabled={disabled}
           onClick={() => onChange(o.value)}
-          className="h-8 rounded-[10px] px-3 text-xs font-extrabold tracking-[0.08em] text-text-muted uppercase outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 aria-pressed:bg-accent-soft aria-pressed:text-accent"
+          className="h-8 rounded-[10px] px-3 text-xs font-semibold tracking-[0.08em] text-text-muted uppercase outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 aria-pressed:bg-accent-soft aria-pressed:text-accent"
         >
           {o.label}
           {o.count !== undefined && <span className="ml-1.5 tabular-nums">{o.count}</span>}

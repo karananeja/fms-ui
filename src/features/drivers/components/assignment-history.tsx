@@ -62,9 +62,9 @@ export function AssignmentHistory({ driverId }: { driverId: string }) {
           className="rounded-tile border border-tile-border bg-tile px-3 py-2 text-xs"
         >
           <div className="flex items-center gap-2">
-            <span className="text-sm font-extrabold">{a.regno}</span>
+            <span className="text-sm font-semibold">{a.regno}</span>
             {a.to === null && (
-              <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-black tracking-[0.08em] text-accent uppercase">
+              <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-accent uppercase">
                 Current
               </span>
             )}

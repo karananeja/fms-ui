@@ -60,10 +60,10 @@ export function RolesPage() {
       id: 'name',
       header: 'Role',
       cell: (r) => (
-        <span className="font-extrabold">
+        <span className="font-semibold">
           {r.name}
           {r.system && (
-            <span className="ml-2 rounded-full bg-tile px-2 py-0.5 text-[10px] font-black tracking-[0.08em] text-text-muted uppercase">
+            <span className="ml-2 rounded-full bg-tile px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-text-muted uppercase">
               System
             </span>
           )}
@@ -248,7 +248,7 @@ function RoleEditor({
               key={group.label}
               className="rounded-tile border border-tile-border bg-tile px-3 pt-1 pb-3"
             >
-              <legend className="px-1 text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+              <legend className="px-1 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
                 {group.label}
               </legend>
               <div className="flex flex-col gap-2">

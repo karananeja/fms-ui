@@ -136,12 +136,12 @@ export function DayChart({ title, days, series, kind, unit, yMax }: DayChartProp
         transform: `translateX(${cx(at) > W / 2 ? '-105%' : '5%'})`,
       }}
     >
-      <p className="mb-0.5 font-extrabold">{dayLabel(days[at]!)}</p>
+      <p className="mb-0.5 font-semibold">{dayLabel(days[at]!)}</p>
       {series.map((s) => (
         <p key={s.label} className="flex items-center gap-1.5">
           <span className="size-2 rounded-full" style={{ background: s.color }} />
           <span className="flex-1 text-text-muted">{s.label}</span>
-          <span className="font-extrabold tabular-nums">
+          <span className="font-semibold tabular-nums">
             {s.values[at] === null ? '—' : formatNum(s.values[at]!)}
           </span>
         </p>
@@ -151,7 +151,7 @@ export function DayChart({ title, days, series, kind, unit, yMax }: DayChartProp
 
   return (
     <figure className="m-0" data-testid="day-chart" data-kind={kind}>
-      <figcaption className="mb-2 flex items-center gap-3 text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+      <figcaption className="mb-2 flex items-center gap-3 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
         <span className="flex-1">{title}</span>
         {series.length > 1 &&
           series.map((s) => (

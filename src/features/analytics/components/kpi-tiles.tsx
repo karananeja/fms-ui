@@ -26,13 +26,16 @@ export function KpiTiles({
             key={d.id}
             data-testid={`tile-${d.id}`}
             data-value={v ?? ''}
-            className="flex flex-col gap-1 rounded-[var(--radius-panel)] p-4 shadow-[0_30px_80px_rgb(0_0_0/0.35)] glass"
+            className="flex flex-col gap-1 rounded-[var(--radius-panel)] p-4 shadow-panel glass"
           >
-            <h3 className="truncate text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+            <h3 className="truncate text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
               {d.label}
             </h3>
             <p className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black tabular-nums" data-testid="tile-value">
+              <span
+                className="font-display text-2xl font-black tabular-nums"
+                data-testid="tile-value"
+              >
                 {formatValue(v)}
               </span>
               <span className="truncate text-xs text-text-muted">{d.unit}</span>
@@ -45,7 +48,7 @@ export function KpiTiles({
                   data-testid="tile-delta"
                   title="Change vs the previous period"
                   className={cn(
-                    'rounded-full px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums',
+                    'rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums',
                     Math.abs(change) < 0.05
                       ? 'bg-tile text-text-muted'
                       : good

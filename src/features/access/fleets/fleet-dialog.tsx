@@ -38,12 +38,12 @@ export function FleetDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/55" />
-        <Dialog.Content className="fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] flex-col rounded-t-[var(--radius-panel)] border border-glass-border bg-surface-solid text-text shadow-[0_30px_80px_rgb(0_0_0/0.55)] outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-[420px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[var(--radius-panel)]">
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-scrim" />
+        <Dialog.Content className="fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] flex-col rounded-t-[var(--radius-panel)] border border-glass-border bg-surface-solid text-text shadow-float outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-[420px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[var(--radius-panel)]">
           <form onSubmit={submit} className="flex min-h-0 flex-col">
             <header className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
               <div className="min-w-0">
-                <Dialog.Title className="text-base font-extrabold tracking-[0.04em]">
+                <Dialog.Title className="text-base font-semibold tracking-[0.04em]">
                   {title}
                 </Dialog.Title>
                 {description ? (

@@ -75,9 +75,9 @@ export function UsersPage() {
       header: 'Name',
       cell: (u) => (
         <div className="min-w-0">
-          <span className="font-extrabold">{u.name}</span>
+          <span className="font-semibold">{u.name}</span>
           {u.id === me?.user.id && (
-            <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-black tracking-[0.08em] text-accent uppercase">
+            <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-accent uppercase">
               You
             </span>
           )}

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { themeStore } from '@/shared/theme/theme-store';
 
 /** Must match the `street-grid` minor line spacing (index.css). */
 const CELL = 48;
@@ -14,7 +15,8 @@ interface Dot {
   dx: number;
   dy: number;
   speed: number;
-  color: string;
+  /** Index into the current colour list (recoloured in place on a theme change, DS3 §3). */
+  tone: number;
   trail: { x: number; y: number }[];
   /** Distance travelled since the last intersection. */
   run: number;
@@ -27,7 +29,7 @@ const DIRS = [
   [0, -1],
 ] as const;
 
-function spawn(w: number, h: number, colors: string[]): Dot {
+function spawn(w: number, h: number, tones: number): Dot {
   const [dx, dy] = DIRS[Math.floor(Math.random() * 4)]!;
   const x = Math.round((Math.random() * w) / CELL) * CELL;
   const y = Math.round((Math.random() * h) / CELL) * CELL;
@@ -37,7 +39,7 @@ function spawn(w: number, h: number, colors: string[]): Dot {
     dx,
     dy,
     speed: 40 + Math.random() * 70,
-    color: colors[Math.floor(Math.random() * colors.length)]!,
+    tone: Math.floor(Math.random() * tones),
     trail: [],
     run: Math.random() * CELL,
   };
@@ -58,13 +60,18 @@ export function AuthBackdrop() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const css = getComputedStyle(document.documentElement);
-    const token = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
-    const colors = [
-      token('--accent', 'teal'),
-      token('--accent', 'teal'),
-      token('--accent-2', 'skyblue'),
-    ];
+    let colors: string[] = [];
+    const readColors = () => {
+      const css = getComputedStyle(document.documentElement);
+      const token = (name: string, fallback: string) =>
+        css.getPropertyValue(name).trim() || fallback;
+      colors = [
+        token('--accent', 'teal'),
+        token('--accent', 'teal'),
+        token('--accent-2', 'skyblue'),
+      ];
+    };
+    readColors();
 
     let w = 0;
     let h = 0;
@@ -77,7 +84,7 @@ export function AuthBackdrop() {
       canvas.height = Math.round(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const count = Math.max(10, Math.min(26, Math.round((w * h) / 42_000)));
-      dots = Array.from({ length: count }, () => spawn(w, h, colors));
+      dots = Array.from({ length: count }, () => spawn(w, h, colors.length));
     };
 
     const step = (dot: Dot, dt: number) => {
@@ -99,7 +106,7 @@ export function AuthBackdrop() {
       if (dot.trail.length > TRAIL) dot.trail.shift();
       const off = CELL * 2;
       if (dot.x < -off || dot.x > w + off || dot.y < -off || dot.y > h + off) {
-        Object.assign(dot, spawn(w, h, colors));
+        Object.assign(dot, spawn(w, h, colors.length));
       }
     };
 
@@ -108,9 +115,10 @@ export function AuthBackdrop() {
       ctx.lineCap = 'round';
       for (const dot of dots) {
         const t = dot.trail;
+        const color = colors[dot.tone]!;
         for (let k = 1; k < t.length; k++) {
           ctx.globalAlpha = (k / t.length) ** 2 * 0.7;
-          ctx.strokeStyle = dot.color;
+          ctx.strokeStyle = color;
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.moveTo(t[k - 1]!.x, t[k - 1]!.y);
@@ -118,9 +126,9 @@ export function AuthBackdrop() {
           ctx.stroke();
         }
         ctx.globalAlpha = 1;
-        ctx.shadowColor = dot.color;
+        ctx.shadowColor = color;
         ctx.shadowBlur = 12;
-        ctx.fillStyle = dot.color;
+        ctx.fillStyle = color;
         ctx.beginPath();
         ctx.arc(dot.x, dot.y, 3, 0, Math.PI * 2);
         ctx.fill();
@@ -130,9 +138,17 @@ export function AuthBackdrop() {
 
     resize();
     window.addEventListener('resize', resize);
+    // DS3: recolour the live dots in place when the theme changes (no respawn).
+    const offTheme = themeStore().subscribe(() => {
+      readColors();
+      if (reduce) draw();
+    });
     if (reduce) {
       draw();
-      return () => window.removeEventListener('resize', resize);
+      return () => {
+        offTheme();
+        window.removeEventListener('resize', resize);
+      };
     }
 
     let raf = 0;
@@ -147,6 +163,7 @@ export function AuthBackdrop() {
     };
     raf = requestAnimationFrame(frame);
     return () => {
+      offTheme();
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
     };

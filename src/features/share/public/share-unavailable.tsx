@@ -38,13 +38,13 @@ export function ShareUnavailable({
       <span className="grid size-16 place-items-center rounded-full border border-glass-border bg-glass shadow-[0_8px_24px_var(--shadow)]">
         <Icon className="size-7 text-text-muted" aria-hidden />
       </span>
-      <h1 className="text-xl font-black">{title}</h1>
+      <h1 className="font-display text-xl font-black">{title}</h1>
       <p className="max-w-sm text-sm text-text-muted">{body}</p>
       {kind === 'error' && onRetry && (
         <button
           type="button"
           onClick={onRetry}
-          className="mt-1 h-10 rounded-full bg-linear-135 from-accent to-accent-2 px-5 text-sm font-black text-accent-ink"
+          className="mt-1 h-10 rounded-full bg-linear-135 from-accent to-accent-2 px-5 text-sm font-semibold text-accent-ink"
         >
           Try again
         </button>
@@ -58,7 +58,7 @@ export function SharedViaMark({ className }: { className?: string }) {
   return (
     <p className={className} data-testid="shared-via">
       <span className="text-text-faint">Shared via</span>{' '}
-      <span className="bg-linear-135 from-[var(--accent-text)] to-[var(--accent-2)] bg-clip-text font-black text-transparent">
+      <span className="bg-linear-135 from-[var(--accent-text)] to-[var(--accent-2)] bg-clip-text font-semibold text-transparent">
         FMS
       </span>
     </p>

@@ -63,7 +63,7 @@ function cellContent(
 ): ReactNode {
   switch (id) {
     case 'regno':
-      return <span className="font-extrabold">{row.regno || DASH}</span>;
+      return <span className="font-semibold">{row.regno || DASH}</span>;
     case 'vin':
     case 'deviceId':
       return row[id] || DASH;
@@ -290,7 +290,7 @@ export function TableView({
       aria-label="Vehicle table"
       data-testid="table-view"
       className={cn(
-        'absolute inset-0 z-[15] flex flex-col overflow-hidden bg-map-bg lg:inset-3.5 lg:rounded-[var(--radius-panel)] lg:shadow-[0_30px_80px_rgb(0_0_0/0.55)] lg:glass',
+        'absolute inset-0 z-[15] flex flex-col overflow-hidden bg-map-bg lg:inset-3.5 lg:rounded-[var(--radius-panel)] lg:shadow-float lg:glass',
         // The details card (420 px + gutters) sits beside the table, not over its Locate column.
         selected && 'lg:right-[448px]',
       )}
@@ -321,7 +321,7 @@ export function TableView({
                       type="button"
                       onClick={() => store.toggleSort(id)}
                       className={cn(
-                        'flex h-full w-full items-center gap-1 px-3 text-[11px] font-black tracking-[0.12em] text-text-muted uppercase outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+                        'flex h-full w-full items-center gap-1 px-3 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
                         numeric && 'justify-end',
                         active && 'text-accent',
                       )}

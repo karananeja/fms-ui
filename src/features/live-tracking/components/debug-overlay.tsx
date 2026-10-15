@@ -1,11 +1,12 @@
 import { VEHICLE_STATUSES } from '@shared/domain/vehicle-status';
 import { ChevronDown } from 'lucide-react';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react';
 import { formatIst } from '@/shared/lib/format-date';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import { STATUS_META } from '../config/status-meta';
 import { liveTrackingStore, type LiveTrackingState } from '../store/live-tracking-store';
+import { mapView } from '../store/map-view';
 import { useLiveTracking } from '../store/use-live-tracking';
 import { StatusPill } from './status-pill';
 
@@ -23,10 +24,10 @@ const offset = (ms: number) => `${ms >= 0 ? '+' : '−'}${(Math.abs(ms) / 1000).
 function Stat({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-tile border border-tile-border bg-tile px-3 py-2">
-      <dt className="text-[11px] font-extrabold tracking-[0.12em] text-text-muted uppercase">
+      <dt className="text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
         {label}
       </dt>
-      <dd className="font-black tabular-nums">{children}</dd>
+      <dd className="font-semibold tabular-nums">{children}</dd>
     </div>
   );
 }
@@ -58,6 +59,7 @@ function FeedStats() {
         <span data-testid="live-cluster-build-ms">{s.clusterBuildMs.toFixed(0)} ms</span>
       </Stat>
       <MapFrameStat />
+      <ThemeSwapStat />
     </dl>
   );
 }
@@ -67,6 +69,15 @@ function MapFrameStat() {
   return (
     <Stat label="Map frame">
       {f ? `#${f.version} · ${f.clusters.id.length} cl · ${f.points.ids.length} pt` : '—'}
+    </Stat>
+  );
+}
+
+function ThemeSwapStat() {
+  const swaps = useSyncExternalStore(mapView.subscribeSwaps, mapView.themeSwaps);
+  return (
+    <Stat label="Theme swaps">
+      <span data-testid="live-theme-swaps">{swaps}</span>
     </Stat>
   );
 }
@@ -199,7 +210,7 @@ export function DebugOverlay() {
       className="absolute top-16 left-3.5 z-10 flex max-h-[calc(100%-8rem)] w-[min(30rem,calc(100%-1.75rem))] flex-col rounded-panel shadow-[0_8px_24px_var(--shadow)] glass"
     >
       <div className="flex items-center justify-between gap-4 px-4 py-2">
-        <h2 className="text-xs font-extrabold tracking-[0.12em] text-text-muted uppercase">
+        <h2 className="text-xs font-semibold tracking-[0.06em] text-text-muted uppercase">
           Diagnostics
         </h2>
         <div className="flex items-center gap-2">
@@ -217,7 +228,7 @@ export function DebugOverlay() {
       {open && (
         <div className="flex flex-col gap-4 overflow-auto px-4 pb-4">
           <FeedStats />
-          <h3 className="text-xs font-extrabold tracking-[0.12em] text-text-muted uppercase">
+          <h3 className="text-xs font-semibold tracking-[0.06em] text-text-muted uppercase">
             Status
           </h3>
           <StatusCounts />

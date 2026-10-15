@@ -32,7 +32,7 @@ function CitySelect() {
         <button
           type="button"
           aria-haspopup="listbox"
-          className="flex h-12 items-center gap-2 rounded-tile px-3.5 text-xs font-extrabold tracking-[0.12em] text-text-muted uppercase shadow-[0_8px_24px_var(--shadow)] glass outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-12 items-center gap-2 rounded-tile px-3.5 text-xs font-semibold tracking-[0.06em] text-text-muted uppercase shadow-[0_8px_24px_var(--shadow)] glass outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Building2 className="size-4" aria-hidden />
           <span className="tracking-normal normal-case">Jump to city…</span>
@@ -81,7 +81,7 @@ function Tool({ className, ...props }: ComponentProps<'button'>) {
     <button
       type="button"
       className={cn(
-        'grid size-9 place-items-center rounded-[10px] text-xs font-black text-text-muted outline-none hover:bg-tile hover:text-text focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 aria-pressed:bg-accent-soft aria-pressed:text-accent [&_svg]:size-[18px]',
+        'grid size-9 place-items-center rounded-[10px] text-xs font-semibold text-text-muted outline-none hover:bg-tile hover:text-text focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 aria-pressed:bg-accent-soft aria-pressed:text-accent [&_svg]:size-[18px]',
         className,
       )}
       {...props}

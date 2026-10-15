@@ -12,7 +12,7 @@ function NoAccess() {
   return (
     <div className="grid min-h-dvh place-items-center bg-bg p-6 text-center text-text">
       <div>
-        <h1 className="mb-2 text-xl font-extrabold">No access</h1>
+        <h1 className="mb-2 font-display text-xl font-black">No access</h1>
         <p className="mb-5 text-sm text-text-muted">This page is for drivers.</p>
         <Button onClick={() => location.assign('/')}>Go to the app</Button>
       </div>

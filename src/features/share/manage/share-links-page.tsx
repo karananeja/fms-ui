@@ -109,7 +109,7 @@ export function ShareLinksPage() {
         <Link
           to="/live-tracking"
           search={{ vehicle: l.vehicleId }}
-          className="font-extrabold whitespace-nowrap text-accent hover:underline"
+          className="font-semibold whitespace-nowrap text-accent hover:underline"
           data-testid="share-row-regno"
         >
           {regnoOf(l)}

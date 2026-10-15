@@ -80,6 +80,7 @@ export class Accounts {
         'requests.manage',
         'analytics.view',
         'chat.use',
+        'dashboards.use',
       ],
     });
     this.addRole({

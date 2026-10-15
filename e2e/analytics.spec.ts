@@ -1,6 +1,7 @@
 import type { AnalyticsSummary } from '@shared/contract/index.ts';
 import type { Page } from '@playwright/test';
 import { expect, SIGNED_OUT, test } from './fixtures.ts';
+import { shot, SHOTS_ON, SHOTS_SKIP_REASON } from './shots.ts';
 
 const SHOTS = 'docs/features/f16-performance-dashboard/screenshots';
 const VIEWER = { email: 'viewer@fms.local', password: 'View@1234' };
@@ -18,7 +19,7 @@ test('F16-T3: tiles match the API; range and tab live in the URL; vehicle drill-
   const api = (await (await page.request.get('/api/analytics/summary')).json()) as AnalyticsSummary;
   // The page's 30-day window ends at page load; the API default ends now: within 1 %.
   expect(Math.abs(shown - api.kpis.distanceKm) / api.kpis.distanceKm).toBeLessThan(0.01);
-  await page.screenshot({ path: `${SHOTS}/vehicles-tab.png`, fullPage: true });
+  await shot(page, { path: `${SHOTS}/vehicles-tab.png`, fullPage: true });
 
   await page.getByRole('button', { name: '7 d' }).click();
   await expect(page).toHaveURL(/range=7d/);
@@ -26,7 +27,7 @@ test('F16-T3: tiles match the API; range and tab live in the URL; vehicle drill-
 
   await page.getByTestId('ranking-row').first().click();
   await expect(page.getByTestId('drilldown')).toBeVisible({ timeout: 15_000 });
-  await page.screenshot({ path: `${SHOTS}/drilldown-vehicle.png` });
+  await shot(page, { path: `${SHOTS}/drilldown-vehicle.png` });
   await page.getByTestId('drilldown-live-link').click();
   await expect(page).toHaveURL(/\/live-tracking\?vehicle=/);
 });
@@ -47,7 +48,7 @@ test('F16-T4: drivers ranking by score; driver drill-down; CSV export', async ({
     ),
   );
   expect(scores).toEqual([...scores].sort((a, b) => b - a));
-  await page.screenshot({ path: `${SHOTS}/drivers-tab.png`, fullPage: true });
+  await shot(page, { path: `${SHOTS}/drivers-tab.png`, fullPage: true });
 
   await rows.first().click();
   await expect(page.getByTestId('drilldown')).toBeVisible({ timeout: 30_000 });
@@ -75,8 +76,9 @@ test.describe('F16-T5: permissions', () => {
 });
 
 test('F16-T7: mobile screenshot', async ({ page }) => {
+  test.skip(!SHOTS_ON, SHOTS_SKIP_REASON);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/analytics?range=7d');
   await expect(page.getByTestId('kpi-tiles')).toBeVisible({ timeout: 20_000 });
-  await page.screenshot({ path: `${SHOTS}/mobile.png`, fullPage: true });
+  await shot(page, { path: `${SHOTS}/mobile.png`, fullPage: true });
 });

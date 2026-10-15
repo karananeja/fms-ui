@@ -70,7 +70,7 @@ export function ParametersTab({
             aria-pressed={group === g.id}
             onClick={() => setGroup(g.id)}
             className={cn(
-              'rounded-full border px-2.5 py-1 text-[11px] font-extrabold',
+              'rounded-full border px-2.5 py-1 text-[11px] font-semibold',
               group === g.id
                 ? 'border-accent/50 bg-accent-soft text-accent'
                 : 'border-tile-border text-text-muted',

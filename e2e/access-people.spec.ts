@@ -4,6 +4,7 @@ import type { Fleet, Permission } from '@shared/contract/index.ts';
 import { adminApi, mailLink } from './auth-helpers.ts';
 import { AUTH_FILE, expect, SIGNED_OUT, test } from './fixtures.ts';
 import { tableTotal } from './table-helpers.ts';
+import { shot, SHOTS_ON, SHOTS_SKIP_REASON } from './shots.ts';
 
 const SHOTS = 'docs/features/f03-access-control/screenshots';
 const NO_ACCESS = "You don't have access to this page.";
@@ -215,7 +216,7 @@ test.describe('as invited users', () => {
     await page.goto('/live-tracking');
     await expect(noAccess(page)).toBeVisible();
     await expect(page.getByRole('link', { name: 'Go to admin' })).toBeVisible();
-    await page.screenshot({ path: `${SHOTS}/no-access.png` });
+    await shot(page, { path: `${SHOTS}/no-access.png` });
     await page.waitForTimeout(500);
     expect({ sockets, workers }).toEqual({ sockets: 0, workers: 0 });
   });
@@ -282,6 +283,7 @@ test.describe('as invited users', () => {
 });
 
 test.describe('UAT screenshots (super admin)', () => {
+  test.skip(!SHOTS_ON, SHOTS_SKIP_REASON);
   test('F03-T9: admin overview, users + panel, invites + dialog, roles + editor', async ({
     page,
     baseURL,
@@ -300,24 +302,24 @@ test.describe('UAT screenshots (super admin)', () => {
     await page.goto('/admin');
     await expect(page.getByRole('link', { name: 'Pending invites' })).toContainText('pending');
     await expect(page.getByRole('link', { name: 'Users' }).last()).toContainText('active');
-    await page.screenshot({ path: `${SHOTS}/admin-overview.png` });
+    await shot(page, { path: `${SHOTS}/admin-overview.png` });
 
     await page.goto('/admin/users');
     const users = page.getByRole('table', { name: 'Users' });
     await expect(users).toContainText('ops@fms.local');
-    await page.screenshot({ path: `${SHOTS}/users.png` });
+    await shot(page, { path: `${SHOTS}/users.png` });
     await users.getByText('Ops User').click();
     await expect(page.getByRole('dialog', { name: 'Ops User' })).toBeVisible();
-    await page.screenshot({ path: `${SHOTS}/users-panel.png` });
+    await shot(page, { path: `${SHOTS}/users-panel.png` });
     await page.keyboard.press('Escape');
     await users.getByText('Super Admin', { exact: true }).first().click();
     await expect(page.getByText("You can't change your own role.")).toBeVisible();
-    await page.screenshot({ path: `${SHOTS}/users-panel-self.png` });
+    await shot(page, { path: `${SHOTS}/users-panel-self.png` });
     await page.keyboard.press('Escape');
 
     await page.goto('/admin/invites');
     await expect(page.getByRole('table', { name: 'Invites' })).toContainText('Pending');
-    await page.screenshot({ path: `${SHOTS}/invites.png` });
+    await shot(page, { path: `${SHOTS}/invites.png` });
     await page.getByRole('button', { name: 'Invite user' }).click();
     const dialog = page.getByRole('dialog', { name: 'Invite user' });
     await dialog.getByLabel('Email').fill('ops@fms.local');
@@ -325,17 +327,17 @@ test.describe('UAT screenshots (super admin)', () => {
     await dialog.getByLabel('Fleet scope').getByText('North', { exact: true }).click();
     await dialog.getByRole('button', { name: 'Send invite' }).click();
     await expect(dialog.getByText('A user with this email already exists')).toBeVisible();
-    await page.screenshot({ path: `${SHOTS}/invites-dialog.png` });
+    await shot(page, { path: `${SHOTS}/invites-dialog.png` });
     await page.keyboard.press('Escape');
 
     await page.goto('/admin/roles');
     const roles = page.getByRole('table', { name: 'Roles' });
     await expect(roles).toContainText('Operator');
-    await page.screenshot({ path: `${SHOTS}/roles.png` });
+    await shot(page, { path: `${SHOTS}/roles.png` });
     await roles.getByText('Operator', { exact: true }).click();
     const editor = page.getByRole('dialog', { name: 'Operator' });
     await expect(editor.getByRole('checkbox', { name: 'Invite users' })).toBeDisabled();
-    await page.screenshot({ path: `${SHOTS}/roles-editor.png` });
+    await shot(page, { path: `${SHOTS}/roles-editor.png` });
     // R14 via the UI path: deleting a role in use shows the server's 409.
     await editor.getByRole('button', { name: 'Delete' }).click();
     await page
@@ -350,10 +352,10 @@ test.describe('UAT screenshots (super admin)', () => {
     await page.goto('/admin/users');
     const users = page.getByRole('table', { name: 'Users' });
     await expect(users).toContainText('Ops User');
-    await page.screenshot({ path: `${SHOTS}/users-mobile.png` });
+    await shot(page, { path: `${SHOTS}/users-mobile.png` });
     await users.getByText('Ops User').click();
     const sheet = page.getByRole('dialog', { name: 'Ops User' });
     await expect(sheet).toHaveAttribute('data-side-panel', 'sheet');
-    await page.screenshot({ path: `${SHOTS}/users-mobile-panel.png` });
+    await shot(page, { path: `${SHOTS}/users-mobile-panel.png` });
   });
 });

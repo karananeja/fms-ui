@@ -3,6 +3,7 @@ import { FleetTree } from '../mock-server/generator/fleet-tree.ts';
 import { PERSONA, VehicleSim } from '../mock-server/generator/vehicle-sim.ts';
 import { NO_GPS_ALERT_MS } from '../mock-server/store/notifications.ts';
 import { expect, SIGNED_OUT, test } from './fixtures.ts';
+import { shot } from './shots.ts';
 
 const SHOTS = 'docs/features/f15-in-app-notifications/screenshots';
 const VIEWER = { email: 'viewer@fms.local', password: 'View@1234' };
@@ -72,18 +73,16 @@ test('F15-T4: 24 h no-GPS → critical toast opens the vehicle; out-of-scope Vie
   await expect(toast).toBeVisible({ timeout: 15_000 });
   const title = (await toast.textContent()) ?? '';
   const fired = title.slice(0, title.indexOf(' has had'));
-  await page.screenshot({ path: `${SHOTS}/critical-toast.png` });
+  await shot(page, { path: `${SHOTS}/critical-toast.png` });
   await toast.getByRole('button', { name: 'Open' }).click();
   await expect(page).toHaveURL(/vehicle=/);
   await expect(page.getByTestId('details-regno')).toHaveText(fired, { timeout: 20_000 });
 
   // The Viewer (Delhi Hub 1 only) is not toasted about out-of-scope vehicles.
-  test
-    .info()
-    .annotations.push({
-      type: 'F15-T4',
-      description: `predicted ${regno} (${vehicleId}); fired ${fired}`,
-    });
+  test.info().annotations.push({
+    type: 'F15-T4',
+    description: `predicted ${regno} (${vehicleId}); fired ${fired}`,
+  });
   await expect(viewer.locator('[data-sonner-toast]').filter({ hasText: fired })).toHaveCount(0);
   await viewerCtx.close();
 });

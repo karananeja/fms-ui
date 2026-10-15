@@ -209,7 +209,7 @@ export function FleetPicker(props: FleetPickerProps) {
       >
         {summary ? (
           <>
-            Selected: <span className="font-extrabold text-text">{summary}</span>
+            Selected: <span className="font-semibold text-text">{summary}</span>
           </>
         ) : (
           (placeholder ?? (props.mode === 'single' ? 'Choose a fleet' : 'Choose fleets'))
@@ -309,7 +309,7 @@ export function FleetPicker(props: FleetPickerProps) {
                   </span>
                 )}
                 <span
-                  className={cn('min-w-0 flex-1 truncate', r.match && query && 'font-extrabold')}
+                  className={cn('min-w-0 flex-1 truncate', r.match && query && 'font-semibold')}
                 >
                   {f.name}
                 </span>

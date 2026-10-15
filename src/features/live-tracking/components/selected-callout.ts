@@ -18,9 +18,9 @@ export function attachSelectedCallout(map: MapLibre, store: LiveTrackingStore) {
   el.dataset.testid = 'selected-callout';
   el.setAttribute('aria-hidden', 'true');
   const regno = document.createElement('div');
-  regno.className = 'truncate text-[10px] font-extrabold tracking-[0.1em] text-text-muted';
+  regno.className = 'truncate text-[10px] font-semibold tracking-[0.1em] text-text-muted';
   const status = document.createElement('div');
-  status.className = 'text-[15px] font-black uppercase';
+  status.className = 'text-[15px] font-semibold uppercase';
   const meta = document.createElement('div');
   meta.className = 'text-text-muted';
   el.append(regno, status, meta);

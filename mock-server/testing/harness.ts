@@ -25,7 +25,7 @@ export interface ApiResult<T = unknown> {
 
 /** In-process mock server on a random port with a small fleet. Close it in `afterAll`. */
 export async function startServer(options: BuildOptions = {}) {
-  const app = buildServer({ vehicles: 2000, ...options });
+  const app = buildServer({ vehicles: 2000, dbPath: ':memory:', ...options });
   await app.listen({ port: 0, host: '127.0.0.1' });
   const { port } = app.server.address() as AddressInfo;
   const base = `http://127.0.0.1:${port}`;

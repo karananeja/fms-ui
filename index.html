@@ -1,10 +1,33 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0e0e0f" />
+    <meta name="theme-color" content="#0a0d11" />
+    <!-- DS3-R3: resolve the theme before first paint (must stay before any stylesheet/module). -->
+    <script>
+      (function () {
+        var t = 'dark';
+        try {
+          var p = localStorage.getItem('fms.theme');
+          if (p !== 'light' && p !== 'dark') {
+            p = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          t = p;
+        } catch (e) {}
+        document.documentElement.setAttribute('data-theme', t);
+        var m = document.querySelector('meta[name="theme-color"]');
+        if (m) m.setAttribute('content', t === 'light' ? '#ffffff' : '#0a0d11');
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- DS3-R8 / D-114: Inter from Google Fonts; offline it falls back to system-ui. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap"
+    />
     <title>FMS · Fleet Management</title>
   </head>
   <body>

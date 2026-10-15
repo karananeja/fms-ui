@@ -22,7 +22,7 @@ export function NoAccessPage() {
   return (
     <section className="flex h-full min-h-60 flex-col items-center justify-center gap-3 p-6 text-center">
       <ShieldOff aria-hidden className="size-10 text-text-faint" />
-      <h1 className="text-xl font-extrabold">You don&apos;t have access to this page.</h1>
+      <h1 className="font-display text-xl font-black">You don&apos;t have access to this page.</h1>
       {target ? (
         <Link to={target} className="text-sm text-text-muted underline hover:text-text">
           {LABELS[target]}

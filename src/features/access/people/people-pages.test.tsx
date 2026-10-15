@@ -234,7 +234,7 @@ describe('F03-T4: Roles page (F03-R10)', () => {
   it('lists permission and user counts', async () => {
     await renderPage(<RolesPage />);
     const ops = await row('Roles', 'Operator');
-    await waitFor(() => expect(ops).toHaveTextContent('2 / 16'));
+    await waitFor(() => expect(ops).toHaveTextContent('2 / 17'));
     expect(within(ops).getAllByRole('cell')[2]).toHaveTextContent('2');
   });
 

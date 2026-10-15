@@ -45,7 +45,7 @@ export function HeadingCompass({ store = liveTrackingStore }: { store?: LiveTrac
           x="28"
           y="32"
           textAnchor="middle"
-          fontWeight="900"
+          fontWeight="600"
           fontSize="10"
           style={{ fill: 'var(--text)' }}
         >

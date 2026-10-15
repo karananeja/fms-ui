@@ -14,6 +14,7 @@ import {
 import { BrandMark } from '@/shared/ui/brand-mark';
 import { Button } from '@/shared/ui/button';
 import { Toaster } from '@/shared/ui/sonner';
+import { ThemeToggle } from '@/shared/ui/theme-toggle';
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/shared/ui/sheet';
 import { visibleNavItems } from './nav-items';
 import { PageActionsSlotContext } from './page-actions-context';
@@ -86,7 +87,7 @@ export function AppLayout() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-72 gap-3 border-glass-border bg-surface-solid">
-              <SheetTitle className="flex items-center gap-3 px-4 pt-4 text-sm font-black tracking-[0.12em]">
+              <SheetTitle className="flex items-center gap-3 px-4 pt-4 font-display text-sm font-black tracking-[0.12em]">
                 <BrandMark />
                 FMS
               </SheetTitle>
@@ -111,11 +112,15 @@ export function AppLayout() {
               </div>
             </SheetContent>
           </Sheet>
-          <span className="truncate text-xs font-extrabold tracking-[0.12em] text-text-muted uppercase">
+          <span
+            data-testid="page-title"
+            className="truncate font-display text-xs font-extrabold tracking-[0.12em] text-text-muted uppercase"
+          >
             {title}
           </span>
-          {/* F17-R1: "Ask FMS", then the F15 bell, before the page's own actions. */}
+          {/* DS3-R5 theme, F17-R1 "Ask FMS", then the F15 bell, before the page's own actions. */}
           <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
             <AskFmsButton />
             <NotificationBell />
           </div>

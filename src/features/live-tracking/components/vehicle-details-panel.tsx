@@ -60,7 +60,7 @@ function NotFound({ onClose }: { onClose: () => void }) {
       <button
         type="button"
         onClick={onClose}
-        className="rounded-[10px] border border-glass-border bg-tile px-3 py-1.5 text-xs font-extrabold"
+        className="rounded-[10px] border border-glass-border bg-tile px-3 py-1.5 text-xs font-semibold"
       >
         Close
       </button>
@@ -93,7 +93,7 @@ function Tabs({
           aria-controls="details-tabpanel"
           onClick={() => setTab(t.id)}
           className={cn(
-            'flex-1 rounded-[9px] py-[7px] text-xs font-extrabold',
+            'flex-1 rounded-[9px] py-[7px] text-xs font-semibold',
             tab === t.id ? 'bg-tile-border text-text' : 'text-text-muted hover:text-text',
           )}
         >
@@ -192,7 +192,7 @@ function DetailsBody({
         <p
           role="status"
           data-testid="hidden-by-filters"
-          className="mx-4 mt-3 flex items-center gap-2 rounded-tile border border-warn/40 bg-warn/10 px-3 py-2 text-xs font-extrabold tracking-[0.08em] text-warn uppercase"
+          className="mx-4 mt-3 flex items-center gap-2 rounded-tile border border-warn/40 bg-warn/10 px-3 py-2 text-xs font-semibold tracking-[0.08em] text-warn uppercase"
         >
           <EyeOff className="size-4" aria-hidden />
           Hidden by filters
@@ -269,7 +269,7 @@ function DesktopPanel({ store, vehicleId, onCellRender }: PanelProps & { vehicle
       tabIndex={-1}
       aria-label="Vehicle details"
       data-details-panel="card"
-      className="absolute top-[72px] right-3.5 bottom-3.5 z-20 flex w-[420px] flex-col overflow-hidden rounded-[var(--radius-panel)] shadow-[0_30px_80px_rgb(0_0_0/0.55)] glass outline-none"
+      className="absolute top-[72px] right-3.5 bottom-3.5 z-20 flex w-[420px] flex-col overflow-hidden rounded-[var(--radius-panel)] shadow-float glass outline-none"
     >
       <DetailsBody
         store={store!}

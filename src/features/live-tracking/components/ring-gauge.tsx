@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { cn } from '@/shared/lib/utils';
 import { TONE_COLOR, type Ring } from '../lib/vehicle-details-model';
 
 const R = 15;
@@ -48,18 +49,21 @@ export const RingGauge = memo(function RingGauge({
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
           <span
-            className={ring.value.length > 4 ? 'text-[13px] font-black' : 'text-[17px] font-black'}
+            className={cn(
+              'font-display font-black',
+              ring.value.length > 4 ? 'text-[13px]' : 'text-[17px]',
+            )}
             style={{ color: ring.tone === 'accent' ? undefined : color }}
             data-testid="ring-value"
           >
             {ring.value}
           </span>
-          <small className="mt-0.5 text-[9px] font-extrabold tracking-[0.1em] text-text-muted">
+          <small className="mt-0.5 text-[9px] font-semibold tracking-[0.1em] text-text-muted">
             {ring.unit}
           </small>
         </div>
       </div>
-      <div className="mt-1.5 text-[10px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
+      <div className="mt-1.5 text-[10px] font-semibold tracking-[0.1em] text-text-muted uppercase">
         {label}
       </div>
     </div>

@@ -149,10 +149,7 @@ function AssignBody({
               }),
             }));
           }
-          const page = await listDrivers(
-            { q, limit: 20 },
-            { signal: ctrl.signal },
-          );
+          const page = await listDrivers({ q, limit: 20 }, { signal: ctrl.signal });
           return page.items
             .filter((d) => d.status !== 'disabled')
             .map((d) => ({
@@ -236,9 +233,9 @@ function AssignBody({
     return (
       <div>
         <p className="mb-3 text-sm">
-          <span className="font-extrabold">{picked.driver.name}</span>
+          <span className="font-semibold">{picked.driver.name}</span>
           {' → '}
-          <span className="font-extrabold">{picked.vehicle.regno}</span>
+          <span className="font-semibold">{picked.vehicle.regno}</span>
         </p>
         {conflict && (
           <p
@@ -315,7 +312,7 @@ function AssignBody({
               className="flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left outline-none hover:bg-tile focus-visible:bg-tile focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-extrabold">{o.title}</span>
+                <span className="block truncate text-sm font-semibold">{o.title}</span>
                 <span className="block truncate text-xs text-text-muted">{o.detail}</span>
               </span>
             </button>

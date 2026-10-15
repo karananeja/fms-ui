@@ -77,7 +77,7 @@ export function NotificationBell({
         <span
           aria-hidden
           data-testid="notification-badge"
-          className="absolute -top-0.5 -right-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-danger px-1 text-[10px] leading-none font-black text-bg"
+          className="absolute -top-0.5 -right-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-danger px-1 text-[10px] leading-none font-semibold text-bg"
         >
           {badge}
         </span>
@@ -85,9 +85,7 @@ export function NotificationBell({
     </Button>
   );
   const panel = open && (
-    <Suspense
-      fallback={<p className="p-4 text-sm text-text-muted">Loading notifications…</p>}
-    >
+    <Suspense fallback={<p className="p-4 text-sm text-text-muted">Loading notifications…</p>}>
       <NotificationPanel onOpenItem={openItem} />
     </Suspense>
   );
@@ -103,7 +101,9 @@ export function NotificationBell({
             className="w-full gap-0 border-glass-border bg-surface-solid sm:max-w-none"
           >
             <SheetTitle className="sr-only">Notifications</SheetTitle>
-            <SheetDescription className="sr-only">Your notifications, newest first</SheetDescription>
+            <SheetDescription className="sr-only">
+              Your notifications, newest first
+            </SheetDescription>
             {panel}
           </SheetContent>
         </Sheet>

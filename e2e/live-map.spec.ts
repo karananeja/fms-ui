@@ -151,9 +151,7 @@ test('F06-R19: locating a vehicle without a position shows a toast', async ({ pa
   await page.getByLabel('Locate vehicle ID').fill('no-such-vehicle');
   await page.getByRole('button', { name: 'Locate' }).click();
   // F07's panel skeletons are also role=status, so match the toast by its text.
-  await expect(
-    page.getByRole('status').filter({ hasText: 'No location available' }),
-  ).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'No location available' })).toBeVisible();
 });
 
 test.describe('F06-T10: phone width', () => {

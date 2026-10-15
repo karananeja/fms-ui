@@ -16,9 +16,28 @@ const line = (trail: LngLat[]): GeoJSON.Feature | GeoJSON.FeatureCollection =>
 
 /**
  * Selected vehicle's trail (F07-R12, DS1-R12 look): a teal line that fades towards the tail,
- * over a wide soft halo. Drawn under `beforeId`. Returns the unsubscribe.
+ * over a wide soft halo. Drawn under `beforeId`. `install()` re-adds the source and layers with
+ * freshly resolved colours after a style swap (DS3-R13); `destroy()` unsubscribes.
  */
 export function attachTrailLayer(map: MapLibre, store: LiveTrackingStore, beforeId?: string) {
+  let drawn: LngLat[] | null = null;
+  const render = (s: LiveTrackingState) => {
+    if (s.trail === drawn) return;
+    drawn = s.trail;
+    (map.getSource(SOURCE) as GeoJSONSource | undefined)?.setData(line(drawn ?? []));
+  };
+  const install = () => {
+    if (map.getSource(SOURCE)) return;
+    addLayers(map, beforeId);
+    drawn = null;
+    render(store.getSnapshot());
+  };
+  install();
+  const off = store.subscribe(() => render(store.getSnapshot()));
+  return { install, destroy: () => void off() };
+}
+
+function addLayers(map: MapLibre, beforeId?: string) {
   const accent = cssVar('--accent');
   const gradient: ExpressionSpecification = [
     'interpolate',
@@ -52,13 +71,4 @@ export function attachTrailLayer(map: MapLibre, store: LiveTrackingStore, before
     },
     before,
   );
-
-  let drawn: LngLat[] | null = null;
-  const render = (s: LiveTrackingState) => {
-    if (s.trail === drawn) return;
-    drawn = s.trail;
-    (map.getSource(SOURCE) as GeoJSONSource | undefined)?.setData(line(drawn ?? []));
-  };
-  render(store.getSnapshot());
-  return store.subscribe(() => render(store.getSnapshot()));
 }
