@@ -87,6 +87,10 @@ export default defineConfig({
       MOCK_PORT: mockPort,
       // F18: a fresh in-memory database per e2e run.
       MOCK_DB: ':memory:',
+      // F21: always the scripted fake model, whatever provider/key `.env` holds (set vars win
+      // over `.env`; an empty provider counts as unset).
+      FMS_ASSISTANT_FAKE: '1',
+      FMS_ASSISTANT_PROVIDER: '',
     },
   },
 });
