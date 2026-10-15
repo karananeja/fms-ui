@@ -27,7 +27,7 @@ export function LivePill({ compact = false }: { compact?: boolean }) {
   return (
     <div
       className={cn(
-        'pointer-events-auto ml-auto flex h-9 shrink-0 items-center gap-2 rounded-full px-3 text-xs font-extrabold tracking-[0.12em] uppercase glass',
+        'pointer-events-auto ml-auto flex h-9 shrink-0 items-center gap-2 rounded-full px-3 text-xs font-semibold tracking-[0.06em] uppercase glass',
         connection === 'live' ? 'text-accent' : 'text-text-muted',
       )}
     >

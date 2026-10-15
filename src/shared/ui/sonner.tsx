@@ -1,11 +1,13 @@
 import type { CSSProperties } from 'react';
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
+import { useTheme } from '@/shared/theme/use-theme';
 
-/** shadcn/ui `Toaster`, fixed to the dark theme (D-008; no next-themes). */
+/** shadcn/ui `Toaster`; follows the resolved app theme (DS3-R7; no next-themes). */
 function Toaster(props: ToasterProps) {
+  const { resolved } = useTheme();
   return (
     <Sonner
-      theme="dark"
+      theme={resolved}
       className="toaster group"
       style={
         {

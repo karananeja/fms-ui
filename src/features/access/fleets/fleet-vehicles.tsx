@@ -55,7 +55,7 @@ const VehicleRow = memo(function VehicleRow({
           className="size-4 accent-[var(--accent)]"
         />
       </div>
-      <div role="gridcell" className="w-[112px] shrink-0 truncate pr-2 font-extrabold">
+      <div role="gridcell" className="w-[112px] shrink-0 truncate pr-2 font-semibold">
         {v.regno}
       </div>
       <div role="gridcell" className="min-w-0 flex-1 truncate pr-2 text-xs text-text-muted">
@@ -146,25 +146,25 @@ export function FleetVehicles({
     >
       <header className="px-5 pt-5 pb-3">
         {path.length > 0 && (
-          <p className="truncate text-[11px] font-bold tracking-[0.12em] text-text-muted uppercase">
+          <p className="truncate text-[11px] font-bold tracking-[0.06em] text-text-muted uppercase">
             {path.join(' › ')}
           </p>
         )}
-        <h2 className="mt-0.5 truncate text-lg font-extrabold tracking-[0.04em]">{fleet.name}</h2>
+        <h2 className="mt-0.5 truncate text-lg font-semibold tracking-[0.04em]">{fleet.name}</h2>
         <dl className="mt-3 grid grid-cols-2 gap-2">
           <div className="rounded-tile border border-tile-border bg-tile px-3 py-2">
-            <dt className="text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+            <dt className="text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
               In subtree
             </dt>
-            <dd className="text-lg font-black tabular-nums" data-testid="fleet-subtree-count">
+            <dd className="text-lg font-semibold tabular-nums" data-testid="fleet-subtree-count">
               {counts.format(fleet.vehicleCount)}
             </dd>
           </div>
           <div className="rounded-tile border border-tile-border bg-tile px-3 py-2">
-            <dt className="text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+            <dt className="text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
               Direct
             </dt>
-            <dd className="text-lg font-black tabular-nums" data-testid="fleet-direct-count">
+            <dd className="text-lg font-semibold tabular-nums" data-testid="fleet-direct-count">
               {counts.format(direct)}
             </dd>
           </div>
@@ -186,7 +186,7 @@ export function FleetVehicles({
         </label>
       </header>
       <div className="flex items-center gap-2 border-y border-glass-border px-3 py-2">
-        <label className="flex items-center gap-2 px-1 text-xs font-extrabold">
+        <label className="flex items-center gap-2 px-1 text-xs font-semibold">
           <input
             type="checkbox"
             aria-label="Select page"
@@ -218,7 +218,7 @@ export function FleetVehicles({
             <div
               role="row"
               aria-rowindex={1}
-              className="flex h-8 items-center border-b border-glass-border text-[11px] font-black tracking-[0.12em] text-text-muted uppercase"
+              className="flex h-8 items-center border-b border-glass-border text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase"
             >
               <span role="columnheader" className="w-10 shrink-0" aria-label="Selected" />
               <span role="columnheader" className="w-[112px] shrink-0">

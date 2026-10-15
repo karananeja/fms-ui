@@ -37,14 +37,14 @@ export function MyVehicleCard({ vehicle, now }: { vehicle: DriverMe['vehicle']; 
     <section
       aria-label="My vehicle"
       data-testid="my-vehicle"
-      className="rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid p-4 shadow-[0_30px_80px_rgb(0_0_0/0.35)]"
+      className="rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid p-4 shadow-panel"
     >
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+          <p className="text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
             My vehicle
           </p>
-          <h2 className="truncate text-2xl font-black tracking-[0.04em]" data-testid="my-regno">
+          <h2 className="truncate text-2xl font-semibold tracking-[0.04em]" data-testid="my-regno">
             {meta.regno}
           </h2>
           <p className="truncate text-xs text-text-muted">
@@ -57,13 +57,17 @@ export function MyVehicleCard({ vehicle, now }: { vehicle: DriverMe['vehicle']; 
         {meta.fuelType === 'EV' || live.soc > 0 ? (
           <div className="rounded-tile border border-tile-border bg-tile p-2.5">
             <dt className="text-text-muted">Battery</dt>
-            <dd className="text-lg font-black tabular-nums">{Math.round(live.soc)}%</dd>
+            <dd className="font-display text-lg font-black tabular-nums">
+              {Math.round(live.soc)}%
+            </dd>
           </div>
         ) : null}
         {live.dte > 0 && (
           <div className="rounded-tile border border-tile-border bg-tile p-2.5">
             <dt className="text-text-muted">Range</dt>
-            <dd className="text-lg font-black tabular-nums">{Math.round(live.dte)} km</dd>
+            <dd className="font-display text-lg font-black tabular-nums">
+              {Math.round(live.dte)} km
+            </dd>
           </div>
         )}
       </dl>
@@ -80,7 +84,7 @@ export function MyVehicleCard({ vehicle, now }: { vehicle: DriverMe['vehicle']; 
             href={mapsHref(live.lat, live.lng)}
             target="_blank"
             rel="noreferrer"
-            className="font-extrabold text-accent hover:underline"
+            className="font-semibold text-accent hover:underline"
           >
             Open in Maps
           </a>

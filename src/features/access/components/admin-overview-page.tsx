@@ -43,13 +43,13 @@ function OverviewCard({
       to={to}
       aria-label={label}
       data-testid={`overview-${to.split('/').at(-1)}`}
-      className="group flex min-h-36 flex-col justify-between gap-4 rounded-[var(--radius-panel)] p-5 shadow-[0_30px_80px_rgb(0_0_0/0.35)] glass outline-none hover:border-accent/50 focus-visible:ring-2 focus-visible:ring-ring"
+      className="group flex min-h-36 flex-col justify-between gap-4 rounded-[var(--radius-panel)] p-5 shadow-panel glass outline-none hover:border-accent/50 focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="flex items-center gap-3">
         <span className="grid size-9 place-items-center rounded-tile bg-accent-soft text-accent">
           <Icon className="size-[18px]" aria-hidden />
         </span>
-        <span className="text-xs font-black tracking-[0.12em] text-text-muted uppercase">
+        <span className="text-xs font-semibold tracking-[0.06em] text-text-muted uppercase">
           {label}
         </span>
         <ArrowRight
@@ -65,7 +65,7 @@ function OverviewCard({
 }
 
 const Big = ({ children }: { children: ReactNode }) => (
-  <span className="text-4xl font-black text-text tabular-nums">{children}</span>
+  <span className="font-display text-4xl font-black text-text tabular-nums">{children}</span>
 );
 
 /** `/admin` (F03-R11): one card per admin page you can open, with its count. */

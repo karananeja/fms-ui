@@ -1,7 +1,5 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-@import '@fontsource/doto/600.css';
-@import '@fontsource/doto/700.css';
 @import '@fontsource/doto/800.css';
 @import '@fontsource/doto/900.css';
 @import './shared/styles/theme.css';
@@ -28,6 +26,12 @@
   --color-map-bg: var(--map-bg);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
+  --color-scrim: var(--scrim);
+  --color-on-danger: var(--on-danger);
+  --color-marker-ring: var(--marker-ring);
+
+  --shadow-panel: var(--elev-panel);
+  --shadow-float: var(--elev-float);
 
   --color-st-running: var(--st-running);
   --color-st-stopped: var(--st-stopped);
@@ -77,8 +81,8 @@
   }
   body {
     @apply bg-bg font-sans text-text antialiased;
-    font-weight: 600;
-    letter-spacing: 0.01em;
+    font-weight: 400;
+    letter-spacing: 0;
   }
 }
 
@@ -91,7 +95,7 @@
   }
 }
 
-/* MapLibre chrome on the dark theme (DS1-R5/R7/R8). Unlayered + `.maplibregl-map` so it beats
+/* MapLibre chrome, both themes (DS1-R5/R7/R8, DS3-R10). Unlayered + `.maplibregl-map` so it beats
    maplibre-gl.css, which loads later with the map chunk. Zoom/fit/3D are our own tools. */
 div.maplibregl-map {
   font-family: var(--font-sans);
@@ -153,7 +157,8 @@ div.maplibregl-map {
   border: 1px solid var(--glass-border);
   color: var(--text);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .fms-cluster:focus-visible {
   outline: 2px solid var(--ring);

@@ -81,7 +81,7 @@ function LivePill({ live, now }: { live: ShareLive; now: number }) {
   return (
     <span
       className={cn(
-        'flex h-8 shrink-0 items-center gap-2 rounded-full border px-3 text-xs font-extrabold tracking-[0.12em] uppercase',
+        'flex h-8 shrink-0 items-center gap-2 rounded-full border px-3 text-xs font-semibold tracking-[0.06em] uppercase',
         on
           ? 'border-transparent bg-accent-soft text-[var(--accent-text)]'
           : 'border-glass-border bg-tile text-text-muted',
@@ -103,7 +103,7 @@ function Expiry({ expiresAt, now }: { expiresAt: number; now: number }) {
     <p className="flex items-center gap-1.5 text-xs text-text-muted" data-testid="share-expiry">
       <Clock3 className="size-3.5 shrink-0" aria-hidden />
       <span>
-        <span className="font-extrabold text-text">Link expires</span>{' '}
+        <span className="font-semibold text-text">Link expires</span>{' '}
         {formatTimeLeft(expiresAt, now)} · {formatIstShort(expiresAt)}
       </span>
     </p>
@@ -166,11 +166,11 @@ function LiveShare({
           <span className="size-2.5 rounded-full bg-[var(--marker-ring)]" />
         </span>
         <div className="min-w-0 flex-1 leading-tight">
-          <h1 className="truncate text-base font-black" data-testid="share-regno">
+          <h1 className="truncate text-base font-semibold" data-testid="share-regno">
             {vehicle.regno}
           </h1>
           <p
-            className="truncate text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase"
+            className="truncate text-[11px] font-semibold tracking-[0.1em] text-text-muted uppercase"
             data-testid="share-model"
           >
             {vehicle.make} · {vehicle.model}

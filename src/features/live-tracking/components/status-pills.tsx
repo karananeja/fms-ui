@@ -24,7 +24,7 @@ function Pill({ on, className, ...props }: ComponentProps<'button'> & { on: bool
       type="button"
       aria-pressed={on}
       className={cn(
-        'flex shrink-0 items-center gap-[7px] rounded-full px-3 text-xs font-extrabold tracking-[0.06em] whitespace-nowrap text-text-muted uppercase outline-none focus-visible:ring-2 focus-visible:ring-ring [&_b]:font-black [&_b]:text-text',
+        'flex shrink-0 items-center gap-[7px] rounded-full px-3 text-xs font-semibold tracking-[0.06em] whitespace-nowrap text-text-muted uppercase outline-none focus-visible:ring-2 focus-visible:ring-ring [&_b]:font-display [&_b]:font-black [&_b]:tracking-normal [&_b]:text-text',
         on ? 'border border-transparent' : 'glass hover:text-text',
         className,
       )}

@@ -9,6 +9,9 @@ const blankLightStyle = readFileSync(
   new URL('../public/map-styles/blank-light.json', import.meta.url),
 );
 const local = new Set(['localhost', '127.0.0.1', '[::1]']);
+/** DS3: Google Fonts (Inter) is stubbed unless `FMS_E2E_FONTS=1` (screenshots). */
+const realFonts = process.env.FMS_E2E_FONTS === '1';
+const fontHosts = new Set(['fonts.googleapis.com', 'fonts.gstatic.com']);
 
 /** Signed-in super admin `storageState`, written by `auth.setup.ts` (F02, gitignored). */
 export const AUTH_FILE = fileURLToPath(new URL('./.auth/super-admin.json', import.meta.url));
@@ -77,13 +80,21 @@ export const test = base.extend<{ blockExternal: void }, { ensureSignedIn: void 
     async ({ context }, use) => {
       await context.route(
         (url) => !local.has(url.hostname),
-        (route) =>
-          /style/i.test(route.request().url())
+        (route) => {
+          const url = new URL(route.request().url());
+          if (fontHosts.has(url.hostname)) {
+            if (realFonts) return route.continue();
+            return url.hostname === 'fonts.googleapis.com'
+              ? route.fulfill({ contentType: 'text/css', body: '' })
+              : route.abort();
+          }
+          return /style/i.test(route.request().url())
             ? route.fulfill({
                 contentType: 'application/json',
                 body: /positron|light/i.test(route.request().url()) ? blankLightStyle : blankStyle,
               })
-            : route.abort(),
+            : route.abort();
+        },
       );
       await use();
     },
@@ -108,6 +119,11 @@ export interface FmsMap {
   selectedVehicleId: string | null;
   trailLength: number | null;
   highlight(): [number, number] | null;
+  /** DS3-T6. */
+  styleUrl: string;
+  viewportsSent: number;
+  hasLayer(id: string): boolean;
+  renderedVehicles(): number;
   points(limit?: number): { id: string; lng: number; lat: number; x: number; y: number }[];
 }
 export type Win = { __fmsMap?: FmsMap };

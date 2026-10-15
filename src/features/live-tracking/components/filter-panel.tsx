@@ -39,7 +39,7 @@ function fleetTree(fleets: readonly Fleet[]) {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="mb-2 text-[11px] font-black tracking-[0.14em] text-text-muted uppercase">
+      <legend className="mb-2 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
         {title}
       </legend>
       {children}
@@ -71,7 +71,7 @@ function ToggleList({
             aria-pressed={on}
             onClick={() => onToggle(v)}
             className={cn(
-              'h-8 rounded-full border px-3 text-xs font-extrabold outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'h-8 rounded-full border px-3 text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring',
               on
                 ? 'border-accent bg-accent-soft text-accent'
                 : 'border-tile-border bg-tile text-text-muted hover:text-text',
@@ -248,13 +248,13 @@ function PanelBody({ store, onDone }: { store: LiveTrackingStore; onDone: () => 
         <button
           type="button"
           onClick={() => setD(draftFrom({}))}
-          className="h-10 flex-1 rounded-tile border border-tile-border text-xs font-extrabold tracking-[0.1em] text-text-muted uppercase outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-10 flex-1 rounded-tile border border-tile-border text-xs font-semibold tracking-[0.1em] text-text-muted uppercase outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-ring"
         >
           Reset
         </button>
         <button
           type="submit"
-          className="h-10 flex-1 rounded-tile bg-accent text-xs font-black tracking-[0.1em] text-accent-ink uppercase outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-10 flex-1 rounded-tile bg-accent text-xs font-semibold tracking-[0.1em] text-accent-ink uppercase outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Apply
         </button>
@@ -281,14 +281,14 @@ export function FilterPanel({ store = liveTrackingStore }: { store?: LiveTrackin
       aria-expanded={open}
       onClick={desktop ? undefined : () => onOpenChange(true)}
       className={cn(
-        'pointer-events-auto flex h-11 shrink-0 items-center gap-2 rounded-[14px] px-3 text-xs font-extrabold tracking-[0.1em] uppercase shadow-[0_8px_24px_var(--shadow)] glass outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'pointer-events-auto flex h-11 shrink-0 items-center gap-2 rounded-[14px] px-3 text-xs font-semibold tracking-[0.1em] uppercase shadow-[0_8px_24px_var(--shadow)] glass outline-none focus-visible:ring-2 focus-visible:ring-ring',
         n ? 'text-accent' : 'text-text-muted hover:text-text',
       )}
     >
       <SlidersHorizontal className="size-4" aria-hidden />
       <span className="hidden lg:inline">Filters</span>
       {n > 0 && (
-        <span className="grid min-w-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-black text-accent-ink">
+        <span className="grid min-w-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-semibold text-accent-ink">
           {n}
         </span>
       )}
@@ -305,7 +305,7 @@ export function FilterPanel({ store = liveTrackingStore }: { store?: LiveTrackin
             sideOffset={8}
             aria-label="Filters"
             data-filter-panel="popover"
-            className="z-50 flex max-h-[min(640px,calc(100vh-120px))] w-[360px] flex-col overflow-hidden rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid shadow-[0_30px_80px_rgb(0_0_0/0.55)]"
+            className="z-50 flex max-h-[min(640px,calc(100vh-120px))] w-[360px] flex-col overflow-hidden rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid shadow-float"
           >
             <PanelBody store={store} onDone={() => setOpen(false)} />
           </Popover.Content>
@@ -318,7 +318,7 @@ export function FilterPanel({ store = liveTrackingStore }: { store?: LiveTrackin
       {trigger}
       <Drawer open={open} onOpenChange={onOpenChange}>
         <DrawerContent data-filter-panel="sheet" className="max-h-[90%] bg-surface-solid">
-          <DrawerTitle className="px-4 pt-3 text-sm font-black tracking-[0.12em] uppercase">
+          <DrawerTitle className="px-4 pt-3 text-sm font-semibold tracking-[0.06em] uppercase">
             Filters
           </DrawerTitle>
           <DrawerDescription className="sr-only">Filter the vehicles on the map</DrawerDescription>

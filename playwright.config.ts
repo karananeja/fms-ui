@@ -22,20 +22,39 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   reporter: [['list'], ['html', { open: 'never' }]],
   // Reduced motion: no clicks on sliding sheets; the app honours it (src/index.css).
-  use: { baseURL, trace: 'retain-on-failure', launchOptions, reducedMotion: 'reduce' },
+  // DS3 / D-118: a dark OS by default, so the System theme stays dark; theme specs override it.
+  use: {
+    baseURL,
+    trace: 'retain-on-failure',
+    launchOptions,
+    reducedMotion: 'reduce',
+    colorScheme: 'dark',
+  },
   projects: [
     // Signs in once; every other project starts signed in (specs that sign out use a fresh context).
     { name: 'setup', testMatch: /auth\.setup\.ts$/ },
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], launchOptions, reducedMotion: 'reduce', storageState },
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions,
+        reducedMotion: 'reduce',
+        colorScheme: 'dark',
+        storageState,
+      },
       testIgnore: /\.(perf|clock)\.spec\.ts$/,
       dependencies: ['setup'],
     },
     // Perf budgets run alone, after everything else, so other tests don't skew them.
     {
       name: 'perf',
-      use: { ...devices['Desktop Chrome'], launchOptions, reducedMotion: 'reduce', storageState },
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions,
+        reducedMotion: 'reduce',
+        colorScheme: 'dark',
+        storageState,
+      },
       testMatch: /\.perf\.spec\.ts$/,
       dependencies: ['chromium'],
       workers: 1,
@@ -43,7 +62,13 @@ export default defineConfig({
     // Specs that shift the shared mock clock run last, alone.
     {
       name: 'clock',
-      use: { ...devices['Desktop Chrome'], launchOptions, reducedMotion: 'reduce', storageState },
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions,
+        reducedMotion: 'reduce',
+        colorScheme: 'dark',
+        storageState,
+      },
       testMatch: /\.clock\.spec\.ts$/,
       dependencies: ['perf'],
       workers: 1,
@@ -55,6 +80,13 @@ export default defineConfig({
     timeout: 60000,
     reuseExistingServer: true,
     // Offline map style; a reused `pnpm dev` keeps its own style (e2e/fixtures.ts stubs it).
-    env: { VITE_MAP_STYLE_URL: '/map-styles/blank-dark.json', VITE_PORT: vitePort, MOCK_PORT: mockPort },
+    env: {
+      VITE_MAP_STYLE_URL: '/map-styles/blank-dark.json',
+      VITE_MAP_STYLE_URL_LIGHT: '/map-styles/blank-light.json',
+      VITE_PORT: vitePort,
+      MOCK_PORT: mockPort,
+      // F18: a fresh in-memory database per e2e run.
+      MOCK_DB: ':memory:',
+    },
   },
 });

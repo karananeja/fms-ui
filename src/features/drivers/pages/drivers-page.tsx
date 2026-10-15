@@ -270,7 +270,7 @@ function DriversTable({
 
   return (
     <div
-      className="overflow-hidden rounded-[var(--radius-panel)] shadow-[0_30px_80px_rgb(0_0_0/0.35)] glass"
+      className="overflow-hidden rounded-[var(--radius-panel)] shadow-panel glass"
       role="table"
       aria-label="Drivers"
       aria-rowcount={rows.length}
@@ -280,7 +280,7 @@ function DriversTable({
         role="row"
         className={cn(
           COLS,
-          'h-10 border-b border-glass-border bg-surface-solid text-[11px] font-black tracking-[0.12em] whitespace-nowrap text-text-muted uppercase',
+          'h-10 border-b border-glass-border bg-surface-solid text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap text-text-muted uppercase',
         )}
       >
         <span role="columnheader">Name</span>
@@ -338,7 +338,7 @@ function DriversTable({
                 )}
               >
                 <span role="cell" className="min-w-0">
-                  <span className="block truncate font-extrabold">{d.name}</span>
+                  <span className="block truncate font-semibold">{d.name}</span>
                   <span className="block truncate text-xs text-text-muted md:hidden">
                     {d.phone}
                   </span>
@@ -362,7 +362,7 @@ function DriversTable({
                       to="/live-tracking"
                       search={{ vehicle: cur.assignment.vehicleId }}
                       onClick={(e) => e.stopPropagation()}
-                      className="font-extrabold text-accent hover:underline"
+                      className="font-semibold text-accent hover:underline"
                     >
                       {cur.regno}
                     </Link>
@@ -453,7 +453,7 @@ function DriverPanel({
     <div className="flex flex-col gap-4">
       <section className="rounded-tile border border-tile-border bg-tile p-3">
         <div className="mb-2 flex items-center gap-2">
-          <span className="text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+          <span className="text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
             Vehicle
           </span>
           <span className="ml-auto flex gap-1.5">
@@ -479,7 +479,7 @@ function DriverPanel({
             <Link
               to="/live-tracking"
               search={{ vehicle: current.assignment.vehicleId }}
-              className="font-extrabold text-accent hover:underline"
+              className="font-semibold text-accent hover:underline"
             >
               {current.regno}
             </Link>
@@ -508,7 +508,7 @@ function DriverPanel({
         </Button>
       </div>
       <section>
-        <h3 className="mb-2 text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+        <h3 className="mb-2 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
           Assignment history
         </h3>
         <AssignmentHistory driverId={driver.id} />

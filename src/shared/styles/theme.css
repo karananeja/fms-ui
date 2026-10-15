@@ -1,4 +1,5 @@
-/* Design tokens (DS1 spec §1, mockup v2). Dark only. */
+/* Design tokens. Dark (DS1 spec §1, mockup v2) is the `:root` fallback; light (DS3 §2) overrides
+   it on the same element via `<html data-theme="light">`, so the `var()` aliases follow. */
 :root {
   color-scheme: dark;
 
@@ -26,6 +27,11 @@
   --accent-halo: rgba(45, 212, 191, 0.16);
   --transparent: rgba(0, 0, 0, 0);
   --building: #18202a;
+  --marker-ring: var(--bg);
+  --scrim: rgba(0, 0, 0, 0.5);
+  --elev-panel: 0 30px 80px rgba(0, 0, 0, 0.35);
+  --elev-float: 0 30px 80px rgba(0, 0, 0, 0.55);
+  --on-danger: #ffffff;
   --radius-panel: 20px;
   --radius-tile: 14px;
 
@@ -44,9 +50,9 @@
   --st-nogps: #facc15;
   --st-gpsnever: #475569;
 
-  /* Doto is the only family (D-054). */
-  --font-sans: 'Doto', ui-monospace, monospace;
-  --font-display: var(--font-sans);
+  /* DS3 / D-114: Inter for text, Doto only for brand, titles and big numbers (`font-display`). */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Doto', 'Inter', system-ui, sans-serif;
 
   /* shadcn/ui semantic aliases */
   --background: var(--bg);
@@ -67,9 +73,53 @@
   --radius: 12px;
 }
 
+/* DS3 light theme (spec §2, D-118). Every non-alias token of the dark block is redefined. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f4f6f9;
+  --map-bg: #e9edf2;
+  --glass: rgba(255, 255, 255, 0.78);
+  --glass-strong: rgba(255, 255, 255, 0.94);
+  --glass-border: rgba(15, 23, 42, 0.1);
+  --surface-solid: #ffffff;
+  --tile: rgba(15, 23, 42, 0.035);
+  --tile-border: rgba(15, 23, 42, 0.09);
+  --text: #0f172a;
+  --text-muted: #475569;
+  --text-faint: #5b6678;
+  --accent: #0f766e;
+  --accent-2: #0369a1;
+  --accent-soft: rgba(15, 118, 110, 0.1);
+  --accent-ink: #ffffff;
+  --ok: #047857;
+  --warn: #b45309;
+  --danger: #b91c1c;
+  --shadow: rgba(15, 23, 42, 0.12);
+  --vignette: rgba(233, 237, 242, 0.65);
+  --accent-glow: rgba(15, 118, 110, 0.3);
+  --accent-halo: rgba(15, 118, 110, 0.12);
+  --transparent: rgba(255, 255, 255, 0);
+  --building: #d5dbe3;
+  --marker-ring: #ffffff;
+  --scrim: rgba(15, 23, 42, 0.32);
+  --elev-panel: 0 12px 40px rgba(15, 23, 42, 0.1);
+  --elev-float: 0 20px 60px rgba(15, 23, 42, 0.18);
+  --on-danger: #ffffff;
+
+  --st-running: #15803d;
+  --st-stopped: #dc2626;
+  --st-immobilized: #9333ea;
+  --st-noncomm: #64748b;
+  --st-charging: #2563eb;
+  --st-pullout: #c2410c;
+  --st-nogps: #a16207;
+  --st-gpsnever: #7f8ca0;
+}
+
 /*
  * F10 public share page (spec §4, D-090): a light variant of DS1, scoped to the page root
- * (`data-theme="share-light"`). The global theme above stays dark. Use the base names here
+ * (`data-theme="share-light"`), whatever the app theme (DS3-R6). Use the base names here
  * (`--bg`, `--glass`, `--text`…), not the legacy/shadcn aliases, which resolve at `:root`.
  */
 [data-theme='share-light'] {

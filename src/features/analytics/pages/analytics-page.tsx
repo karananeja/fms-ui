@@ -37,7 +37,7 @@ import type { VehicleRanking } from '@shared/contract/index.ts';
 
 const TOP = 10;
 const ALL = 500;
-const card = 'rounded-[var(--radius-panel)] p-4 shadow-[0_30px_80px_rgb(0_0_0/0.35)] glass';
+const card = 'rounded-[var(--radius-panel)] p-4 shadow-panel glass';
 
 /** `/analytics` (F16): filters (URL), KPI tiles, daily charts, ranking, drill-down, CSV. */
 export function AnalyticsPage({ store: given }: { store?: AnalyticsStore }) {
@@ -214,7 +214,7 @@ export function AnalyticsPage({ store: given }: { store?: AnalyticsStore }) {
           </span>
         )}
         {focus && (
-          <span className="flex items-center gap-1 rounded-full bg-accent-soft px-3 py-1 text-xs font-extrabold text-accent">
+          <span className="flex items-center gap-1 rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent">
             Focus: {open?.id === focus ? open.label : focus}
             <button
               type="button"
@@ -249,7 +249,7 @@ export function AnalyticsPage({ store: given }: { store?: AnalyticsStore }) {
           <AnalyticsCharts tab={filters.tab} series={data.series} />
           <section className={card}>
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <h2 className="mr-auto text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+              <h2 className="mr-auto text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
                 {worst ? 'Bottom' : 'Top'} {all ? data.ranking.items.length : TOP} by{' '}
                 {sorts.find((s) => s.key === sort[filters.tab])?.label.toLowerCase()}
                 <span className="ml-2 tracking-normal normal-case">

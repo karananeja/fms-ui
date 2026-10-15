@@ -42,7 +42,7 @@ function inline(text: string, m: Matcher, render: RenderEntity, key: string): Re
       );
     if (part.length > 4 && part.startsWith('**') && part.endsWith('**'))
       return (
-        <strong key={k} className="font-extrabold text-text">
+        <strong key={k} className="font-semibold text-text">
           {linkEntities(part.slice(2, -2), m, render, k)}
         </strong>
       );
@@ -105,7 +105,7 @@ export function Markdown({
             <thead className="bg-tile text-text-muted">
               <tr>
                 {head.map((c, j) => (
-                  <th key={j} className="px-2 py-1.5 text-left font-extrabold">
+                  <th key={j} className="px-2 py-1.5 text-left font-semibold">
                     {inline(c, m, renderEntity, `${key}h${j}`)}
                   </th>
                 ))}
@@ -140,7 +140,7 @@ export function Markdown({
       );
     } else if (/^#{1,6}\s+/.test(line)) {
       blocks.push(
-        <p key={key} className="font-extrabold text-text">
+        <p key={key} className="font-semibold text-text">
           {inline(line.replace(/^#{1,6}\s+/, ''), m, renderEntity, key)}
         </p>,
       );

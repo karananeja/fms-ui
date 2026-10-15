@@ -78,7 +78,7 @@ export function PublicShareMap({ view, padding }: { view: ShareMapView; padding:
         <button
           type="button"
           onClick={() => controller.current?.recenter()}
-          className="absolute right-4 bottom-[calc(var(--share-bottom-inset,16px)+8px)] z-10 flex h-10 items-center gap-2 rounded-full px-4 text-sm font-extrabold text-text shadow-[0_8px_24px_var(--shadow)] glass lg:bottom-8"
+          className="absolute right-4 bottom-[calc(var(--share-bottom-inset,16px)+8px)] z-10 flex h-10 items-center gap-2 rounded-full px-4 text-sm font-semibold text-text shadow-[0_8px_24px_var(--shadow)] glass lg:bottom-8"
         >
           <LocateFixed className="size-4 text-[var(--accent-text)]" aria-hidden />
           Recenter

@@ -1,8 +1,8 @@
 import { MapPinOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { themeStore } from '@/shared/theme/theme-store';
+import { MAP_STYLE_URLS } from '../config/basemap-urls';
 import { liveTrackingStore } from '../store/live-tracking-store';
-
-const STYLE_URL = import.meta.env.VITE_MAP_STYLE_URL || 'https://tiles.openfreemap.org/styles/dark';
 
 function supportsWebGL(): boolean {
   if (typeof WebGLRenderingContext === 'undefined') return false;
@@ -26,8 +26,19 @@ export function LiveMap() {
     void import('./map-controller').then(({ MapController }) => {
       if (cancelled || !container.current) return;
       try {
-        const controller = new MapController(container.current, liveTrackingStore, STYLE_URL);
-        destroy = () => controller.destroy();
+        const theme = themeStore();
+        const controller = new MapController(
+          container.current,
+          liveTrackingStore,
+          MAP_STYLE_URLS,
+          theme.resolved(),
+        );
+        // DS3-R13: swap the basemap when the resolved theme changes.
+        const off = theme.subscribe(() => controller.setTheme(theme.resolved()));
+        destroy = () => {
+          off();
+          controller.destroy();
+        };
       } catch (e) {
         console.error('[map]', e);
         setFailed(true);

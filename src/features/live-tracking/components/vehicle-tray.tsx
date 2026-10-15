@@ -102,7 +102,7 @@ export function VehicleTray({
         type="button"
         aria-expanded={!collapsed}
         onClick={toggle}
-        className="flex items-center gap-1.5 self-start rounded-full px-3 py-1 text-[11px] font-black tracking-[0.14em] text-text-muted uppercase glass outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex items-center gap-1.5 self-start rounded-full px-3 py-1 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase glass outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-ring"
       >
         In view · {cards.length}
         <ChevronDown
@@ -135,7 +135,9 @@ export function VehicleTray({
                         style={{ background: color }}
                         aria-hidden
                       />
-                      <span className="truncate text-sm font-black">{middle(c.regno || DASH)}</span>
+                      <span className="truncate text-sm font-semibold">
+                        {middle(c.regno || DASH)}
+                      </span>
                     </span>
                     <span className="block truncate text-[11px] text-text-muted uppercase">
                       {c.model || DASH} · {fleets[c.fleetId] ?? c.fleetId}
@@ -143,7 +145,7 @@ export function VehicleTray({
                     <span className="mt-1.5 flex gap-3 text-[11px] text-text-muted">
                       {stats(c).map(([k, v]) => (
                         <span key={k} className="whitespace-nowrap">
-                          {k} <b className="font-extrabold text-text">{v}</b>
+                          {k} <b className="font-semibold text-text">{v}</b>
                         </span>
                       ))}
                     </span>

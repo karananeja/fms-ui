@@ -72,7 +72,7 @@ export function ReplacementPanel({
           <Link
             to="/live-tracking"
             search={{ vehicle: id }}
-            className="font-extrabold text-accent hover:underline"
+            className="font-semibold text-accent hover:underline"
           >
             {regnoOf?.(id) ?? id}
           </Link>
@@ -183,7 +183,7 @@ function Section({ children }: { children: ReactNode }) {
       data-testid="replacement-panel"
       className="rounded-tile border border-tile-border bg-tile p-3"
     >
-      <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+      <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
         <Sparkles aria-hidden className="size-3.5" /> Replacement
       </h3>
       {children}
@@ -211,9 +211,9 @@ function CandidateList({
         const body = (
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="flex min-w-0 items-center gap-2">
-              <span className="truncate font-extrabold">{c.regno}</span>
+              <span className="truncate font-semibold">{c.regno}</span>
               {suggested && (
-                <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-black tracking-[0.08em] text-accent uppercase">
+                <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-accent uppercase">
                   Suggested
                 </span>
               )}
@@ -305,7 +305,7 @@ function OverrideSearch({
                 type="button"
                 aria-pressed={picked?.vehicleId === h.vehicleId}
                 onClick={() => onPick(h)}
-                className="w-full rounded-md px-2 py-1.5 text-left text-sm font-extrabold outline-none hover:bg-tile focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-accent-soft"
+                className="w-full rounded-md px-2 py-1.5 text-left text-sm font-semibold outline-none hover:bg-tile focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-accent-soft"
               >
                 {h.regno}
               </button>

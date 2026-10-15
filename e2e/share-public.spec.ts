@@ -100,9 +100,11 @@ test('F10-T5: live marker, trail, follow / recenter, revoke → unavailable with
     })
     .toBe(true);
 
-  // Isolation: no app / live-tracking modules, no fleet socket.
+  // Isolation: no app / live-tracking / theme-store modules, no fleet socket (D-090, DS3-T8).
   expect(
-    requests.filter((p) => /\/src\/(app|features\/(live-tracking|access|auth))\//.test(p)),
+    requests.filter((p) =>
+      /\/src\/(app|shared\/theme|features\/(live-tracking|access|auth))\//.test(p),
+    ),
   ).toEqual([]);
   const live = frames.sockets.map((w) => new URL(w.url())).filter((u) => u.pathname === '/ws/live');
   expect(live.length).toBeGreaterThan(0);

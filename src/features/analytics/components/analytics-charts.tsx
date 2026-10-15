@@ -9,7 +9,7 @@ const per100 = (n: number, km: number) => (km > 0 ? (n / km) * 100 : null);
 export function AnalyticsCharts({ tab, series }: { tab: Tab; series: AnalyticsSeries }) {
   const days = series.points.map((p) => p.day);
   const k = series.points.map((p) => p.kpis);
-  const card = 'rounded-[var(--radius-panel)] p-4 shadow-[0_30px_80px_rgb(0_0_0/0.35)] glass';
+  const card = 'rounded-[var(--radius-panel)] p-4 shadow-panel glass';
   if (tab === 'vehicles')
     return (
       <div className="grid gap-3 lg:grid-cols-2">

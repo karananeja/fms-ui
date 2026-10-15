@@ -101,7 +101,7 @@ export function DriverSection({ vehicleId, regno, fleetId }: DriverSectionProps)
             <UserRound className="size-[18px]" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-extrabold" data-testid="driver-name">
+            <div className="truncate text-sm font-semibold" data-testid="driver-name">
               {driver.name}
             </div>
             <div className="flex flex-wrap items-center gap-x-2 text-xs text-text-muted">

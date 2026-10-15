@@ -6,6 +6,7 @@ import { eventsSocket } from '@/features/notifications/events-socket';
 import { useNow } from '@/shared/hooks/use-now';
 import { BrandMark } from '@/shared/ui/brand-mark';
 import { Button } from '@/shared/ui/button';
+import { ThemeToggle } from '@/shared/ui/theme-toggle';
 import { IncidentCard } from '../components/incident-card';
 import { MyVehicleCard } from '../components/my-vehicle-card';
 import { ReportWizard } from '../components/report-wizard';
@@ -27,7 +28,7 @@ function DriverMenu({ name }: { name: string }) {
           sideOffset={6}
           className="z-50 w-56 rounded-tile border border-glass-border bg-surface-solid p-2 text-text shadow-[0_16px_40px_var(--shadow)]"
         >
-          <p className="truncate px-2 py-1.5 text-sm font-extrabold">{name}</p>
+          <p className="truncate px-2 py-1.5 text-sm font-semibold">{name}</p>
           <button
             type="button"
             onClick={() => void session.logout()}
@@ -76,13 +77,14 @@ export function DriverHomePage({ store: given }: { store?: DriverStore }) {
         <div className="mx-auto flex h-14 max-w-[480px] items-center gap-3 px-4">
           <BrandMark />
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+            <p className="text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
               Driver
             </p>
-            <p className="truncate text-sm font-extrabold" data-testid="driver-greeting">
+            <p className="truncate text-sm font-semibold" data-testid="driver-greeting">
               {me?.driver.name ?? '…'}
             </p>
           </div>
+          <ThemeToggle />
           <DriverMenu name={me?.driver.name ?? ''} />
         </div>
       </header>
@@ -92,7 +94,7 @@ export function DriverHomePage({ store: given }: { store?: DriverStore }) {
           <p
             role="status"
             data-testid="replacement-banner"
-            className="flex items-center gap-2 rounded-tile border border-ok/40 bg-ok/10 px-3 py-2.5 text-sm font-extrabold text-ok"
+            className="flex items-center gap-2 rounded-tile border border-ok/40 bg-ok/10 px-3 py-2.5 text-sm font-semibold text-ok"
           >
             <CarFront className="size-4 shrink-0" aria-hidden />
             <span className="flex-1">{banner}</span>
@@ -127,7 +129,7 @@ export function DriverHomePage({ store: given }: { store?: DriverStore }) {
           >
             <TriangleAlert className="size-6 shrink-0" aria-hidden />
             <span className="min-w-0 flex-1">
-              <span className="block text-base font-extrabold">Problem reported</span>
+              <span className="block text-base font-semibold">Problem reported</span>
               <span className="block truncate text-xs">See progress or ask for more help</span>
             </span>
             <ChevronRight className="size-5" aria-hidden />
@@ -141,7 +143,7 @@ export function DriverHomePage({ store: given }: { store?: DriverStore }) {
           >
             <TriangleAlert className="size-6 shrink-0" aria-hidden />
             <span className="min-w-0 flex-1">
-              <span className="block text-base font-extrabold">Report a problem</span>
+              <span className="block text-base font-semibold">Report a problem</span>
               <span className="block truncate text-xs opacity-80">
                 Breakdown, roadside help or another vehicle
               </span>
@@ -151,7 +153,7 @@ export function DriverHomePage({ store: given }: { store?: DriverStore }) {
         )}
 
         <section aria-label="My incidents" className="flex flex-col gap-2.5">
-          <h2 className="mt-2 text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+          <h2 className="mt-2 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
             My incidents
           </h2>
           {me && !incidents.length && <p className="text-sm text-text-muted">No incidents yet.</p>}

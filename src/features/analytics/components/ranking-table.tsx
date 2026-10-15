@@ -45,7 +45,7 @@ export function RankingTable({
                 key={c.id}
                 scope="col"
                 className={cn(
-                  'px-2 text-[11px] font-black tracking-[0.1em] whitespace-nowrap text-text-muted uppercase',
+                  'px-2 text-[11px] font-semibold tracking-[0.1em] whitespace-nowrap text-text-muted uppercase',
                   c.num ? 'text-right' : 'text-left',
                   c.wide && 'hidden md:table-cell',
                 )}
@@ -76,7 +76,7 @@ export function RankingTable({
                   key={cols[ci]!.id}
                   className={cn(
                     'px-2',
-                    cols[ci]!.num ? 'text-right tabular-nums' : 'font-extrabold',
+                    cols[ci]!.num ? 'text-right tabular-nums' : 'font-semibold',
                     cols[ci]!.wide && 'hidden md:table-cell',
                   )}
                 >

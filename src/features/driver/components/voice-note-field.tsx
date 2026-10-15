@@ -50,7 +50,7 @@ export function VoiceNoteField({
                 disabled={dictation.listening}
                 onClick={() => setLang(l.id)}
                 className={cn(
-                  'rounded-full px-2 py-0.5 text-[11px] font-extrabold text-text-muted',
+                  'rounded-full px-2 py-0.5 text-[11px] font-semibold text-text-muted',
                   lang === l.id && 'bg-accent-soft text-accent',
                 )}
               >

@@ -12,6 +12,7 @@ import {
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
+import type { ResolvedTheme } from '@/shared/theme/theme-store.ts';
 import { mapConfig } from '../config/map-config.ts';
 import { STATUS_META } from '../config/status-meta.ts';
 import {
@@ -42,6 +43,8 @@ function token(name: string): string {
 
 const statusColors = () =>
   VEHICLE_STATUSES.map((s) => token(STATUS_META[s].color.match(/var\((--[\w-]+)\)/)![1]!));
+/** CSS values (`var(--st-…)`) for the DOM cluster donuts: they follow the theme by themselves. */
+const STATUS_CSS = VEHICLE_STATUSES.map((s) => STATUS_META[s].color);
 
 /**
  * Signed-distance image for MapLibre SDF icons (`sdf: true`): alpha 191 on the edge, ±32 per
@@ -119,6 +122,15 @@ function pointFeatures(p: MapPoints): GeoJSON.FeatureCollection {
   return { type: 'FeatureCollection', features };
 }
 
+export type MapStyleUrls = Record<ResolvedTheme, string>;
+
+interface Camera {
+  center: [number, number];
+  zoom: number;
+  bearing: number;
+  pitch: number;
+}
+
 interface ClusterEntry {
   marker: Marker;
   el: HTMLButtonElement;
@@ -133,7 +145,6 @@ interface ClusterEntry {
  */
 export class MapController {
   readonly map: MapLibre;
-  private readonly colors = statusColors();
   private readonly clusters = new Map<number, ClusterEntry>();
   private readonly popup = new Popup({ closeButton: false, closeOnClick: false, offset: 12 });
   private readonly unsubscribe: (() => void)[] = [];
@@ -142,16 +153,24 @@ export class MapController {
   private frame: MapFrame | null = null;
   private highlight: LngLat | null = null;
   private viewportTimer: ReturnType<typeof setTimeout> | undefined;
+  private trail: ReturnType<typeof attachTrailLayer> | null = null;
+  /** Camera saved before a theme swap, restored on `style.load` (DS3-R13). */
+  private swapCamera: Camera | null = null;
+  /** True while restoring the camera after a swap: that move sends no viewport (DS3-R14). */
+  private restoring = false;
+  /** Viewports sent to the worker (dev probe, DS3-T6). */
+  private viewportsSent = 0;
 
   constructor(
     container: HTMLElement,
     private readonly store: LiveTrackingStore,
-    styleUrl: string,
+    private readonly styles: MapStyleUrls,
+    private theme: ResolvedTheme = 'dark',
   ) {
     const [w, s, e, n] = mapConfig.indiaBounds;
     this.map = new MapLibre({
       container,
-      style: styleUrl,
+      style: styles[theme],
       bounds: [w, s, e, n],
       attributionControl: false,
       dragRotate: false,
@@ -164,10 +183,12 @@ export class MapController {
     this.map.addControl(new ScaleControl({ unit: 'metric' }), 'bottom-right');
 
     this.map.on('load', () => this.onLoad());
+    this.map.on('style.load', () => this.onStyleSwapped());
     this.map.on('error', (e) => console.warn('[map]', e.error?.message ?? e));
     this.map.on('movestart', () => clearTimeout(this.viewportTimer));
     this.map.on('moveend', () => {
       clearTimeout(this.viewportTimer);
+      if (this.restoring) return;
       this.viewportTimer = setTimeout(() => this.sendViewport(), mapConfig.viewportDebounceMs);
     });
     this.unsubscribe.push(
@@ -178,7 +199,13 @@ export class MapController {
     );
     if (import.meta.env.DEV) {
       void import('./map-dev-probe.ts').then((m) => {
-        if (!this.destroyed) m.exposeMapProbe(this.map, store, () => this.highlight);
+        if (!this.destroyed) {
+          m.exposeMapProbe(this.map, store, {
+            highlight: () => this.highlight,
+            styleUrl: () => this.styleUrl(),
+            viewportsSent: () => this.viewportsSent,
+          });
+        }
       });
     }
   }
@@ -187,6 +214,7 @@ export class MapController {
     this.destroyed = true;
     clearTimeout(this.viewportTimer);
     for (const off of this.unsubscribe) off();
+    this.trail?.destroy();
     for (const c of this.clusters.values()) c.marker.remove();
     this.clusters.clear();
     this.popup.remove();
@@ -195,15 +223,74 @@ export class MapController {
     if (import.meta.env.DEV) delete window.__fmsMap;
   }
 
-  private onLoad(): void {
+  /**
+   * DS3-R13: switch the basemap for the resolved theme. The camera is remembered, the style is
+   * replaced (`diff: false`) and `onStyleSwapped` re-installs our overlay with fresh colours.
+   */
+  setTheme(theme: ResolvedTheme): void {
+    if (theme === this.theme || this.destroyed) return;
+    this.theme = theme;
+    // Still on the first style: just load the other URL; `onLoad` installs everything.
+    if (this.loaded || this.swapCamera) {
+      this.swapCamera ??= this.camera();
+      this.loaded = false;
+    }
+    this.map.setStyle(this.styles[theme], { diff: false });
+  }
+
+  /** The style URL in use (e2e probe). */
+  styleUrl(): string {
+    return this.styles[this.theme];
+  }
+
+  private camera(): Camera {
+    const c = this.map.getCenter();
+    return {
+      center: [c.lng, c.lat],
+      zoom: this.map.getZoom(),
+      bearing: this.map.getBearing(),
+      pitch: this.map.getPitch(),
+    };
+  }
+
+  private onStyleSwapped(): void {
+    const camera = this.swapCamera;
+    if (!camera || this.destroyed) return;
+    this.swapCamera = null;
+    this.installOverlay();
+    this.loaded = true;
+    // Re-render the last snapshot from memory (no worker round trip).
+    this.frame = null;
+    this.highlight = null;
+    this.render(this.store.getSnapshot(), true);
+    this.restoring = true;
+    try {
+      this.apply3d(true);
+      const now = this.camera();
+      const moved =
+        now.center[0] !== camera.center[0] ||
+        now.center[1] !== camera.center[1] ||
+        now.zoom !== camera.zoom ||
+        now.bearing !== camera.bearing ||
+        now.pitch !== camera.pitch;
+      if (moved) this.map.jumpTo(camera);
+    } finally {
+      this.restoring = false;
+    }
+    mapView.noteThemeSwap();
+  }
+
+  /** Images, sources and layers with freshly resolved token colours. Idempotent per style. */
+  private installOverlay(): void {
     const map = this.map;
+    if (map.getSource('vehicles')) return;
     map.addImage('fms-arrow', ARROW, { sdf: true, pixelRatio: 2 });
     map.addImage('fms-dot', DOT, { sdf: true, pixelRatio: 2 });
     map.addImage('fms-ring', RING, { sdf: true, pixelRatio: 2 });
     map.addSource('vehicles', { type: 'geojson', data: emptyCollection });
     map.addSource('selected', { type: 'geojson', data: emptyCollection });
     const color = ['match', ['get', 's']] as unknown[];
-    this.colors.forEach((c, k) => color.push(k + 1, c));
+    statusColors().forEach((c, k) => color.push(k + 1, c));
     color.push(token('--text-muted'));
     const running: ExpressionSpecification = ['==', ['get', 's'], RUNNING];
     // DS1-R6: 2 px accent ring over a 6 px soft halo.
@@ -255,11 +342,16 @@ export class MapController {
         'icon-halo-width': 1.8,
       },
     });
-    // F07: selected-vehicle trail (under the selection ring) and callout.
-    this.unsubscribe.push(
-      attachTrailLayer(map, this.store, 'selected-halo'),
-      attachSelectedCallout(map, this.store),
-    );
+    // F07: selected-vehicle trail, under the selection ring.
+    if (this.trail) this.trail.install();
+    else this.trail = attachTrailLayer(map, this.store, 'selected-halo');
+  }
+
+  private onLoad(): void {
+    const map = this.map;
+    this.installOverlay();
+    // Registered once: layer-scoped listeners survive a style swap (DS3-R13).
+    this.unsubscribe.push(attachSelectedCallout(map, this.store));
     map.on('mousemove', 'vehicles', (e) => this.hover(e));
     map.on('mouseleave', 'vehicles', () => {
       map.getCanvas().style.cursor = '';
@@ -325,7 +417,9 @@ export class MapController {
   }
 
   private sendViewport(): void {
-    if (this.loaded) void this.store.setViewport(this.viewport());
+    if (!this.loaded) return;
+    this.viewportsSent++;
+    void this.store.setViewport(this.viewport());
   }
 
   private execute(cmd: MapCommand): void {
@@ -349,7 +443,7 @@ export class MapController {
     }
   }
 
-  private render(state: LiveTrackingState): void {
+  private render(state: LiveTrackingState, force = false): void {
     if (!this.loaded) return;
     if (state.mapFrame && state.mapFrame !== this.frame) {
       this.frame = state.mapFrame;
@@ -357,7 +451,7 @@ export class MapController {
       this.syncClusters(this.frame.clusters);
     }
     const pos = selectedPosition(state);
-    if (pos?.[0] !== this.highlight?.[0] || pos?.[1] !== this.highlight?.[1]) {
+    if (force || pos?.[0] !== this.highlight?.[0] || pos?.[1] !== this.highlight?.[1]) {
       this.highlight = pos;
       (this.map.getSource('selected') as GeoJSONSource).setData(
         pos
@@ -397,7 +491,7 @@ export class MapController {
       entry.center = center;
       if (entry.key !== key) {
         entry.key = key;
-        entry.el.innerHTML = clusterMarkerSvg(count, breakdown, this.colors);
+        entry.el.innerHTML = clusterMarkerSvg(count, breakdown, STATUS_CSS);
         entry.el.setAttribute('aria-label', clusterLabel(count));
       }
     }

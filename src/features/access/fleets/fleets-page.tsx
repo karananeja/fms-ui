@@ -53,7 +53,7 @@ function FleetActionDialogs({
           close();
         }}
       >
-        <label className="flex flex-col gap-1.5 text-xs font-extrabold tracking-[0.08em] text-text-muted uppercase">
+        <label className="flex flex-col gap-1.5 text-xs font-semibold tracking-[0.08em] text-text-muted uppercase">
           Name
           <input
             autoFocus
@@ -179,7 +179,7 @@ export function FleetsPage({ api, notify }: { api?: FleetApi; notify?: Notifier 
               <span className="hidden sm:inline">Collapse all</span>
             </Button>
           </div>
-          <div className="flex h-8 shrink-0 items-center justify-between border-b border-glass-border px-4 text-[11px] font-black tracking-[0.12em] text-text-muted uppercase">
+          <div className="flex h-8 shrink-0 items-center justify-between border-b border-glass-border px-4 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
             <span data-testid="fleet-total">{counts.format(index.fleets.length)} fleets</span>
             <span className="pr-10">Vehicles</span>
           </div>
@@ -202,7 +202,7 @@ export function FleetsPage({ api, notify }: { api?: FleetApi; notify?: Notifier 
           )}
         </section>
         {desktop && panel && (
-          <aside className="flex w-[420px] shrink-0 flex-col overflow-hidden rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid shadow-[0_30px_80px_rgb(0_0_0/0.55)]">
+          <aside className="flex w-[420px] shrink-0 flex-col overflow-hidden rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid shadow-float">
             {panel}
           </aside>
         )}

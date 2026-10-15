@@ -24,10 +24,10 @@ const fmt = (v: number | null, f: Intl.NumberFormat, unit = '') =>
 function Metric({ label, value, testId }: { label: string; value: ReactNode; testId: string }) {
   return (
     <div className="min-w-0 rounded-tile border border-tile-border bg-tile px-3 py-2.5">
-      <div className="text-[11px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
+      <div className="text-[11px] font-semibold tracking-[0.1em] text-text-muted uppercase">
         {label}
       </div>
-      <div className="mt-1 truncate text-[15px] font-black" data-testid={testId}>
+      <div className="mt-1 truncate text-[15px] font-semibold" data-testid={testId}>
         {value}
       </div>
     </div>
@@ -45,7 +45,7 @@ function Group({
 }) {
   return (
     <section data-testid={testId} aria-label={title}>
-      <h2 className="mb-2 text-[11px] font-extrabold tracking-[0.14em] text-text-faint uppercase">
+      <h2 className="mb-2 text-[11px] font-semibold tracking-[0.06em] text-text-faint uppercase">
         {title}
       </h2>
       <div className="grid grid-cols-2 gap-2">{children}</div>

@@ -26,7 +26,8 @@ Vite proxies `/api` and `/ws` to the mock server, so cookies stay same-origin.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `VITE_MAP_STYLE_URL` | `https://tiles.openfreemap.org/styles/dark` | MapLibre style URL (dev: OpenFreeMap, no key) |
+| `VITE_MAP_STYLE_URL` | `https://tiles.openfreemap.org/styles/dark` | MapLibre style URL, dark theme (dev: OpenFreeMap, no key) |
+| `VITE_MAP_STYLE_URL_LIGHT` | `https://tiles.openfreemap.org/styles/positron` | MapLibre style URL, light theme (DS3) |
 | `VITE_DEV_LOGIN_EMAIL` | `superadmin@fms.local` | Dev-only auto sign-in when `/api/auth/me` is `401` (until F02); never in production builds |
 | `VITE_DEV_LOGIN_PASSWORD` | `Admin@123` | Password for the dev auto sign-in |
 | `MOCK_PORT` | `4000` | Mock server port, also the Vite proxy target |

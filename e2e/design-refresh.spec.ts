@@ -4,7 +4,6 @@ import { expect, mapState, settled, test, type Win } from './fixtures.ts';
 /** The DOM bits used in `evaluate` (the e2e tsconfig has no DOM lib). */
 interface Dom {
   getComputedStyle(el: unknown): { fontFamily: string };
-  document: { fonts: Iterable<{ family: string }> };
 }
 
 // One worker for this file: each test streams a full snapshot, and parallel copies starve F06-T6.
@@ -26,7 +25,7 @@ const fontOf = (page: Page, selector: string) =>
     .first()
     .evaluate((el) => (globalThis as unknown as Dom).getComputedStyle(el).fontFamily);
 
-test('DS1-T2: body, buttons, inputs and map labels use Doto', async ({ page }) => {
+test('DS1-T2 (DS3 update): body, buttons, inputs and map labels use Inter', async ({ page }) => {
   await openFitted(page, '/live-tracking?debug=1');
   for (const sel of [
     'body',
@@ -35,12 +34,10 @@ test('DS1-T2: body, buttons, inputs and map labels use Doto', async ({ page }) =
     '[data-testid="map-cluster"]',
     '.maplibregl-ctrl-attrib',
   ]) {
-    expect(await fontOf(page, sel), sel).toMatch(/^"?Doto/);
+    expect(await fontOf(page, sel), sel).toMatch(/^"?Inter/);
   }
-  const fonts = await page.evaluate(() =>
-    [...(globalThis as unknown as Dom).document.fonts].map((f) => f.family),
-  );
-  expect(fonts.join()).not.toMatch(/Inter/);
+  // Doto stays for display text only (DS3-R11): the brand mark.
+  expect(await fontOf(page, '[role="img"][aria-label="FMS"]')).toMatch(/^"?Doto/);
 });
 
 test('DS1-R10/R11: LIVE pill shows the feed; 2D/3D pitches the map and is remembered', async ({

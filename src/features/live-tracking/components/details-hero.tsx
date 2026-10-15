@@ -23,7 +23,7 @@ function Fresh({ label, cell }: { label: string; cell: TimeCell }) {
       />
       {label}
       <b
-        className="font-extrabold text-text uppercase"
+        className="font-semibold text-text uppercase"
         data-testid={`details-${id}-rel`}
         data-abs={cell.abs}
       >
@@ -52,7 +52,7 @@ function SignalBars({ bars }: { bars: number }) {
 }
 
 const badge =
-  'glass absolute top-[18px] rounded-[10px] px-2 py-1.5 text-[10px] font-extrabold text-text-muted';
+  'glass absolute top-[18px] rounded-[10px] px-2 py-1.5 text-[10px] font-semibold text-text-muted';
 
 /** Fixed hero: regno + actions, status, illustration with signal/GPS badges, freshness (F07-R6). */
 export const DetailsHero = memo(function DetailsHero({
@@ -74,7 +74,7 @@ export const DetailsHero = memo(function DetailsHero({
       <div className="flex items-center gap-1.5">
         <h2
           id="vehicle-details-title"
-          className="min-w-0 flex-1 truncate text-xl font-black tracking-[0.04em]"
+          className="min-w-0 flex-1 truncate text-xl font-semibold tracking-[0.04em]"
           data-testid="details-regno"
         >
           {header.regno}
@@ -93,7 +93,7 @@ export const DetailsHero = memo(function DetailsHero({
         </span>
         {header.subtitle && <span className="text-xs text-text-muted">{header.subtitle}</span>}
         {header.fuel && (
-          <span className="rounded-md border border-tile-border px-1.5 py-px text-[10px] font-black text-text-muted">
+          <span className="rounded-md border border-tile-border px-1.5 py-px text-[10px] font-semibold text-text-muted">
             {header.fuel}
           </span>
         )}
@@ -107,7 +107,7 @@ export const DetailsHero = memo(function DetailsHero({
           <>
             <div className={cn(badge, 'left-0')} data-testid="badge-signal">
               SIGNAL
-              <b className="flex items-center gap-1.5 text-[13px] font-black text-text">
+              <b className="flex items-center gap-1.5 text-[13px] font-semibold text-text">
                 {badges.signal}
                 <SignalBars bars={badges.bars} />
               </b>
@@ -115,7 +115,7 @@ export const DetailsHero = memo(function DetailsHero({
             <div className={cn(badge, 'right-0 text-right')} data-testid="badge-gps">
               GPS FIX
               <b
-                className="block text-[13px] font-black"
+                className="block text-[13px] font-semibold"
                 style={{ color: badges.fixTone === 'ok' ? undefined : TONE_COLOR[badges.fixTone] }}
               >
                 {badges.fix}

@@ -81,7 +81,7 @@ function Progress({ step }: { step: Step }) {
         <li
           key={s.id}
           aria-current={k === at ? 'step' : undefined}
-          className="flex-1 text-[10px] font-black tracking-[0.1em] text-text-muted uppercase"
+          className="flex-1 text-[10px] font-semibold tracking-[0.1em] text-text-muted uppercase"
         >
           <span
             className={cn(
@@ -118,7 +118,7 @@ function HelpCard({
     >
       <span className={cn('text-text-muted', on && 'text-accent')}>{icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-extrabold">{title}</span>
+        <span className="block text-sm font-semibold">{title}</span>
         <span className="block text-[11px] text-text-muted">{hint}</span>
       </span>
       <input
@@ -205,7 +205,7 @@ function Wizard({
 
   return (
     <>
-      <SheetTitle className="text-lg font-black">
+      <SheetTitle className="text-lg font-semibold">
         {step === 'sending'
           ? busy
             ? 'Sending…'
@@ -254,7 +254,7 @@ function Wizard({
                   onChange={() => pick(r)}
                   className="sr-only"
                 />
-                <span className="text-sm font-extrabold">{REASON_LABEL[r].label}</span>
+                <span className="text-sm font-semibold">{REASON_LABEL[r].label}</span>
                 <span className="text-[11px] text-text-muted">{REASON_LABEL[r].hint}</span>
               </label>
             ))}
@@ -311,7 +311,7 @@ function Wizard({
             className="rounded-tile border border-tile-border bg-tile p-3 text-sm"
             data-testid="report-summary"
           >
-            <p className="font-extrabold">{REASON_LABEL[reason!].label}</p>
+            <p className="font-semibold">{REASON_LABEL[reason!].label}</p>
             {note.trim() && <p className="text-xs text-text-muted">“{note.trim()}”</p>}
             <ul className="mt-2 flex flex-col gap-1 text-xs">
               {planned.map((t) => (
@@ -362,7 +362,7 @@ function Wizard({
                   ) : (
                     <Check className="size-5 text-ok" aria-hidden />
                   )}
-                  <span className="flex-1 font-extrabold">{ITEM_LABEL[t]}</span>
+                  <span className="flex-1 font-semibold">{ITEM_LABEL[t]}</span>
                   <span className="text-xs text-text-muted">
                     {s === 'pending'
                       ? 'Sending'

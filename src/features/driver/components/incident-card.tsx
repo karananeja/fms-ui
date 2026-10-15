@@ -83,7 +83,7 @@ export const IncidentCard = forwardRef<HTMLElement, IncidentCardProps>(function 
     >
       <header className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-base font-extrabold">{title(i)}</h3>
+          <h3 className="truncate text-base font-semibold">{title(i)}</h3>
           <p className="text-xs text-text-muted" data-testid="incident-summary">
             {incidentSummary(i)}
           </p>
@@ -103,7 +103,7 @@ export const IncidentCard = forwardRef<HTMLElement, IncidentCardProps>(function 
             data-status={r.status}
             className="flex items-center gap-1.5 rounded-full border border-tile-border bg-tile px-2.5 py-1 text-[11px]"
           >
-            <span className="font-extrabold">{PART_LABEL[r.type]}</span>
+            <span className="font-semibold">{PART_LABEL[r.type]}</span>
             <span
               className="size-1.5 rounded-full"
               style={{ background: STATUS_COLOR[r.status] }}
@@ -133,7 +133,7 @@ export const IncidentCard = forwardRef<HTMLElement, IncidentCardProps>(function 
                 }}
               />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-extrabold">{e.text}</p>
+                <p className="text-sm font-semibold">{e.text}</p>
                 {e.note && <p className="text-xs text-text-muted">{e.note}</p>}
                 <p className="text-[11px] text-text-faint" title={formatIstShort(e.at)}>
                   {formatIstShort(e.at)} · {formatAge(e.at, now)}

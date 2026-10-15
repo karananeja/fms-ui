@@ -14,7 +14,7 @@ export function TintPill({
 }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black tracking-[0.06em] whitespace-nowrap uppercase"
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap uppercase"
       style={{ color, background: `color-mix(in srgb, ${color} 15%, transparent)` }}
       {...data}
     >

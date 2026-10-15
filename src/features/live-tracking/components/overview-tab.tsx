@@ -80,19 +80,19 @@ export function OverviewTab({
           <Speedometer speed={overview.speed} text={overview.speedText} />
           <dl className="grid grid-cols-[1fr_auto] gap-x-2.5 gap-y-[7px] text-xs">
             <dt className="text-text-muted">Odometer</dt>
-            <dd className="text-right font-extrabold" data-testid="kv-odo">
+            <dd className="text-right font-semibold" data-testid="kv-odo">
               {overview.odo}
             </dd>
             <dt className="text-text-muted">Motor speed</dt>
-            <dd className="text-right font-extrabold">{overview.motorSpeed}</dd>
+            <dd className="text-right font-semibold">{overview.motorSpeed}</dd>
             <dt className="text-text-muted">Motor temp</dt>
-            <dd className="text-right font-extrabold">{overview.motorTemp}</dd>
+            <dd className="text-right font-semibold">{overview.motorTemp}</dd>
             <dt className="text-text-muted">Ignition</dt>
             <dd
               className={
                 overview.ignition.on
-                  ? 'text-right font-extrabold text-ok'
-                  : 'text-right font-extrabold text-text-muted'
+                  ? 'text-right font-semibold text-ok'
+                  : 'text-right font-semibold text-text-muted'
               }
             >
               {overview.ignition.text}

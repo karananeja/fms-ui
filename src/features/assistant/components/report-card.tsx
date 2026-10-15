@@ -18,13 +18,13 @@ export function ReportCard({ report }: { report: ReportDescriptor }) {
     >
       <FileText className="size-5 shrink-0 text-accent" aria-hidden />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-extrabold text-text" title={report.filename}>
+        <p className="truncate text-xs font-semibold text-text" title={report.filename}>
           {report.filename}
         </p>
         <p className="mt-0.5 flex items-center gap-2 text-[11px] text-text-muted">
           <span
             className={cn(
-              'rounded px-1.5 py-px text-[10px] font-black tracking-wider uppercase',
+              'rounded px-1.5 py-px text-[10px] font-semibold tracking-wider uppercase',
               report.format === 'pdf' ? 'bg-danger/15 text-danger' : 'bg-accent-soft text-accent',
             )}
           >

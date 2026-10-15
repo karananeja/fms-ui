@@ -10,10 +10,10 @@ export function DeviceTab({ device, cells }: { device: DeviceView | null; cells:
     <>
       <Tile className="flex items-center gap-2 p-2.5">
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-extrabold tracking-[0.1em] text-text-muted uppercase">
+          <div className="text-[10px] font-semibold tracking-[0.1em] text-text-muted uppercase">
             Device ID
           </div>
-          <div className="truncate text-[17px] font-black" data-testid="device-id">
+          <div className="truncate text-[17px] font-semibold" data-testid="device-id">
             {device.deviceId}
           </div>
         </div>

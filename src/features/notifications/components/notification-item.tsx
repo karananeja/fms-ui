@@ -56,7 +56,7 @@ export function NotificationItem({
             <span
               className={cn(
                 'min-w-0 flex-1 text-sm leading-snug',
-                unread ? 'font-extrabold text-text' : 'font-bold text-text-muted',
+                unread ? 'font-semibold text-text' : 'font-bold text-text-muted',
               )}
             >
               {n.title}
@@ -71,7 +71,10 @@ export function NotificationItem({
               {KIND_LABEL[n.kind] ?? 'Notification'}
             </span>
             <span aria-hidden>·</span>
-            <time dateTime={new Date(n.createdAt).toISOString()} title={`${formatIst(n.createdAt)} IST`}>
+            <time
+              dateTime={new Date(n.createdAt).toISOString()}
+              title={`${formatIst(n.createdAt)} IST`}
+            >
               {formatRelative(n.createdAt, now)}
             </time>
           </span>

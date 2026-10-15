@@ -17,7 +17,7 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
     <div data-testid="assistant-panel" className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-2 border-b border-glass-border px-4 pt-3.5 pr-12 pb-2.5">
         <Sparkles className="size-4 text-accent" aria-hidden />
-        <h2 className="text-xs font-extrabold tracking-[0.12em] text-text uppercase">Ask FMS</h2>
+        <h2 className="text-xs font-semibold tracking-[0.06em] text-text uppercase">Ask FMS</h2>
         {!empty && (
           <button
             type="button"
@@ -35,7 +35,7 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
           data-testid="assistant-not-configured"
           className="m-4 mb-auto rounded-tile border border-tile-border bg-tile p-4 text-sm"
         >
-          <p className="font-extrabold text-text">Assistant isn't set up yet</p>
+          <p className="font-semibold text-text">Assistant isn't set up yet</p>
           <p className="mt-1 text-text-muted">
             The fleet assistant needs to be configured on the server before it can answer questions.
             Ask your administrator to enable it.
@@ -47,7 +47,7 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
           <p className="mt-1 text-xs text-text-muted">
             Answers use only the vehicles, drivers and requests you can see.
           </p>
-          <p className="mt-5 mb-2 text-[11px] font-extrabold tracking-[0.12em] text-text-faint uppercase">
+          <p className="mt-5 mb-2 text-[11px] font-semibold tracking-[0.06em] text-text-faint uppercase">
             Try asking
           </p>
           <ul className="space-y-2">
