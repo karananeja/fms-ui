@@ -2,6 +2,7 @@ import { request as apiRequest, type Page } from '@playwright/test';
 import { adminApi } from './auth-helpers.ts';
 import { expect, mapState, metres, settled, SIGNED_OUT, test, type Win } from './fixtures.ts';
 import { createShare, LOCATION_ONLY, movingVehicle } from './share-public-helpers.ts';
+import { shot as uatShot, SHOTS_ON } from './shots.ts';
 
 /** The DOM bits used in `evaluate` (the e2e tsconfig has no DOM lib). */
 interface Dom {
@@ -285,7 +286,10 @@ test.describe('DS3-T8: share page keeps share-light and the new fonts', () => {
  * with `FMS_E2E_FONTS=1` so Inter renders; each shot is soft (one failing step keeps the rest).
  */
 test.describe('DS3-T9: screenshots', () => {
-  test.skip(process.env.FMS_E2E_FONTS !== '1', 'screenshots need FMS_E2E_FONTS=1');
+  test.skip(
+    !SHOTS_ON || process.env.FMS_E2E_FONTS !== '1',
+    'screenshots need FMS_SHOTS=1 FMS_E2E_FONTS=1',
+  );
   test.describe.configure({ mode: 'serial' });
 
   for (const theme of ['dark', 'light'] as const) {
@@ -296,7 +300,7 @@ test.describe('DS3-T9: screenshots', () => {
         try {
           await steps();
           await page.waitForTimeout(400);
-          await page.screenshot({ path: `${SHOTS}/${theme}-${name}.png`, fullPage });
+          await uatShot(page, { path: `${SHOTS}/${theme}-${name}.png`, fullPage });
         } catch (e) {
           failed.push(`${name}: ${String(e).split('\n')[0]}`);
         }
@@ -426,7 +430,7 @@ test.describe('DS3-T9: screenshots', () => {
           await out.setViewportSize({ width: w, height: h });
           await go();
           await out.waitForTimeout(800);
-          await out.screenshot({ path: `${SHOTS}/${theme}-${name}.png` });
+          await uatShot(out, { path: `${SHOTS}/${theme}-${name}.png` });
         } catch (e) {
           failed.push(`${name}: ${String(e).split('\n')[0]}`);
         }

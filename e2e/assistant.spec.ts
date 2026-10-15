@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { adminApi } from './auth-helpers.ts';
 import { expect, SIGNED_OUT, test } from './fixtures.ts';
+import { shot } from './shots.ts';
 
 const SHOTS = 'docs/features/f17-chatbot/screenshots';
 const VIEWER = { email: 'viewer@fms.local', password: 'View@1234' };
@@ -72,7 +73,7 @@ test('F17-T6: vehicle and driver questions answer with links (fake model)', asyn
   const driverName = await uniqueDriver(baseURL!);
   const panel = await openAssistant(page);
   await expect(panel.getByTestId('suggested-prompt').first()).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/panel-empty.png` });
+  await shot(page, { path: `${SHOTS}/panel-empty.png` });
 
   // Hold the stream so the running tool chip can be captured.
   let release: () => void = () => {};
@@ -95,7 +96,7 @@ test('F17-T6: vehicle and driver questions answer with links (fake model)', asyn
   const link = page.getByTestId('assistant-message').first().getByTestId('entity-link').first();
   await expect(link).toHaveText(v.regno);
   await expect(link).toHaveAttribute('href', `/live-tracking?vehicle=${v.vehicleId}`);
-  await page.screenshot({ path: `${SHOTS}/panel-answer.png` });
+  await shot(page, { path: `${SHOTS}/panel-answer.png` });
 
   const evs = await ask(page, `Tell me about driver ${driverName}`);
   expect(evs.map((e) => e.type)).toContain('tool_start');
@@ -105,7 +106,7 @@ test('F17-T6: vehicle and driver questions answer with links (fake model)', asyn
   const driverLink = lastAnswer(page).locator('[data-testid="entity-link"][data-kind="driver"]');
   await expect(driverLink.first()).toHaveText(driverName);
   await expect(driverLink.first()).toHaveAttribute('href', /^\/analytics\?tab=drivers&driver=/);
-  await page.screenshot({ path: `${SHOTS}/tool-chips.png` });
+  await shot(page, { path: `${SHOTS}/tool-chips.png` });
 
   // The map link closes the sheet and opens the vehicle.
   await link.click();
@@ -130,7 +131,7 @@ test('F17-T6: no-GPS report as CSV (rows match) and as PDF', async ({ page }) =>
   await expect(card.getByTestId('report-rows')).toHaveText(
     `${csv.rows.toLocaleString('en-IN')} ${csv.rows === 1 ? 'row' : 'rows'}`,
   );
-  await page.screenshot({ path: `${SHOTS}/report-card.png` });
+  await shot(page, { path: `${SHOTS}/report-card.png` });
   const [file] = await Promise.all([
     page.waitForEvent('download'),
     card.getByRole('link', { name: 'Download' }).click(),
@@ -214,7 +215,7 @@ test('F17-T8: mobile, full-screen sheet', async ({ page }) => {
   await expect(lastAnswer(page)).toHaveAttribute('data-status', 'done');
   const box = await page.getByTestId('assistant-panel').boundingBox();
   expect(box!.width).toBeGreaterThanOrEqual(389);
-  await page.screenshot({ path: `${SHOTS}/mobile.png` });
+  await shot(page, { path: `${SHOTS}/mobile.png` });
 });
 
 test('F17-T8: not configured state (SSE error from the server)', async ({ page }) => {
@@ -235,5 +236,5 @@ test('F17-T8: not configured state (SSE error from the server)', async ({ page }
     "Assistant isn't set up yet",
   );
   await expect(panel.getByRole('alert')).toHaveCount(0);
-  await page.screenshot({ path: `${SHOTS}/not-configured.png` });
+  await shot(page, { path: `${SHOTS}/not-configured.png` });
 });

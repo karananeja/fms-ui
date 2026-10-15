@@ -1,6 +1,7 @@
 import { vehicleListSchema, type VehicleMeta } from '@shared/contract/index.ts';
 import type { Page } from '@playwright/test';
 import { expect, mapPoints, mapState, settled, test } from './fixtures.ts';
+import { shot, SHOTS_ON, SHOTS_SKIP_REASON } from './shots.ts';
 
 const SHOTS = 'docs/features/f07-vehicle-details/screenshots';
 
@@ -160,6 +161,7 @@ test('F07-T9: GPS time or session chart updates within 20 s; locate flies to zoo
 });
 
 test('F07-T11: UAT screenshots (desktop tabs, map extras)', async ({ page }) => {
+  test.skip(!SHOTS_ON, SHOTS_SKIP_REASON);
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   const v = await pickVehicle(page, ['running']);
@@ -168,11 +170,11 @@ test('F07-T11: UAT screenshots (desktop tabs, map extras)', async ({ page }) => 
   const p = panel(page);
   await expect(p.getByTestId('details-param-count')).toHaveText('374', { timeout: 15_000 });
   await page.waitForTimeout(6000); // let the session chart collect a few samples
-  await page.screenshot({ path: `${SHOTS}/desktop-overview.png` });
-  await page.screenshot({ path: `${SHOTS}/map-trail-callout-compass.png` });
+  await shot(page, { path: `${SHOTS}/desktop-overview.png` });
+  await shot(page, { path: `${SHOTS}/map-trail-callout-compass.png` });
   for (const name of ['Parameters', 'Device', 'Events']) {
     await p.getByRole('tab', { name: new RegExp(name) }).click();
-    await page.screenshot({ path: `${SHOTS}/desktop-${name.toLowerCase()}.png` });
+    await shot(page, { path: `${SHOTS}/desktop-${name.toLowerCase()}.png` });
   }
   expect(v.regno).toBeTruthy();
 });
@@ -194,7 +196,7 @@ test.describe('F07-T10: phone width', () => {
       .toBeCloseTo(h * 0.65, -1);
     await expect(sheet.getByTestId('ring-battery')).toBeInViewport();
     await expect(sheet.getByTestId('details-latest')).toHaveCount(0);
-    await page.screenshot({ path: `${SHOTS}/mobile-sheet-35.png` });
+    await shot(page, { path: `${SHOTS}/mobile-sheet-35.png` });
 
     const handle = sheet.locator('[data-slot="drawer-handle"]');
     const hb = (await handle.boundingBox())!;
@@ -206,7 +208,7 @@ test.describe('F07-T10: phone width', () => {
     await expect
       .poll(async () => (await sheet.boundingBox())!.y, { timeout: 5000 })
       .toBeCloseTo(h * 0.08, -1);
-    await page.screenshot({ path: `${SHOTS}/mobile-sheet-92.png` });
+    await shot(page, { path: `${SHOTS}/mobile-sheet-92.png` });
 
     await sheet.getByRole('tab', { name: /Parameters/ }).click();
     const rows = sheet.getByRole('table', { name: 'Parameters' }).getByRole('row');

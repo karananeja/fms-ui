@@ -3,6 +3,7 @@ import { SHARE_GROUP_KEYS } from '@shared/contract/index.ts';
 import { adminApi } from './auth-helpers.ts';
 import { expect, metres, SIGNED_OUT, test } from './fixtures.ts';
 import { createShare, LOCATION_ONLY, movingVehicle, shareMap } from './share-public-helpers.ts';
+import { shot as uatShot, SHOTS_ON, SHOTS_SKIP_REASON } from './shots.ts';
 
 const SHOTS = 'docs/features/f10-share-live-location/screenshots';
 
@@ -168,6 +169,7 @@ test('F10-T6: enforcement — hidden groups never reach the page', async ({ page
 });
 
 test('F10-T8: public page UAT screenshots', async ({ page }) => {
+  test.skip(!SHOTS_ON, SHOTS_SKIP_REASON);
   const all = await createShare(api, vehicleId, {
     show: { drivingEnergy: true, device: true },
     trail: { enabled: true, windowMinutes: 60 },
@@ -176,7 +178,7 @@ test('F10-T8: public page UAT screenshots', async ({ page }) => {
   const shot = async (name: string) => {
     // Let the marker settle after the follow animation.
     await page.waitForTimeout(400);
-    await page.screenshot({ path: `${SHOTS}/public-${name}.png` });
+    await uatShot(page, { path: `${SHOTS}/public-${name}.png` });
   };
   const open = async (url: string) => {
     await page.goto(url);

@@ -10,6 +10,7 @@ import {
 import { request as apiRequest, type APIRequestContext, type Page } from '@playwright/test';
 import { adminApi, mailLink } from './auth-helpers.ts';
 import { expect, test } from './fixtures.ts';
+import { shot } from './shots.ts';
 
 const SHOTS = 'docs/features/f14-operator-request-desk/screenshots';
 const PASSWORD = 'Drive@1234';
@@ -118,7 +119,7 @@ test('F14-T3: breakdown → desk within 5 s → acknowledge → suggest → appr
   await expect(r).toContainText('Tyre problem');
   await expect(page.getByTestId('desk-open-count')).toHaveText(String(before + 1));
   await expect(page.getByTestId('requests-badge-rail')).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/desk.png` });
+  await shot(page, { path: `${SHOTS}/desk.png` });
 
   await r.click();
   await expect(page).toHaveURL(new RegExp(`/requests/${breakdown.id}$`));
@@ -131,7 +132,7 @@ test('F14-T3: breakdown → desk within 5 s → acknowledge → suggest → appr
   await expect(drawer(page).getByTestId('timeline')).toContainText('Calling the driver');
   await drawer(page).getByRole('button', { name: 'Suggest replacement' }).click();
   await expect(drawer(page).getByTestId('candidate').first()).toBeVisible({ timeout: 10_000 });
-  await page.screenshot({ path: `${SHOTS}/drawer-breakdown.png` });
+  await shot(page, { path: `${SHOTS}/drawer-breakdown.png` });
 
   // The driver asks for the replacement; the breakdown drawer links to it once it arrives.
   const replacement = await report(d, { type: 'replacement', note: 'Need another vehicle' });
@@ -140,7 +141,7 @@ test('F14-T3: breakdown → desk within 5 s → acknowledge → suggest → appr
   await expect(status(page)).toHaveText('Suggested', { timeout: 5_000 });
   const suggested = drawer(page).getByTestId('candidate').filter({ hasText: 'Suggested' });
   await expect(suggested).toBeVisible({ timeout: 10_000 });
-  await page.screenshot({ path: `${SHOTS}/drawer-replacement.png` });
+  await shot(page, { path: `${SHOTS}/drawer-replacement.png` });
   await drawer(page).getByRole('button', { name: 'Approve' }).click();
   await expect(status(page)).toHaveText('Assigned');
   await expect(drawer(page).getByTestId('replacement-assigned')).toBeVisible();
@@ -185,7 +186,7 @@ test('F14-T4: RSA dispatch → resolve with a full timeline; override with an un
   await expect(drawer(page).getByText('Enter who is going.')).toBeVisible();
   await drawer(page).getByLabel('Assignee').fill('Tow team 7');
   await drawer(page).getByLabel('ETA (minutes)').fill('40');
-  await page.screenshot({ path: `${SHOTS}/drawer-rsa-dispatch.png` });
+  await shot(page, { path: `${SHOTS}/drawer-rsa-dispatch.png` });
   await drawer(page).getByRole('button', { name: 'Dispatch', exact: true }).click();
   await expect(status(page)).toHaveText('Dispatched');
   await expect(drawer(page).getByTestId('rsa-details')).toHaveText('Tow team 7 · ETA 40 min');
@@ -198,7 +199,7 @@ test('F14-T4: RSA dispatch → resolve with a full timeline; override with an un
   await expect(timeline.nth(2)).toContainText('Dispatched');
   await expect(timeline.nth(3)).toContainText('Resolved');
   await expect(timeline.nth(3)).toContainText('Battery jump-started');
-  await page.screenshot({ path: `${SHOTS}/drawer-rsa.png` });
+  await shot(page, { path: `${SHOTS}/drawer-rsa.png` });
 
   // Override with the request's own vehicle (it has a driver): the server's reason shows.
   const repl = await report(d, { type: 'replacement' });
@@ -213,7 +214,7 @@ test('F14-T4: RSA dispatch → resolve with a full timeline; override with an un
   await expect(drawer(page).getByTestId('replacement-error')).toHaveText(
     'Vehicle is not available',
   );
-  await page.screenshot({ path: `${SHOTS}/drawer-override-error.png` });
+  await shot(page, { path: `${SHOTS}/drawer-override-error.png` });
   await drawer(page).getByRole('button', { name: 'Cancel' }).click();
   await act(page, 'Reject', 'Test cleanup');
   await expect(status(page)).toHaveText('Rejected');
@@ -243,7 +244,7 @@ test('F14-T5: auto-assign on → a new replacement is assigned without the opera
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByTestId('auto-assign-source')).toHaveText('Set on this fleet');
-    await page.screenshot({ path: `${SHOTS}/auto-assign-toggle.png` });
+    await shot(page, { path: `${SHOTS}/auto-assign-toggle.png` });
 
     await page.getByLabel('Filter by status').selectOption('all');
     const repl = await report(d, { type: 'replacement' });
@@ -254,7 +255,7 @@ test('F14-T5: auto-assign on → a new replacement is assigned without the opera
     await expect(drawer(page).getByTestId('replacement-assigned')).toContainText(
       'Assigned automatically',
     );
-    await page.screenshot({ path: `${SHOTS}/drawer-auto-assigned.png` });
+    await shot(page, { path: `${SHOTS}/drawer-auto-assigned.png` });
 
     // The same toggle sits in the F03 fleet detail.
     await page.goto('/admin/fleets');
@@ -268,7 +269,7 @@ test('F14-T5: auto-assign on → a new replacement is assigned without the opera
         name: 'Assign replacements automatically',
       }),
     ).toHaveAttribute('aria-checked', 'true', { timeout: 10_000 });
-    await page.screenshot({ path: `${SHOTS}/auto-assign-fleet-detail.png` });
+    await shot(page, { path: `${SHOTS}/auto-assign-fleet-detail.png` });
   } finally {
     await api.patch(`/api/fleets/${fleet.id}/settings`, { data: { autoAssignReplacement: null } });
     await d.ctx.dispose();
@@ -334,7 +335,7 @@ test('F14-T6: no-GPS insight — signal-derived chips; driver-reported reason li
   await expect(section.getByText(/^Signal −?\d+ dBm/)).toBeVisible();
   await expect(section.getByTestId('no-gps-since')).toContainText('IST');
   await section.scrollIntoViewIfNeeded();
-  await page.screenshot({ path: `${SHOTS}/no-gps-insight-signals.png` });
+  await shot(page, { path: `${SHOTS}/no-gps-insight-signals.png` });
 
   // Driver-reported: a driver on a no-GPS vehicle reports a faulty GPS device.
   const found = await noGpsVehicle(api, true);
@@ -348,12 +349,12 @@ test('F14-T6: no-GPS insight — signal-derived chips; driver-reported reason li
   });
   await expect(s2.getByTestId('no-gps-reported')).toContainText('GPS device not working');
   await s2.scrollIntoViewIfNeeded();
-  await page.screenshot({ path: `${SHOTS}/no-gps-insight-reported.png` });
+  await shot(page, { path: `${SHOTS}/no-gps-insight-reported.png` });
   // Mobile: the card re-mounts as a bottom sheet.
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(s2.getByTestId('no-gps-reported')).toBeVisible({ timeout: 10_000 });
   await s2.scrollIntoViewIfNeeded();
-  await page.screenshot({ path: `${SHOTS}/no-gps-insight-mobile.png` });
+  await shot(page, { path: `${SHOTS}/no-gps-insight-mobile.png` });
   await page.setViewportSize({ width: 1280, height: 720 });
   await expect(s2.getByTestId('no-gps-reported')).toBeVisible({ timeout: 10_000 });
   await s2.getByRole('link', { name: 'View request' }).click();
@@ -376,10 +377,10 @@ test('F14-T7: desk on mobile and a notification opens the request', async ({ pag
   await expect(page.getByRole('heading', { level: 1, name: 'Requests' })).toBeVisible();
   const r = await report(d, { type: 'breakdown', reason: 'accident', note: 'Minor collision' });
   await expect(row(page, r.id)).toBeVisible({ timeout: 5_000 });
-  await page.screenshot({ path: `${SHOTS}/desk-mobile.png` });
+  await shot(page, { path: `${SHOTS}/desk-mobile.png` });
   await row(page, r.id).click();
   await expect(drawer(page).getByTestId('request-reason')).toHaveText('Accident');
-  await page.screenshot({ path: `${SHOTS}/drawer-mobile.png` });
+  await shot(page, { path: `${SHOTS}/drawer-mobile.png` });
 
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto('/admin');

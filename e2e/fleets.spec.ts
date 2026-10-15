@@ -1,5 +1,6 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
+import { shot, SHOTS_ON, SHOTS_SKIP_REASON } from './shots.ts';
 
 const SHOTS = 'docs/features/f03-access-control/screenshots';
 
@@ -212,6 +213,7 @@ test.describe('F03-T3: fleets', () => {
 });
 
 test.describe('F03-T9: fleets UAT screenshots', () => {
+  test.skip(!SHOTS_ON, SHOTS_SKIP_REASON);
   test('tree + vehicles, move dialog, mobile', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openFleets(page);
@@ -225,20 +227,20 @@ test.describe('F03-T9: fleets UAT screenshots', () => {
       .getByRole('checkbox')
       .click({ modifiers: ['Shift'] });
     await page.mouse.move(0, 0);
-    await page.screenshot({ path: `${SHOTS}/fleets-tree-vehicles.png` });
+    await shot(page, { path: `${SHOTS}/fleets-tree-vehicles.png` });
 
     await panel(page).getByRole('button', { name: 'Move to fleet…' }).click();
     await pickInDialog(page, 'Target fleet', 'Pune Hub 1 · Team A');
     await page.mouse.move(0, 0);
-    await page.screenshot({ path: `${SHOTS}/fleets-move-dialog.png` });
+    await shot(page, { path: `${SHOTS}/fleets-move-dialog.png` });
     await dialog(page).getByRole('button', { name: 'Cancel' }).click();
 
     await page.setViewportSize({ width: 390, height: 844 });
     await openFleets(page);
     await expect(row(page, 'North')).toBeVisible();
-    await page.screenshot({ path: `${SHOTS}/fleets-mobile.png` });
+    await shot(page, { path: `${SHOTS}/fleets-mobile.png` });
     await row(page, 'Delhi').click();
     await expect(panel(page).locator('[role=row][data-vehicle-id]').first()).toBeVisible();
-    await page.screenshot({ path: `${SHOTS}/fleets-mobile-sheet.png` });
+    await shot(page, { path: `${SHOTS}/fleets-mobile-sheet.png` });
   });
 });

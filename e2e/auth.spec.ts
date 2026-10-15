@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { adminApi, createUser, inviteUser, mailLink, signIn, uniqueEmail } from './auth-helpers.ts';
 import { expect, mapState, SIGNED_OUT, SUPER_ADMIN, test } from './fixtures.ts';
+import { shot, SHOTS_ON, SHOTS_SKIP_REASON } from './shots.ts';
 
 const SHOTS = new URL('../docs/features/f02-authentication/screenshots/', import.meta.url).pathname;
 const EXPIRED_NOTICE = 'Your session has expired. Please sign in again.';
@@ -179,6 +180,7 @@ test('F02-T9: sign out closes the WS and back shows no live data; a lost cookie 
 });
 
 test.describe('F02-T11: UAT screenshots', () => {
+  test.skip(!SHOTS_ON, SHOTS_SKIP_REASON);
   test.beforeAll(() => mkdirSync(SHOTS, { recursive: true }));
 
   test('desktop screens and states', async ({ page, baseURL }) => {
@@ -186,26 +188,26 @@ test.describe('F02-T11: UAT screenshots', () => {
     await page.goto('/login');
     await page.getByLabel('Email').fill('');
     await page.getByLabel('Email').blur();
-    await page.screenshot({ path: `${SHOTS}sign-in.png` });
+    await shot(page, { path: `${SHOTS}sign-in.png` });
     await signIn(page, SUPER_ADMIN.email, 'wrong-password-1');
     await expect(page.getByRole('alert')).toBeVisible();
-    await page.screenshot({ path: `${SHOTS}sign-in-error.png` });
+    await shot(page, { path: `${SHOTS}sign-in-error.png` });
 
     await page.goto('/forgot-password');
     await page.getByLabel('Email').fill('ops@fms.local');
     await page.getByRole('button', { name: 'Send reset link' }).click();
     await expect(page.getByRole('status')).toBeVisible();
-    await page.screenshot({ path: `${SHOTS}forgot-confirmation.png` });
+    await shot(page, { path: `${SHOTS}forgot-confirmation.png` });
 
     await page.goto('/reset-password?token=screenshot');
     await page.getByLabel('New password', { exact: true }).fill('abcdef1');
     await page.getByLabel('Confirm password').fill('abcdef12');
     await page.getByLabel('New password', { exact: true }).focus();
-    await page.screenshot({ path: `${SHOTS}reset-rules.png` });
+    await shot(page, { path: `${SHOTS}reset-rules.png` });
 
     await page.goto('/reset-password');
     await expect(page.getByRole('alert')).toBeVisible();
-    await page.screenshot({ path: `${SHOTS}reset-expired.png` });
+    await shot(page, { path: `${SHOTS}reset-expired.png` });
 
     const admin = await adminApi(baseURL!);
     const link = await inviteUser(admin, uniqueEmail('shot'));
@@ -213,11 +215,11 @@ test.describe('F02-T11: UAT screenshots', () => {
     await page.goto(link);
     await page.getByLabel('Name').fill('Asha Verma');
     await page.getByLabel('New password', { exact: true }).fill('Fleet2026');
-    await page.screenshot({ path: `${SHOTS}accept-invite.png` });
+    await shot(page, { path: `${SHOTS}accept-invite.png` });
 
     await page.goto('/accept-invite?token=nope');
     await expect(page.getByRole('alert')).toBeVisible();
-    await page.screenshot({ path: `${SHOTS}invite-expired.png` });
+    await shot(page, { path: `${SHOTS}invite-expired.png` });
 
     await page.goto('/login');
     await signIn(page, SUPER_ADMIN.email, SUPER_ADMIN.password);
@@ -225,7 +227,7 @@ test.describe('F02-T11: UAT screenshots', () => {
     await page.getByRole('button', { name: 'Account: Super Admin' }).click();
     await expect(page.getByRole('dialog', { name: 'Account' })).toBeVisible();
     await page.waitForTimeout(500);
-    await page.screenshot({ path: `${SHOTS}user-menu.png` });
+    await shot(page, { path: `${SHOTS}user-menu.png` });
   });
 
   test.describe('mobile', () => {
@@ -233,13 +235,13 @@ test.describe('F02-T11: UAT screenshots', () => {
 
     test('sign in and the drawer user menu', async ({ page }) => {
       await page.goto('/login');
-      await page.screenshot({ path: `${SHOTS}mobile-sign-in.png` });
+      await shot(page, { path: `${SHOTS}mobile-sign-in.png` });
       await signIn(page, SUPER_ADMIN.email, SUPER_ADMIN.password);
       await expect(page).toHaveURL(/\/live-tracking$/);
       await page.getByRole('button', { name: 'Open menu' }).click();
       const drawer = page.getByRole('dialog');
       await expect(drawer.getByRole('region', { name: 'Account' })).toBeVisible();
-      await page.screenshot({ path: `${SHOTS}mobile-user-menu.png` });
+      await shot(page, { path: `${SHOTS}mobile-user-menu.png` });
       await drawer.getByRole('button', { name: 'Sign out' }).click();
       await expect(page).toHaveURL(/\/login$/);
     });

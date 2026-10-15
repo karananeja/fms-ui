@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { expect, mapState, metres, settled, test } from './fixtures.ts';
 import { scrollTable, tableTotal, type Scroller } from './table-helpers.ts';
+import { shot, SHOTS_ON, SHOTS_SKIP_REASON } from './shots.ts';
 
 const SHOTS = 'docs/features/f09-table-view-csv/screenshots';
 
@@ -218,6 +219,7 @@ test('F09-T8: the tray shows viewport cards, selects on click, and updates after
 });
 
 test.describe('F09-T9: UAT screenshots', () => {
+  test.skip(!SHOTS_ON, SHOTS_SKIP_REASON);
   test('desktop: table, column menu, export in progress, map with tray', async ({ page }) => {
     test.setTimeout(90_000);
     const fitted = await openFitted(page);
@@ -227,7 +229,7 @@ test.describe('F09-T9: UAT screenshots', () => {
     await cards.nth(1).click();
     await expect(panel(page)).toBeVisible();
     await page.waitForTimeout(800);
-    await page.screenshot({ path: `${SHOTS}/map-with-tray.png` });
+    await shot(page, { path: `${SHOTS}/map-with-tray.png` });
     await page.getByRole('button', { name: 'Close details' }).click();
 
     await page.getByRole('button', { name: 'Table view' }).click();
@@ -236,12 +238,12 @@ test.describe('F09-T9: UAT screenshots', () => {
     await row.click();
     await expect(panel(page)).toBeVisible();
     await page.waitForTimeout(800);
-    await page.screenshot({ path: `${SHOTS}/table-desktop.png` });
+    await shot(page, { path: `${SHOTS}/table-desktop.png` });
     await page.getByRole('button', { name: 'Close details' }).click();
 
     await page.getByRole('button', { name: 'Columns' }).click();
     await expect(page.getByRole('menu', { name: 'Columns' })).toBeVisible();
-    await page.screenshot({ path: `${SHOTS}/column-menu.png` });
+    await shot(page, { path: `${SHOTS}/column-menu.png` });
     await page.keyboard.press('Escape');
 
     // Slow the CPU so the progress toast is on screen long enough to capture. Under machine load
@@ -269,7 +271,7 @@ test.describe('F09-T9: UAT screenshots', () => {
     try {
       await page.getByRole('button', { name: 'Export CSV' }).click();
       await expect(page.getByText(/Exporting CSV… \d+%/)).toBeVisible();
-      await page.screenshot({ path: `${SHOTS}/export-in-progress.png` });
+      await shot(page, { path: `${SHOTS}/export-in-progress.png` });
     } finally {
       await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
     }
@@ -293,7 +295,7 @@ test.describe('F09-T9: UAT screenshots', () => {
       await expect(page.getByRole('button', { name: 'Back to map' })).toBeInViewport();
       await expect(page.getByRole('button', { name: 'Columns' })).toBeInViewport({ ratio: 1 });
       await page.waitForTimeout(500);
-      await page.screenshot({ path: `${SHOTS}/mobile-table.png` });
+      await shot(page, { path: `${SHOTS}/mobile-table.png` });
     });
   });
 });

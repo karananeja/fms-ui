@@ -1,5 +1,6 @@
 import { request as apiRequest } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
+import { shot, SHOTS_ON, SHOTS_SKIP_REASON } from './shots.ts';
 
 const SHOTS = 'docs/features/f15-in-app-notifications/screenshots';
 const DRIVER = { email: 'driver@fms.local', password: 'Drive@1234' };
@@ -43,6 +44,7 @@ test('F15-T5: a driver request reaches the super admin live; Mark all read stick
 });
 
 test('F15-T6: UAT screenshots', async ({ page, baseURL }) => {
+  test.skip(!SHOTS_ON, SHOTS_SKIP_REASON);
   const driver = await apiRequest.newContext({ baseURL });
   expect((await driver.post('/api/auth/login', { data: DRIVER })).ok()).toBe(true);
   for (const type of ['rsa', 'replacement'] as const)
@@ -51,17 +53,17 @@ test('F15-T6: UAT screenshots', async ({ page, baseURL }) => {
 
   await page.goto('/admin');
   await expect(page.getByTestId('notification-badge')).toBeVisible({ timeout: 10_000 });
-  await page.screenshot({
+  await shot(page, {
     path: `${SHOTS}/bell-badge.png`,
     clip: { x: 900, y: 0, width: 380, height: 60 },
   });
   await bell(page).click();
   await expect(page.getByTestId('notification-item').first()).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/panel-desktop.png` });
+  await shot(page, { path: `${SHOTS}/panel-desktop.png` });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   await bell(page).click();
   await expect(page.getByTestId('notification-item').first()).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/sheet-mobile.png` });
+  await shot(page, { path: `${SHOTS}/sheet-mobile.png` });
 });

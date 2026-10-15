@@ -2,6 +2,7 @@ import type { DriverRequest } from '@shared/contract/index.ts';
 import { request as apiRequest, type APIRequestContext, type Page } from '@playwright/test';
 import { adminApi } from './auth-helpers.ts';
 import { expect, SIGNED_OUT, test } from './fixtures.ts';
+import { shot } from './shots.ts';
 
 const SHOTS = 'docs/features/f13-driver-web-page/screenshots';
 const DRIVER = { email: 'driver@fms.local', password: 'Drive@1234' };
@@ -67,23 +68,23 @@ test('F13-T2 / D-109: one report sends the breakdown and the suggested roadside 
   page,
 }) => {
   await signIn(page);
-  await page.screenshot({ path: `${SHOTS}/home-mobile.png`, fullPage: true });
+  await shot(page, { path: `${SHOTS}/home-mobile.png`, fullPage: true });
   await page.getByRole('button', { name: /Report a problem/ }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await expect(page.getByText('Choose what happened.')).toBeVisible();
   await page.getByText('Tyre', { exact: true }).click();
   await page.getByLabel(/Describe the problem/).fill('Front left puncture');
-  await page.screenshot({ path: `${SHOTS}/report-step-1.png` });
+  await shot(page, { path: `${SHOTS}/report-step-1.png` });
   await page.getByRole('button', { name: 'Next' }).click();
   await expect(page.getByRole('checkbox', { name: /Roadside help/ })).toBeChecked();
-  await page.screenshot({ path: `${SHOTS}/report-step-2.png` });
+  await shot(page, { path: `${SHOTS}/report-step-2.png` });
   await page.getByRole('button', { name: 'Next' }).click();
-  await page.screenshot({ path: `${SHOTS}/report-step-3.png` });
+  await shot(page, { path: `${SHOTS}/report-step-3.png` });
   await page.getByRole('button', { name: 'Send report' }).click();
   await expect(page.getByTestId('report-item-rsa')).toHaveAttribute('data-state', 'sent', {
     timeout: 15_000,
   });
-  await page.screenshot({ path: `${SHOTS}/report-sent.png` });
+  await shot(page, { path: `${SHOTS}/report-sent.png` });
   await page.getByRole('button', { name: 'Done' }).click();
 
   const card = incident(page);
@@ -115,7 +116,7 @@ test('F13-T3: operator steps show live on the incident', async ({ page, baseURL 
   ).toBe(true);
   await expect(card).toContainText('RSA dispatched: Suresh, ETA 30 min', { timeout: 5_000 });
   await expect(card.getByTestId('incident-summary')).toHaveText('Help on the way · ETA 30 min');
-  await page.screenshot({ path: `${SHOTS}/incident-timeline.png`, fullPage: true });
+  await shot(page, { path: `${SHOTS}/incident-timeline.png`, fullPage: true });
   expect((await act(admin, id, { action: 'resolve' })).ok()).toBe(true);
   await expect(rsa).toHaveAttribute('data-status', 'resolved', { timeout: 5_000 });
   await admin.dispose();
@@ -149,9 +150,9 @@ test('F13-T4: an assigned replacement switches the vehicle and shows the banner'
   const after = await page.getByTestId('my-regno').textContent();
   expect(after).not.toBe(before);
   await expect(page.getByTestId('replacement-banner')).toContainText(after!);
-  await page.screenshot({ path: `${SHOTS}/replacement-banner.png` });
+  await shot(page, { path: `${SHOTS}/replacement-banner.png` });
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.screenshot({ path: `${SHOTS}/home-desktop.png` });
+  await shot(page, { path: `${SHOTS}/home-desktop.png` });
 });
 
 test('F13-T5: Driver is sent to /driver; staff gets No access on /driver', async ({

@@ -37,12 +37,8 @@ test('F08 budgets: frame after filter change, long tasks while typing/filtering'
   };
 
   const frames: Record<string, number> = {};
-  frames.running = await frameAfter(() =>
-    page.getByRole('button', { name: /^Running: / }).click(),
-  );
-  frames.stopped = await frameAfter(() =>
-    page.getByRole('button', { name: /^Stopped: / }).click(),
-  );
+  frames.running = await frameAfter(() => page.getByRole('button', { name: /^Running: / }).click());
+  frames.stopped = await frameAfter(() => page.getByRole('button', { name: /^Stopped: / }).click());
   frames.all = await frameAfter(() => page.getByRole('button', { name: /^All: / }).click());
 
   const box = page.getByRole('combobox', { name: 'Search vehicles' });

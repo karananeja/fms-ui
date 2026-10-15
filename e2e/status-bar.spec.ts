@@ -1,6 +1,7 @@
 import { fleetListSchema, vehicleListSchema } from '@shared/contract/index.ts';
 import type { Page } from '@playwright/test';
 import { expect, mapState, settled, test } from './fixtures.ts';
+import { shot, SHOTS_ON, SHOTS_SKIP_REASON } from './shots.ts';
 
 const SHOTS = 'docs/features/f08-status-bar-search-filters/screenshots';
 
@@ -128,7 +129,7 @@ test('F08-T9: fleet + SOC range from the panel drop the counts and show chips', 
   await max.focus();
   for (let k = 0; k < 4; k++) await max.press('PageDown');
   await expect(panel).toContainText('SOC 20–60%');
-  await page.screenshot({ path: `${SHOTS}/filter-panel.png` });
+  await shot(page, { path: `${SHOTS}/filter-panel.png` });
   await panel.getByRole('button', { name: 'Apply' }).click();
 
   const chips = page.getByRole('list', { name: 'Active filters' });
@@ -137,10 +138,11 @@ test('F08-T9: fleet + SOC range from the panel drop the counts and show chips', 
   await expect.poll(() => allCount(page)).toBeLessThan(total);
   await expect(page.getByRole('button', { name: /^Filters \(2 active\)$/ })).toBeVisible();
   await expect(page.getByTestId('pulse-scope')).toHaveText(fleet.name, { ignoreCase: true });
-  await page.screenshot({ path: `${SHOTS}/active-chips.png` });
+  await shot(page, { path: `${SHOTS}/active-chips.png` });
 });
 
 test('F08-T10: top bar with suggestions + fleet pulse screenshots', async ({ page }) => {
+  test.skip(!SHOTS_ON, SHOTS_SKIP_REASON);
   await page.setViewportSize({ width: 1440, height: 900 });
   await openFitted(page);
   const { items } = vehicleListSchema.parse(
@@ -148,10 +150,10 @@ test('F08-T10: top bar with suggestions + fleet pulse screenshots', async ({ pag
   );
   // Two pulse samples (10 s apart) so the sparkline is real data, not a placeholder.
   await expect(page.getByTestId('pulse-collecting')).toBeHidden({ timeout: 25_000 });
-  await page.getByTestId('fleet-pulse').screenshot({ path: `${SHOTS}/fleet-pulse.png` });
+  await shot(page.getByTestId('fleet-pulse'), { path: `${SHOTS}/fleet-pulse.png` });
   await page.getByRole('combobox', { name: 'Search vehicles' }).fill(items[0]!.regno.slice(0, 4));
   await expect(page.getByRole('option').first()).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/top-bar-suggestions.png` });
+  await shot(page, { path: `${SHOTS}/top-bar-suggestions.png` });
 });
 
 test.describe('mobile 390 px', () => {
@@ -169,12 +171,12 @@ test.describe('mobile 390 px', () => {
     expect(await pills.getByRole('button', { name: /^Running: / }).textContent()).toMatch(
       /\d(\.\d)?K|\d/,
     );
-    await page.screenshot({ path: `${SHOTS}/mobile.png` });
+    await shot(page, { path: `${SHOTS}/mobile.png` });
     await page.getByRole('button', { name: 'Filters' }).click();
     await expect(page.locator('[data-filter-panel="sheet"]')).toBeVisible();
     await expect(page.getByRole('form', { name: 'Vehicle filters' })).toBeVisible();
     // Apply must be reachable without scrolling the sheet (it is pinned below the fields).
     await expect(page.getByRole('button', { name: 'Apply' })).toBeInViewport({ ratio: 1 });
-    await page.screenshot({ path: `${SHOTS}/mobile-filters.png` });
+    await shot(page, { path: `${SHOTS}/mobile-filters.png` });
   });
 });

@@ -80,6 +80,7 @@ In dev, `window.__fmsLive` exposes `{pushCount, firstDataAt, snapshotCompleteAt}
 | `pnpm typecheck` | `tsc -b` |
 | `pnpm test` | Vitest, single run (never watch) |
 | `pnpm e2e` | Playwright (Chromium); starts `pnpm dev` itself. `*.perf.spec.ts` run last in the `perf` project |
+| `FMS_SHOTS=1 pnpm e2e …` | Also writes the UAT screenshots into `docs/features/<id>/screenshots/` (off by default; add `FMS_E2E_FONTS=1` for real Inter). Capture only the feature under UAT, e.g. `FMS_SHOTS=1 pnpm playwright test e2e/themes.spec.ts` |
 | `pnpm check` | typecheck + lint + test |
 
 ## Folder map
