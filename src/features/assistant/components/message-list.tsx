@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { RotateCcw } from 'lucide-react';
 import {
@@ -7,7 +7,11 @@ import {
   type EntityRef,
   type ReportDescriptor,
 } from '@shared/contract/assistant.ts';
-import type { ChangeSet, ToolChip as StoredChip } from '@shared/contract/dashboards.ts';
+import type {
+  ChangeSet,
+  ToolChip as StoredChip,
+  WidgetPreview,
+} from '@shared/contract/dashboards.ts';
 import { can, ROUTE_PERMISSIONS } from '@/features/access/permissions/can';
 import { selectMe, useSession } from '@/features/auth/session/use-session';
 import { cn } from '@/shared/lib/utils';
@@ -73,6 +77,7 @@ export interface ChatViewMessage {
   dashboards?: readonly DashboardLink[];
   chips?: readonly StoredChip[];
   change?: ChangeSet | null;
+  previews?: readonly WidgetPreview[];
   status?: 'streaming' | 'done' | 'stopped' | 'error';
   error?: ChatError | null;
 }
@@ -124,6 +129,7 @@ function Answer({
   onRetry,
   onNavigate,
   undo,
+  renderPreview,
 }: {
   m: ChatViewMessage;
   last: boolean;
@@ -131,6 +137,7 @@ function Answer({
   onRetry(): void;
   onNavigate(): void;
   undo: UndoProps;
+  renderPreview?: (p: WidgetPreview) => ReactNode;
 }) {
   const tools = m.tools ?? [];
   const status = m.status ?? 'done';
@@ -164,6 +171,7 @@ function Answer({
       {(m.dashboards ?? []).map((d) => (
         <DashboardLinkCard key={d.summary.id} link={d} onNavigate={onNavigate} />
       ))}
+      {renderPreview && (m.previews ?? []).map((p) => <div key={p.id}>{renderPreview(p)}</div>)}
       {status === 'stopped' && <p className="text-xs text-text-faint">Stopped.</p>}
       {error && (
         <div
@@ -202,10 +210,13 @@ export function MessageList({
   onUndo,
   undoDisabled,
   undoing,
+  renderPreview,
 }: {
   messages: readonly ChatViewMessage[];
   onRetry(): void;
   onNavigate(): void;
+  /** D-135: the host's preview card (its actions differ per chat). */
+  renderPreview?: (p: WidgetPreview) => ReactNode;
 } & UndoProps) {
   const undo: UndoProps = { onUndo, undoDisabled, undoing };
   const renderEntity = useEntityRenderer(onNavigate);
@@ -247,6 +258,7 @@ export function MessageList({
             onRetry={onRetry}
             onNavigate={onNavigate}
             undo={undo}
+            renderPreview={renderPreview}
           />
         ),
       )}

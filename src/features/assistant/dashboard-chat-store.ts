@@ -6,6 +6,8 @@ import type {
   DashboardThread,
   ThreadMessage,
   ToolChip,
+  WidgetPreview,
+  WidgetPreviewStatus,
 } from '@shared/contract/dashboards.ts';
 import { ApiError, apiFetch, type ApiRequest } from '@/shared/api/api-client';
 import type { ChatError, ToolCall } from './assistant-store.ts';
@@ -30,6 +32,8 @@ export interface DashboardChatMessage {
   tools: readonly ToolCall[];
   /** Dashboards created in this turn (`create_dashboard`). */
   dashboards: readonly DashboardLink[];
+  /** D-135: widget previews proposed in this turn (stored with their card state). */
+  previews: readonly WidgetPreview[];
   status: 'streaming' | 'done' | 'stopped' | 'error';
   error: ChatError | null;
 }
@@ -92,6 +96,7 @@ const fromThread = (m: ThreadMessage): DashboardChatMessage => ({
   createdAt: m.createdAt,
   tools: [],
   dashboards: [],
+  previews: m.previews ?? [],
   status: 'done',
   error: null,
 });
@@ -236,6 +241,49 @@ export class DashboardChatStore {
     }
   }
 
+  /**
+   * D-135: records a preview card's state (`PATCH …/previews/:id`); optimistic, reverted with a
+   * notice on failure. Adding the widget itself is the page's dashboard save.
+   */
+  async setPreviewStatus(previewId: string, status: 'added' | 'discarded'): Promise<void> {
+    const before = this.previewStatus(previewId);
+    if (before === undefined || before === status) return;
+    this.patchPreview(previewId, status);
+    try {
+      await this.api(`${this.base}/previews/${encodeURIComponent(previewId)}`, {
+        method: 'PATCH',
+        body: { status },
+      });
+    } catch (err) {
+      if (this.disposed) return;
+      this.patchPreview(previewId, before);
+      this.set({
+        notice:
+          err instanceof ApiError && err.code === 'chat_busy'
+            ? 'Another reply is in progress on this dashboard'
+            : err instanceof Error
+              ? err.message
+              : String(err),
+      });
+    }
+  }
+
+  private previewStatus(previewId: string): WidgetPreviewStatus | undefined {
+    for (const m of this.state.messages)
+      for (const p of m.previews) if (p.id === previewId) return p.status;
+    return undefined;
+  }
+
+  private patchPreview(previewId: string, status: WidgetPreviewStatus): void {
+    this.set({
+      messages: this.state.messages.map((m) =>
+        m.previews.some((p) => p.id === previewId)
+          ? { ...m, previews: m.previews.map((p) => (p.id === previewId ? { ...p, status } : p)) }
+          : m,
+      ),
+    });
+  }
+
   dismissNotice(): void {
     this.set({ notice: null });
   }
@@ -321,6 +369,10 @@ export class DashboardChatStore {
         this.callbacks.onDashboardCreated?.(e.dashboard, e.url);
         dashboardEvents.emit({ kind: 'created', dashboardId: e.dashboard.id });
         return;
+      case 'widget_preview':
+        return this.update(id, (m) => ({
+          previews: [...m.previews.filter((p) => p.id !== e.preview.id), e.preview],
+        }));
       case 'thread_saved':
         return this.reconcile(userId, id, e.messages);
       case 'error':
@@ -340,7 +392,13 @@ export class DashboardChatStore {
       const view = fromThread(m);
       if (m.role !== 'assistant' || !live) return view;
       // Keep the live view (tools, created links, status) until the stream ends.
-      return { ...view, tools: live.tools, dashboards: live.dashboards, status: live.status };
+      return {
+        ...view,
+        tools: live.tools,
+        dashboards: live.dashboards,
+        previews: view.previews.length ? view.previews : live.previews,
+        status: live.status,
+      };
     });
     const savedAssistant = saved.find((m) => m.role === 'assistant');
     const rest = this.state.messages
@@ -391,6 +449,7 @@ export class DashboardChatStore {
       createdAt: this.now(),
       tools: [],
       dashboards: [],
+      previews: [],
       status: 'done',
       error: null,
     };

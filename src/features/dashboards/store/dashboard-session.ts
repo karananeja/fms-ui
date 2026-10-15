@@ -1,12 +1,18 @@
-import type {
-  Dashboard,
-  DashboardLayout,
-  UpdateDashboardBody,
-  Widget,
+import {
+  BREAKPOINT_IDS,
+  DASHBOARD_BREAKPOINTS,
+  WIDGET_SIZES,
+  WIDGETS_PER_DASHBOARD,
+  type Dashboard,
+  type DashboardBreakpoint,
+  type DashboardLayout,
+  type LayoutItem,
+  type UpdateDashboardBody,
+  type Widget,
 } from '@shared/contract/dashboards.ts';
 import { ApiError } from '@/shared/api/api-client';
 import type { DashboardsApi } from '../api/dashboards-api';
-import { rebaseLayout, sameLayout } from '../lib/layout';
+import { rebaseLayout, sameLayout, sanitizeItems, type LooseItem } from '../lib/layout';
 
 /** `pending` = a debounced or queued change not sent yet (shown as "Saving…"). */
 export type SaveState = 'saved' | 'pending' | 'saving' | 'error' | 'offline';
@@ -26,7 +32,54 @@ type Op =
   | { kind: 'widget-title'; id: string; title: string }
   | { kind: 'remove'; id: string }
   | { kind: 'restore'; widgets: Widget[]; layout: DashboardLayout }
-  | { kind: 'layout'; layout: DashboardLayout };
+  | { kind: 'layout'; layout: DashboardLayout }
+  | { kind: 'add'; widget: Widget; at: AddAt | null; settle: Settle };
+
+/** D-135: a drop on the grid: the breakpoint's whole layout as the grid left it (new item included). */
+export interface AddAt {
+  bp: DashboardBreakpoint;
+  items: readonly LooseItem[];
+}
+
+interface Settle {
+  resolve(): void;
+  reject(err: unknown): void;
+}
+
+/** The add op's layout: the dropped breakpoint as given, the others with the widget at the bottom. */
+function layoutWithAdded(
+  layout: DashboardLayout,
+  widget: Widget,
+  at: AddAt | null,
+  ids: ReadonlySet<string>,
+): DashboardLayout {
+  const out = {} as DashboardLayout;
+  for (const bp of BREAKPOINT_IDS) {
+    if (at && at.bp === bp) {
+      out[bp] = sanitizeItems(
+        at.items.filter((it) => ids.has(it.i) || it.i === widget.id),
+        bp,
+      );
+      continue;
+    }
+    const items = layout[bp].filter((it) => it.i !== widget.id);
+    const { cols } = DASHBOARD_BREAKPOINTS[bp];
+    const size = WIDGET_SIZES[widget.type];
+    const w = bp === 'sm' ? 1 : Math.min(size.w, cols);
+    const y = items.reduce((m, it) => Math.max(m, it.y + it.h), 0);
+    const item: LayoutItem = {
+      i: widget.id,
+      x: 0,
+      y,
+      w,
+      h: size.h,
+      minW: Math.min(size.minW, w),
+      minH: size.minH,
+    };
+    out[bp] = [...items, item];
+  }
+  return out;
+}
 
 export const LAYOUT_DEBOUNCE_MS = 800;
 /** Automatic retries after a network/5xx failure (2, 4, 8 s), then a manual Retry. */
@@ -60,6 +113,11 @@ function applyOp(d: Dashboard, op: Op): Dashboard {
       return { ...d, widgets: op.widgets, layout: op.layout };
     case 'layout':
       return { ...d, layout: rebaseLayout(op.layout, d.layout, ids(d)) };
+    case 'add': {
+      const widgets = [...d.widgets.filter((w) => w.id !== op.widget.id), op.widget];
+      const layout = layoutWithAdded(d.layout, op.widget, op.at, new Set(ids(d)));
+      return { ...d, widgets, layout };
+    }
   }
 }
 
@@ -75,8 +133,15 @@ function bodyOf(server: Dashboard, op: Op): Omit<UpdateDashboardBody, 'version'>
       return { widgets: op.widgets, layout: op.layout };
     case 'layout':
       return { layout: rebaseLayout(op.layout, server.layout, ids(server)) };
+    case 'add': {
+      // Without a drop position the server places it (first free spot at the bottom).
+      const next = applyOp(server, op);
+      return op.at ? { widgets: next.widgets, layout: next.layout } : { widgets: next.widgets };
+    }
   }
 }
+
+const settleOf = (op: Op | undefined) => (op?.kind === 'add' ? op.settle : null);
 
 /**
  * D-130 / §5: one open dashboard. Every PATCH goes through one serial queue with the latest
@@ -154,6 +219,30 @@ export class DashboardSession {
     };
   }
 
+  /**
+   * D-135: adds a chat preview's widget (Add, or a drop on the grid at `at`). A normal owner save
+   * through the queue (version / 409 rules); resolves once saved, rejects when it is dropped.
+   */
+  addWidget(widget: Widget, at: AddAt | null = null): Promise<void> {
+    const current = this.snap.dashboard;
+    if (!this.server || !current)
+      return Promise.reject(new ApiError(0, 'not_ready', 'The dashboard is still loading'));
+    if (current.widgets.some((w) => w.id === widget.id)) return Promise.resolve();
+    if (current.widgets.length >= WIDGETS_PER_DASHBOARD)
+      return Promise.reject(
+        new ApiError(
+          422,
+          'dashboard_limit',
+          `A dashboard can hold up to ${WIDGETS_PER_DASHBOARD} widgets`,
+        ),
+      );
+    // A pending drag/resize goes first so the drop lands on the layout the user sees.
+    this.flush();
+    return new Promise<void>((resolve, reject) =>
+      this.enqueue({ kind: 'add', widget, at, settle: { resolve, reject } }),
+    );
+  }
+
   /** A drag/resize stop or keyboard drop: saved after `LAYOUT_DEBOUNCE_MS`, coalesced. */
   scheduleLayout(layout: DashboardLayout): void {
     const current = this.snap.dashboard;
@@ -225,6 +314,7 @@ export class DashboardSession {
   }
 
   private landed(d: Dashboard): void {
+    settleOf(this.inFlight?.op)?.resolve();
     this.inFlight = null;
     this.attempt = 0;
     if (!this.server || d.version > this.server.version) this.server = d;
@@ -260,6 +350,8 @@ export class DashboardSession {
       return;
     }
     // 409 (changed elsewhere), 403/404 (no longer yours), 422: drop local edits and reload.
+    settleOf(op)?.reject(err);
+    for (const q of this.queue) settleOf(q)?.reject(err);
     this.queue = [];
     if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
     this.debounceTimer = null;

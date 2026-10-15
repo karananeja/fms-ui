@@ -1,8 +1,14 @@
-import { MessageSquarePlus, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
+import { ArrowRight, MessageSquarePlus, Sparkles } from 'lucide-react';
+import type { WidgetPreview } from '@shared/contract/dashboards.ts';
+import { useCan } from '@/features/access/permissions/can';
 import { SUGGESTED_PROMPTS } from '../assistant-store.ts';
 import { useAssistant, useAssistantStore } from '../use-assistant.ts';
+import { AddToDashboardPicker } from './add-to-dashboard-picker.tsx';
 import { Composer } from './composer.tsx';
 import { MessageList } from './message-list.tsx';
+import { askToChangeText, WidgetPreviewCard } from './widget-preview-card.tsx';
 
 /**
  * F17-R1…R6: the assistant sheet's contents (lazy chunk): suggested prompts when empty, the
@@ -12,6 +18,41 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
   const store = useAssistantStore();
   const state = useAssistant((s) => s);
   const empty = state.messages.length === 0;
+  const canDashboards = useCan('dashboards.use');
+  const [draft, setDraft] = useState<{ text: string } | null>(null);
+
+  // D-135: global previews live for the panel session only (no server thread).
+  const renderPreview = (p: WidgetPreview) => (
+    <WidgetPreviewCard
+      preview={p}
+      addControl={
+        canDashboards ? (
+          <AddToDashboardPicker
+            preview={p}
+            onAdded={(d) => store.setPreviewStatus(p.id, 'added', d.id)}
+          />
+        ) : (
+          <></>
+        )
+      }
+      addedExtra={
+        p.dashboardId && (
+          <Link
+            to="/dashboards/$id"
+            params={{ id: p.dashboardId }}
+            onClick={onClose}
+            data-testid="preview-open-dashboard"
+            className="inline-flex h-6 items-center gap-1 rounded-md px-2 text-xs font-bold text-accent outline-none hover:bg-tile focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Open dashboard
+            <ArrowRight className="size-3" aria-hidden />
+          </Link>
+        )
+      }
+      onAskChange={(x) => setDraft({ text: askToChangeText(x) })}
+      onDiscard={(x) => store.setPreviewStatus(x.id, 'discarded')}
+    />
+  );
 
   return (
     <div data-testid="assistant-panel" className="flex min-h-0 flex-1 flex-col">
@@ -66,7 +107,12 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
           </ul>
         </div>
       ) : (
-        <MessageList messages={state.messages} onRetry={() => store.retry()} onNavigate={onClose} />
+        <MessageList
+          messages={state.messages}
+          onRetry={() => store.retry()}
+          onNavigate={onClose}
+          renderPreview={renderPreview}
+        />
       )}
 
       <Composer
@@ -74,6 +120,7 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
         disabled={state.notConfigured}
         onSend={(t) => store.send(t)}
         onStop={() => store.stop()}
+        draft={draft}
       />
     </div>
   );

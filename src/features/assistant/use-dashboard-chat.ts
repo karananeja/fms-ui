@@ -38,6 +38,8 @@ export interface UseDashboardChat {
   /** `version` defaults to the change's `afterVersion` (pass the page's current version). */
   undo(changeId: string, version?: number): Promise<void>;
   dismissNotice(): void;
+  /** D-135: records a preview card's state on the server. */
+  setPreviewStatus(previewId: string, status: 'added' | 'discarded'): Promise<void>;
 }
 
 /**
@@ -87,6 +89,8 @@ export function useDashboardChat(
       undo: (changeId: string, version?: number) =>
         store ? store.undo(changeId, version) : Promise.resolve(),
       dismissNotice: () => store?.dismissNotice(),
+      setPreviewStatus: (previewId: string, status: 'added' | 'discarded') =>
+        store ? store.setPreviewStatus(previewId, status) : Promise.resolve(),
     }),
     [state, store],
   );

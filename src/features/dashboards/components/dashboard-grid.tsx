@@ -9,6 +9,7 @@ import {
   type DashboardLayout,
   type LayoutItem,
   type Widget,
+  type WidgetPreview,
 } from '@shared/contract/dashboards.ts';
 import {
   breakpointFor,
@@ -20,6 +21,8 @@ import {
   sanitizeItems,
   type LooseItem,
 } from '../lib/layout';
+import { draggedPreview, droppedPreview } from '../lib/preview-drag';
+import type { AddAt } from '../store/dashboard-session';
 import { isLiveWidget, WidgetRenderer } from '../widgets/widget-renderer';
 import { useKeyboardArrange } from './keyboard-arrange';
 import { WidgetFrame } from './widget-frame';
@@ -36,8 +39,11 @@ export function DashboardGrid({
   onWidgetRefresh,
   onWidgetRename,
   onWidgetRemove,
+  onDropPreview,
 }: {
   dashboard: Dashboard;
+  /** D-135: a chat preview card dropped on the grid (owners at md/lg). */
+  onDropPreview?(preview: WidgetPreview, at: AddAt): void;
   owner: boolean;
   onLayout(layout: DashboardLayout): void;
   onWidgetRefresh(w: Widget): void;
@@ -75,6 +81,31 @@ export function DashboardGrid({
 
   const stop = (layout: Layout) => commit(layout as readonly LooseItem[]);
 
+  // D-135: the placeholder takes the preview's default size (clamped to the breakpoint).
+  const sizeOn = (p: WidgetPreview) => ({
+    w: Math.min(p.size.w, GRID_COLS[bp]),
+    h: p.size.h,
+  });
+  const droppable = editable && !!onDropPreview;
+  const dropConfig = {
+    enabled: droppable,
+    defaultItem: { w: 3, h: 2 },
+    onDragOver: (e: DragEvent) => {
+      const p = draggedPreview(e.dataTransfer);
+      if (!p) return false as const;
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      return sizeOn(p);
+    },
+  };
+  const drop = (layout: Layout, item: LooseItem | undefined, e: Event) => {
+    const p = droppedPreview((e as DragEvent).dataTransfer ?? null);
+    if (!p || !item || !onDropPreview) return;
+    const items = (layout as readonly LooseItem[]).map((it) =>
+      it.i === item.i ? { ...it, i: p.widget.id, ...sizeOn(p), ...minSize(p.widget.type, bp) } : it,
+    );
+    onDropPreview(p, { bp, items: items.filter((it) => it.i === p.widget.id || byId.has(it.i)) });
+  };
+
   return (
     <div
       ref={containerRef}
@@ -106,6 +137,8 @@ export function DashboardGrid({
           resizeConfig={{ enabled: editable, handles: ['se'] }}
           onDragStop={stop}
           onResizeStop={stop}
+          dropConfig={dropConfig}
+          onDrop={drop}
         >
           {dashboard.widgets.map((w) => (
             <div key={w.id}>

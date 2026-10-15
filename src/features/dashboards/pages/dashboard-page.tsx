@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Dashboard, Widget } from '@shared/contract/dashboards.ts';
+import type { Dashboard, Widget, WidgetPreview } from '@shared/contract/dashboards.ts';
 import { useCan } from '@/features/access/permissions/can';
 import { dashboardEvents } from '@/features/assistant/dashboard-events';
 import { liveTrackingStore } from '@/features/live-tracking/store/live-tracking-store';
+import { ApiError } from '@/shared/api/api-client';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useNow } from '@/shared/hooks/use-now';
 import { Button } from '@/shared/ui/button';
@@ -21,7 +22,8 @@ import { QueryCacheContext, useAutoRefresh } from '../data/use-widget-data';
 import { widgetRequest } from '../data/widget-queries';
 import { LiveWidgetSource } from '../live/live-widget-source';
 import { LiveWidgetSourceContext } from '../live/use-live-widget';
-import { DashboardSession } from '../store/dashboard-session';
+import { droppedPreview, draggedPreview } from '../lib/preview-drag';
+import { DashboardSession, type AddAt } from '../store/dashboard-session';
 
 const DOCK_KEY = 'fms.dashboards.chat';
 const CONFLICT_TEXT = 'This dashboard was changed elsewhere. Showing the latest version.';
@@ -124,6 +126,26 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
     toast(`Deleted '${d?.title ?? 'dashboard'}'`);
     await navigate({ to: '/dashboards' });
   };
+  // D-135: a chat preview added (button or grid drop) → owner save, then the card state.
+  const previewStatusRef = useRef<
+    ((pid: string, status: 'added' | 'discarded') => Promise<void>) | null
+  >(null);
+  const addPreview = async (p: WidgetPreview, at: AddAt | null = null) => {
+    try {
+      await session.addWidget(p.widget, at);
+    } catch (err) {
+      const limit = err instanceof ApiError && err.code === 'dashboard_limit';
+      toast.error(
+        limit
+          ? err.message
+          : err instanceof ApiError && err.code === 'widget_not_permitted'
+            ? "You don't have access to this widget's data"
+            : "Couldn't add the widget.",
+      );
+      throw err;
+    }
+    await previewStatusRef.current?.(p.id, 'added');
+  };
   const adopt = useCallback((next: Dashboard) => session.adoptRemote(next), [session]);
   const consumeAsk = useCallback(
     () => void navigate({ to: '/dashboards/$id', params: { id }, search: {}, replace: true }),
@@ -168,6 +190,9 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
       onAskConsumed={consumeAsk}
       onDashboardChanged={adopt}
       onCollapse={desktop ? toggleDock : undefined}
+      onAddPreview={(p) => addPreview(p)}
+      previewStatusRef={previewStatusRef}
+      draggablePreviews={desktop}
     />
   );
 
@@ -211,8 +236,20 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
                 </div>
               ) : d.widgets.length === 0 ? (
                 <div
-                  className="flex flex-col items-center gap-3 py-16 text-center"
+                  className="flex flex-col items-center gap-3 rounded-tile py-16 text-center"
                   data-testid="dashboard-empty"
+                  // D-135: a preview dropped on an empty dashboard lands top-left.
+                  onDragOver={(e) => {
+                    if (!owner || !draggedPreview(e.dataTransfer)) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                  }}
+                  onDrop={(e) => {
+                    const p = owner ? droppedPreview(e.dataTransfer) : null;
+                    if (!p) return;
+                    e.preventDefault();
+                    void addPreview(p).catch(() => {});
+                  }}
                 >
                   {showChat ? (
                     <>
@@ -249,6 +286,7 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
                   onWidgetRefresh={refreshWidget}
                   onWidgetRename={(wid, t) => session.setWidgetTitle(wid, t)}
                   onWidgetRemove={removeWidget}
+                  onDropPreview={(p, at) => void addPreview(p, at).catch(() => {})}
                 />
               )}
             </div>

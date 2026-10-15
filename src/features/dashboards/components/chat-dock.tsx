@@ -1,8 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { PanelRightClose, Sparkles } from 'lucide-react';
-import type { Dashboard } from '@shared/contract/dashboards.ts';
+import type { Dashboard, WidgetPreview } from '@shared/contract/dashboards.ts';
 import { Composer } from '@/features/assistant/components/composer';
 import { MessageList } from '@/features/assistant/components/message-list';
+import {
+  askToChangeText,
+  WidgetPreviewCard,
+} from '@/features/assistant/components/widget-preview-card';
 import { useDashboardChat } from '@/features/assistant/use-dashboard-chat';
 import { Button } from '@/shared/ui/button';
 
@@ -17,6 +21,9 @@ export function ChatDock({
   onAskConsumed,
   onDashboardChanged,
   onCollapse,
+  onAddPreview,
+  previewStatusRef,
+  draggablePreviews = false,
 }: {
   dashboardId: string;
   version: () => number;
@@ -25,12 +32,29 @@ export function ChatDock({
   onDashboardChanged(d: Dashboard): void;
   /** Desktop only: collapse to the rail. */
   onCollapse?: () => void;
+  /** D-135: "Add to dashboard" on a preview card (the page saves, then records the card state). */
+  onAddPreview(p: WidgetPreview): Promise<void>;
+  /** D-135: filled with the chat's card-state setter (the page's grid drop uses it). */
+  previewStatusRef: RefObject<
+    ((id: string, status: 'added' | 'discarded') => Promise<void>) | null
+  >;
+  /** Cards can be dragged onto the grid (desktop owners). */
+  draggablePreviews?: boolean;
 }) {
   const chat = useDashboardChat(dashboardId, {
     onDashboardChanged: (d) => onDashboardChanged(d),
   });
   const { state } = chat;
   const sent = useRef(false);
+  const [draft, setDraft] = useState<{ text: string } | null>(null);
+  const { setPreviewStatus } = chat;
+
+  useEffect(() => {
+    previewStatusRef.current = setPreviewStatus;
+    return () => {
+      if (previewStatusRef.current === setPreviewStatus) previewStatusRef.current = null;
+    };
+  }, [previewStatusRef, setPreviewStatus]);
 
   useEffect(() => {
     if (!ask || sent.current || state.status !== 'ready' || state.notConfigured) return;
@@ -72,6 +96,16 @@ export function ChatDock({
             onUndo={(c) => void chat.undo(c.id, version())}
             undoDisabled={state.streaming}
             undoing={state.undoing}
+            renderPreview={(p) => (
+              <WidgetPreviewCard
+                preview={p}
+                draggable={draggablePreviews}
+                disabled={state.streaming}
+                onAdd={onAddPreview}
+                onAskChange={(x) => setDraft({ text: askToChangeText(x) })}
+                onDiscard={(x) => void setPreviewStatus(x.id, 'discarded')}
+              />
+            )}
           />
           {state.notice && (
             <p role="status" className="px-4 pb-1 text-xs text-text-muted">
@@ -88,6 +122,7 @@ export function ChatDock({
             onStop={chat.stop}
             placeholder="Ask FMS to add or change widgets…"
             autoFocus={false}
+            draft={draft}
           />
         </>
       )}

@@ -78,6 +78,7 @@ const msg = (
   text: role === 'user' ? `q${seq}` : `a${seq}`,
   chips: [],
   change: null,
+  previews: [],
   createdAt: seq,
   ...over,
 });

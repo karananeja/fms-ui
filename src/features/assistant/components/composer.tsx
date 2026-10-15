@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ArrowUp, Mic, Square } from 'lucide-react';
 import { CHAT_MAX_CHARS } from '@shared/contract/assistant.ts';
 import {
@@ -24,8 +24,11 @@ export function Composer({
   placeholder = 'Ask about vehicles, drivers or reports…',
   autoFocus = true,
   recognition,
+  draft = null,
 }: {
   streaming: boolean;
+  /** D-135 "Ask to change": replaces the text (a new object each time) and focuses the box. */
+  draft?: { text: string } | null;
   disabled?: boolean;
   /** F19: the dashboard chat asks for changes instead. */
   placeholder?: string;
@@ -43,6 +46,17 @@ export function Composer({
     (phrase) => setText((t) => appendPhrase(t, phrase).slice(0, CHAT_MAX_CHARS)),
     ...(recognition === undefined ? [] : [recognition]),
   );
+  const [seenDraft, setSeenDraft] = useState(draft);
+  if (draft !== seenDraft) {
+    setSeenDraft(draft);
+    if (draft) setText(draft.text.slice(0, CHAT_MAX_CHARS));
+  }
+  useEffect(() => {
+    const el = ref.current;
+    if (!draft || !el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }, [draft]);
   const canSend = !streaming && !disabled && text.trim().length > 0;
 
   const send = () => {

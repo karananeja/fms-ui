@@ -3,13 +3,15 @@ import {
   dashboardSchema,
   dashboardShareListSchema,
   shareCandidateListSchema,
+  WIDGETS_PER_DASHBOARD,
   type Dashboard,
   type DashboardList,
   type DashboardShare,
   type ShareCandidate,
   type UpdateDashboardBody,
+  type Widget,
 } from '@shared/contract/dashboards.ts';
-import { apiFetch } from '@/shared/api/api-client';
+import { ApiError, apiFetch } from '@/shared/api/api-client';
 
 /** F20: zod-parsed wrappers over the F18 dashboard REST routes. */
 export interface DashboardsApi {
@@ -52,3 +54,31 @@ export const dashboardsApi: DashboardsApi = {
       }),
     ),
 };
+
+/**
+ * D-135 (global panel): appends a preview's widget to a dashboard the user owns. A plain owner
+ * save (`version`); on a 409 it re-reads and tries again (nothing local to lose). The server
+ * places the widget at the first free spot.
+ */
+export async function addWidgetToDashboard(
+  api: Pick<DashboardsApi, 'get' | 'patch'>,
+  id: string,
+  widget: Widget,
+): Promise<Dashboard> {
+  for (let attempt = 0; ; attempt++) {
+    const d = await api.get(id);
+    if (d.widgets.some((w) => w.id === widget.id)) return d;
+    if (d.widgets.length >= WIDGETS_PER_DASHBOARD)
+      throw new ApiError(
+        422,
+        'dashboard_limit',
+        `A dashboard can hold up to ${WIDGETS_PER_DASHBOARD} widgets`,
+      );
+    try {
+      return await api.patch(id, { version: d.version, widgets: [...d.widgets, widget] });
+    } catch (err) {
+      if (attempt < 2 && err instanceof ApiError && err.status === 409) continue;
+      throw err;
+    }
+  }
+}

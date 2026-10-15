@@ -7,6 +7,7 @@ import {
   type EntityRef,
   type ReportDescriptor,
 } from '@shared/contract/assistant.ts';
+import type { WidgetPreview } from '@shared/contract/dashboards.ts';
 import { sessionStore, type SessionState } from '@/features/auth/session/session-store';
 import { dashboardEvents } from './dashboard-events.ts';
 import {
@@ -45,6 +46,8 @@ export interface AssistantMessage {
   entities: readonly EntityRef[];
   /** F19: dashboards created in this answer (shown as "Open dashboard" cards). */
   dashboards?: readonly DashboardLink[];
+  /** D-135: widget previews (panel session only; the global chat has no server thread). */
+  previews?: readonly WidgetPreview[];
   status: 'streaming' | 'done' | 'stopped' | 'error';
   error: ChatError | null;
 }
@@ -149,6 +152,29 @@ export class AssistantStore {
     void this.run();
   }
 
+  /** D-135: a global preview card's state (local only). */
+  setPreviewStatus(
+    previewId: string,
+    status: WidgetPreview['status'],
+    /** The dashboard it was added to (the card links to it). */
+    dashboardId?: string,
+  ): void {
+    this.set({
+      messages: this.state.messages.map((m) =>
+        m.role === 'assistant' && m.previews?.some((p) => p.id === previewId)
+          ? {
+              ...m,
+              previews: m.previews.map((p) =>
+                p.id === previewId
+                  ? { ...p, status, dashboardId: dashboardId ?? p.dashboardId }
+                  : p,
+              ),
+            }
+          : m,
+      ),
+    });
+  }
+
   /** "New chat" (also on user change): drops the conversation and any running answer. */
   clear(): void {
     this.controller?.abort();
@@ -245,6 +271,10 @@ export class AssistantStore {
         dashboardEvents.emit({ kind: 'created', dashboardId: e.dashboard.id });
         return this.update(id, (m) => ({
           dashboards: [...(m.dashboards ?? []), { summary: e.dashboard, url: e.url }],
+        }));
+      case 'widget_preview':
+        return this.update(id, (m) => ({
+          previews: [...(m.previews ?? []).filter((p) => p.id !== e.preview.id), e.preview],
         }));
       case 'error':
         return this.finish(id, 'error', { code: e.code, message: e.message });
