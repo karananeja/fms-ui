@@ -25,13 +25,14 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F13, F14 | Driver page (integrated report + voice), request desk (+ street-grid mock routes) | Done, accepted |
 | F16 | Performance dashboard | Done, accepted |
 | F17 | Fleet assistant | Done, accepted. Real-key smoke test pending |
-| DS3, F18 | Themes & fonts; dashboard store (node:sqlite) | Intent signed off 2026-10-15; spec in progress |
-| F19, F20 | AI dashboard builder; `/dashboards` route & UI | Intent signed off 2026-10-15 |
+| DS3, F18 | Themes & fonts; dashboard store (node:sqlite) | Done, accepted 2026-10-15 |
+| F19, F20 | AI dashboard builder; `/dashboards` route & UI | Intent signed off 2026-10-15; spec next |
 
-Last `main` baseline: `pnpm check` 716/716, build clean, e2e 54/55 (F09-T8 tray flake, pre-existing, also fails on the pre-F11 `main`), clock 4/4. Last decision: **D-111** (F12/F15 D-095…D-098; F13/F14 D-099…D-102; F16 D-103…D-104; F17 D-105…D-107; D-109…D-111 driver report, voice, mock routes).
+Last `main` baseline (2026-10-15, after DS3 + F18): `pnpm check` 955/955, build clean, e2e chromium 89 passed (2 re-run flakes), clock 4/5 (F15-T4 order-dependent), `status-bar.perf` long task 60–63 ms vs 50 ms budget (same as on the F03 report). Last decision: **D-121** (Part 3: D-112…D-121).
 
 ### Pending work: Part 3 (`requirement-part-3.md`), DS3 + F18–F20
-- Order: (DS3 ∥ F18) → F19 → F20. Accepted decisions D-112…D-116 (node:sqlite, react-grid-layout, Inter via Google Fonts link + Doto display-only, light/dark/system themes, generative dashboards from a fixed widget catalogue with view-only sharing).
+- Order: (DS3 ∥ F18) done → F19 → F20. Accepted decisions D-112…D-121 (node:sqlite, react-grid-layout, Inter via Google Fonts link + Doto display-only, light/dark/system themes, generative dashboards from a fixed widget catalogue with view-only sharing; DS3 basemap/tokens; F18 DB layout, contract, sharing/threads/undo).
+- F18 store API for F19/F20: `mock-server/store/dashboards.ts` (`appendMessage`, `applyTurn`, `undo`, `shareCandidates`…); contract `shared/contract/dashboards.ts`. `status-breakdown` / `vehicle-list` widgets need a new read-only worker query (F20).
 
 ### Done: Part 2 (`requirement-part-2.md`), F11–F17
 - All intents and specs are signed off (2026-10-14); see `docs/02-feature-catalog.md` and `docs/features/f11-…`–`f17-…/spec.md`.
@@ -51,7 +52,7 @@ Last `main` baseline: `pnpm check` 716/716, build clean, e2e 54/55 (F09-T8 tray 
 
 ## Conventions
 - Every file and folder name is kebab-case (lint-enforced). `@/` → `src/`, `@shared/` → `shared/`.
-- Dark theme only (DS1 tokens in `src/shared/styles/theme.css`). Doto is the only font (D-054). Times are shown in IST.
+- Light / Dark / System themes (DS3, D-115, D-118): tokens in `src/shared/styles/theme.css` (`:root` dark, `[data-theme='light']`); no hard-coded colours, palette classes or `dark:` variants outside it. Inter is the body font; Doto (`font-display`, 800/900) only on brand, page titles, big KPI and status counter numbers (D-114). Times are shown in IST.
 - The main thread stays light. Fleet state, search, filters, clustering and CSV all live in the Web Worker (D-005). The public share page must **not** import the live-tracking store, worker or admin code.
 - Permission checks go through `can()` / `useCan` / `staticData.permission` (F03).
 - No new dependencies without a decision entry.
@@ -68,3 +69,4 @@ Last `main` baseline: `pnpm check` 716/716, build clean, e2e 54/55 (F09-T8 tray 
 ## Commands
 `pnpm dev` · `pnpm check` (typecheck + lint + vitest) · `pnpm build` · `pnpm e2e` (Playwright projects: `setup`, `chromium`, `perf`, `clock`) · `pnpm mock`.
 Run e2e on non-default ports with `VITE_PORT=5273 MOCK_PORT=4101 pnpm playwright test --project=setup --project=chromium`.
+UAT screenshots are opt-in: `FMS_SHOTS=1` (plus `FMS_E2E_FONTS=1` for real Inter). Capture only the feature under UAT. e2e uses `MOCK_DB=:memory:`; the dev mock writes `mock-server/data/fms.db` (git-ignored).

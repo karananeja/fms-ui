@@ -438,3 +438,13 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "approved" (all recommendations).
 
 **Assistant:** Signed off both specs with the resolved answers, accepted D-117…D-121, and started the DS3 ∥ F18 implementation on `feature/part3-ds3-f18`.
+
+**Implementation:** the F18 agent finished first: 17 F18 tests, vitest 952/953 (F11-T3 flake), build clean. Its test run deleted `mock-server/data/` while the user's dev mock may have had it open. git stopped working mid-session (the Xcode licence had not been accepted); the user fixed it and F18 was committed. DS3: `pnpm check` 955/955, build clean, e2e 89 passed (2 re-run flakes), clock 4/5, `status-bar.perf` 60–63 ms vs 50 ms (as on the F03 report), 50 light/dark screenshots. The e2e runs had rewritten 100 screenshots of earlier features; restored them.
+
+**User:** "wrap the theme changes fast and why are we capturing the ss/" → told the DS3 agent to stop and hand back; explained that screenshots are UAT evidence, and that 17 specs were rewriting them on every run.
+
+**User:** "yes add FMS_SHOTS, then approved"
+
+**Assistant:** Added `e2e/shots.ts` (`shot()` writes only with `FMS_SHOTS=1`; screenshot-only UAT tests are skipped otherwise). Targeted e2e 10 passed / 3 skipped with no docs changed. Merged `feature/part3-ds3-f18` into `main` (--no-ff), deleted the branch, and updated CLAUDE.md (themes/fonts conventions, baseline, D-121).
+
+**Status/Next:** DS3 and F18 accepted. Next: the F19 and F20 specs.
