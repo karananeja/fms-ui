@@ -69,4 +69,196 @@ ALTER TABLE dashboard_messages
   ADD COLUMN previews_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(previews_json));
 `,
   },
+  {
+    version: 3,
+    name: 'accounts',
+    // F22 (D-136…D-138): seed marker, roles, users (scrypt), invites, sessions, reset tokens.
+    // Session, invite and reset tokens are stored as SHA-256 hashes only.
+    sql: `
+CREATE TABLE seed_state (
+  id           INTEGER PRIMARY KEY CHECK (id = 1),
+  seed         INTEGER NOT NULL,
+  vehicles     INTEGER NOT NULL,
+  seed_version INTEGER NOT NULL,
+  seeded_at    INTEGER NOT NULL
+);
+CREATE TABLE roles (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  permissions TEXT NOT NULL CHECK (json_valid(permissions)),
+  system      INTEGER NOT NULL,
+  ord         INTEGER NOT NULL
+);
+CREATE TABLE users (
+  id        TEXT PRIMARY KEY,
+  email     TEXT NOT NULL UNIQUE,
+  name      TEXT NOT NULL,
+  role_id   TEXT NOT NULL,
+  fleet_ids TEXT NOT NULL CHECK (json_valid(fleet_ids)),
+  status    TEXT NOT NULL CHECK (status IN ('active','disabled')),
+  salt      TEXT NOT NULL,
+  hash      TEXT NOT NULL,
+  ord       INTEGER NOT NULL
+);
+CREATE TABLE invites (
+  id         TEXT PRIMARY KEY,
+  email      TEXT NOT NULL,
+  role_id    TEXT NOT NULL,
+  fleet_ids  TEXT NOT NULL CHECK (json_valid(fleet_ids)),
+  invited_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  status     TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  driver_idx INTEGER,
+  ord        INTEGER NOT NULL
+);
+CREATE TABLE sessions (
+  token_hash TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at INTEGER NOT NULL
+);
+CREATE INDEX sessions_user ON sessions (user_id);
+CREATE TABLE reset_tokens (
+  token_hash TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at INTEGER NOT NULL,
+  used       INTEGER NOT NULL DEFAULT 0
+);
+`,
+  },
+  {
+    version: 4,
+    name: 'fleets',
+    // F22 (D-139): every fleet node; vehicle placements only when moved.
+    sql: `
+CREATE TABLE fleets (
+  idx        INTEGER PRIMARY KEY,
+  id         TEXT NOT NULL UNIQUE,
+  parent_idx INTEGER NOT NULL,
+  name       TEXT NOT NULL,
+  depth      INTEGER NOT NULL,
+  city       INTEGER NOT NULL,
+  region     INTEGER NOT NULL
+);
+CREATE TABLE vehicle_fleet (
+  vehicle_id TEXT PRIMARY KEY,
+  fleet_idx  INTEGER NOT NULL
+);
+`,
+  },
+  {
+    version: 5,
+    name: 'drivers',
+    // F22: overlay on the generated drivers (D-092); NULL patch columns mean "unchanged".
+    sql: `
+CREATE TABLE driver_patches (
+  driver_idx INTEGER PRIMARY KEY,
+  name       TEXT,
+  phone      TEXT,
+  fleet_idx  INTEGER,
+  status     TEXT,
+  user_id    TEXT
+);
+CREATE TABLE drivers_created (
+  driver_idx INTEGER PRIMARY KEY,
+  name       TEXT NOT NULL,
+  phone      TEXT NOT NULL,
+  fleet_idx  INTEGER NOT NULL,
+  status     TEXT NOT NULL,
+  user_id    TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE initial_assignment_ends (
+  driver_idx INTEGER PRIMARY KEY,
+  ended_at   INTEGER NOT NULL
+);
+CREATE TABLE assignments (
+  seq        INTEGER PRIMARY KEY AUTOINCREMENT,
+  id         TEXT NOT NULL UNIQUE,
+  driver_idx INTEGER NOT NULL,
+  vehicle_id TEXT NOT NULL,
+  from_at    INTEGER NOT NULL,
+  to_at      INTEGER,
+  by         TEXT NOT NULL
+);
+CREATE INDEX assignments_open ON assignments (driver_idx) WHERE to_at IS NULL;
+`,
+  },
+  {
+    version: 6,
+    name: 'requests',
+    sql: `
+CREATE TABLE requests (
+  seq         INTEGER PRIMARY KEY,
+  id          TEXT NOT NULL UNIQUE,
+  type        TEXT NOT NULL,
+  vehicle_id  TEXT NOT NULL,
+  driver_id   TEXT NOT NULL,
+  fleet_id    TEXT NOT NULL,
+  status      TEXT NOT NULL,
+  reason      TEXT,
+  note        TEXT NOT NULL,
+  location    TEXT CHECK (location IS NULL OR json_valid(location)),
+  rsa         TEXT CHECK (rsa IS NULL OR json_valid(rsa)),
+  replacement TEXT CHECK (replacement IS NULL OR json_valid(replacement)),
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL
+);
+CREATE TABLE request_events (
+  request_id TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
+  n          INTEGER NOT NULL,
+  at         INTEGER NOT NULL,
+  status     TEXT NOT NULL,
+  by         TEXT NOT NULL,
+  note       TEXT,
+  PRIMARY KEY (request_id, n)
+);
+CREATE TABLE fleet_settings (
+  fleet_idx   INTEGER PRIMARY KEY,
+  auto_assign INTEGER NOT NULL
+);
+`,
+  },
+  {
+    version: 7,
+    name: 'notifications_and_shares',
+    sql: `
+CREATE TABLE notifications (
+  seq        INTEGER PRIMARY KEY,
+  id         TEXT NOT NULL UNIQUE,
+  kind       TEXT NOT NULL,
+  severity   TEXT NOT NULL,
+  title      TEXT NOT NULL,
+  body       TEXT NOT NULL,
+  fleet_id   TEXT NOT NULL,
+  vehicle_id TEXT,
+  request_id TEXT,
+  created_at INTEGER NOT NULL,
+  audience   TEXT NOT NULL CHECK (json_valid(audience))
+);
+CREATE TABLE notification_reads (
+  user_id          TEXT NOT NULL,
+  notification_seq INTEGER NOT NULL REFERENCES notifications(seq) ON DELETE CASCADE,
+  read_at          INTEGER NOT NULL,
+  PRIMARY KEY (user_id, notification_seq)
+);
+CREATE TABLE notification_read_all (
+  user_id TEXT PRIMARY KEY,
+  all_seq INTEGER NOT NULL,
+  all_at  INTEGER NOT NULL
+);
+CREATE TABLE share_links (
+  id         TEXT PRIMARY KEY,
+  token      TEXT NOT NULL UNIQUE,
+  vehicle_id TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  show       TEXT NOT NULL CHECK (json_valid(show)),
+  trail      TEXT NOT NULL CHECK (json_valid(trail)),
+  revoked_at INTEGER
+);
+`,
+  },
 ];

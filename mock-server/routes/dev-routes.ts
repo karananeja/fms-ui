@@ -1,6 +1,7 @@
 import { setClockSchema } from '@shared/contract/index.ts';
 import type { FastifyInstance } from 'fastify';
 import { parse } from '../context.ts';
+import { resetStores } from '../db/seed.ts';
 
 /** Dev-only helpers (registered only when `NODE_ENV !== 'production'`). */
 export async function devRoutes(app: FastifyInstance) {
@@ -16,6 +17,12 @@ export async function devRoutes(app: FastifyInstance) {
     // Clock-aware jobs (D-038) run at once instead of on their next minute tick.
     notifications.tick();
     return { offsetMs: clock.offsetMs, now: clock.now() };
+  });
+
+  /** Wipes the database (incl. dashboards) and re-seeds it; every session ends (F22 §7). */
+  app.post('/reset', async (_req, reply) => {
+    resetStores(app.mock);
+    return reply.code(204).send();
   });
 
   app.get('/stats', async () => {

@@ -37,11 +37,19 @@ Vite proxies `/api` and `/ws` to the mock server, so cookies stay same-origin.
 | `MOCK_BATCH_MS` | `500` | WS delta flush interval |
 | `MOCK_SNAPSHOT_CHUNK` | `5000` | Rows per snapshot chunk / delta message |
 | `MOCK_LOG_LEVEL` | `info` | Mock log level (`info` prints reset/invite links) |
+| `MOCK_DB` | `mock-server/data/fms.db` | SQLite file for dashboards, accounts, sessions and admin data (`:memory:` in tests/e2e) |
+| `MOCK_DB_RESET` | — | `1` wipes the database (incl. dashboards) and re-seeds it from `MOCK_SEED` at start |
 
 ### Mock server (F01)
 
 The contract lives in `shared/contract/` (zod schemas + types); the full spec is
-[docs/features/f01-mock-server/spec.md](docs/features/f01-mock-server/spec.md). Data is in memory and resets on restart.
+[docs/features/f01-mock-server/spec.md](docs/features/f01-mock-server/spec.md). Vehicles and live
+telemetry are simulated in memory. Accounts, roles, invites, sessions, fleets (and vehicle moves),
+drivers and assignments, requests, notifications, share links and dashboards are stored in SQLite
+(`MOCK_DB`, F18/F22), so they and your sign-in survive a restart. The first start on an empty
+database seeds it from `MOCK_SEED`; a database seeded with another seed or vehicle count is refused
+(start with `MOCK_DB_RESET=1`). To start over, stop the server and delete `mock-server/data/fms.db`
+(plus `-wal`/`-shm`), or call `POST /api/dev/reset`.
 
 Seed logins:
 
@@ -56,6 +64,8 @@ Dev-only endpoints (not registered when `NODE_ENV=production`):
 - `GET /api/dev/mailbox?to=<email>`: the last reset / invite emails (with `url` and `token`).
 - `POST /api/dev/clock` `{ "offsetMs": 1860000 }`: shifts the mock clock (expiry, non-comm); `0` resets it.
 - `GET /api/dev/stats`: vehicles, sockets, subscriptions, CPU and memory of the mock.
+- `POST /api/dev/reset`: wipes the database (incl. dashboards), re-seeds it and reloads every
+  store; ends all sessions and sockets and sets the clock offset back to 0 (`204`).
 
 ### Live data pipeline (F04)
 

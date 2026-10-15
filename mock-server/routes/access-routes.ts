@@ -22,6 +22,7 @@ import {
   requireVehicleInScope,
   sessionUser,
 } from '../context.ts';
+import { atomic } from '../db/database.ts';
 import { HttpError } from '../http-error.ts';
 
 type IdParams = { Params: { id: string } };
@@ -120,12 +121,15 @@ export async function accessRoutes(app: FastifyInstance) {
     const target = requireFleetInScope(ctx, req.params.id, user.fleetIds);
     const indices = vehicleIds.map((id) => requireVehicleInScope(ctx, id, user.fleetIds));
     let moved = 0;
-    for (const i of indices) {
-      if (sim.fleet[i] === target.idx) continue;
-      hub.vehicleMoved(i, sim.fleet[i]!);
-      sim.moveTo(i, target.idx);
-      moved++;
-    }
+    // One transaction for the whole batch (F22 §2); `moveTo` persists each move.
+    atomic(ctx.db, () => {
+      for (const i of indices) {
+        if (sim.fleet[i] === target.idx) continue;
+        hub.vehicleMoved(i, sim.fleet[i]!);
+        sim.moveTo(i, target.idx);
+        moved++;
+      }
+    });
     return { moved };
   });
 
@@ -145,13 +149,7 @@ export async function accessRoutes(app: FastifyInstance) {
     }
     if (body.roleId !== undefined) requireRoleExists(body.roleId);
     if (body.fleetIds) requireFleetsExist(body.fleetIds);
-    if (body.roleId !== undefined) user.roleId = body.roleId;
-    if (body.fleetIds) user.fleetIds = [...body.fleetIds];
-    if (body.status !== undefined) {
-      user.status = body.status;
-      if (body.status === 'disabled') accounts.endSessions(user.id);
-    }
-    return accounts.publicUser(user);
+    return accounts.publicUser(accounts.updateUser(user.id, body));
   });
 
   // ---- invites ----
@@ -202,22 +200,12 @@ export async function accessRoutes(app: FastifyInstance) {
     const role = accounts.role(req.params.id);
     if (role.system) throw new HttpError(409, 'conflict', 'System roles cannot be edited');
     rejectSystemOnly(body.permissions);
-    if (body.name !== undefined) role.name = body.name;
-    if (body.permissions) role.permissions = [...new Set(body.permissions)];
-    return role;
+    return accounts.updateRole(role.id, body);
   });
 
   app.delete<IdParams>('/roles/:id', async (req, reply) => {
     authorize(ctx, req, 'roles.manage');
-    const role = accounts.role(req.params.id);
-    if (role.system) throw new HttpError(409, 'conflict', 'System roles cannot be deleted');
-    const inUse =
-      [...accounts.users.values()].some((u) => u.roleId === role.id) ||
-      [...accounts.invites.values()].some(
-        (i) => i.roleId === role.id && accounts.inviteStatus(i) === 'pending',
-      );
-    if (inUse) throw new HttpError(409, 'conflict', 'Role is assigned to users or pending invites');
-    accounts.roles.delete(role.id);
+    accounts.deleteRole(req.params.id);
     return reply.code(204).send();
   });
 }

@@ -113,6 +113,16 @@ export class LiveHub {
     }
   }
 
+  /** Closes every socket (dev reset: all sessions are gone). */
+  closeAll(code: number, reason: string): void {
+    for (const c of [...this.conns]) this.close(c, code, reason);
+  }
+
+  /** Forgets pending fleet moves (dev reset restores the seeded placement). */
+  clearMoved(): void {
+    this.moved.clear();
+  }
+
   vehicleMoved(i: number, fromFleet: number): void {
     if (!this.moved.has(i)) this.moved.set(i, fromFleet);
   }

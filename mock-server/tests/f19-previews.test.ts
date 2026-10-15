@@ -278,7 +278,7 @@ describe('P-T2 previews on the thread + PATCH …/previews/:previewId', () => {
         VALUES ('m1', 'd1', 1, 'assistant', 'hello', '[{"tool":"x","label":"y","status":"ok"}]', 5);
     `);
     v1.close();
-    const db = openDatabase(path);
+    const db = openDatabase(path, MIGRATIONS.slice(0, 2));
     expect(db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get()).toEqual({ v: 2 });
     expect(db.prepare('SELECT * FROM dashboard_messages').all()).toEqual([
       {
