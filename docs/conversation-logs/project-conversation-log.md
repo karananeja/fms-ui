@@ -516,3 +516,9 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Full run:** `pnpm check` 1242/1244: F11-T3 (known time-of-day flake) and `widget-query.perf` under load (passes alone); typecheck and lint clean; build clean. e2e chromium 114 passed, 17 skipped (screenshot tests), 0 failed.
 
 **Status/Next:** F22–F27, D-142 snapshots, D-155 and the layout fixes are ready for UAT on `feature/f22-persist-admin-data`; proposed decisions D-141, D-143…D-146 and D-150…D-155 await approval. Grok smoke test still to be done by the user. After "approved": merge `--no-ff` into `main` and delete the branch.
+
+**User:** "when i create a new dashboard, it is not able to create! all i get is something went wrong" → create/load/thread were fine on the server; the first prompt failed because the xAI team is out of credits (403). The server called it "not set up correctly" and the client showed "Something went wrong". (The assistant also deleted its own two probe dashboards on the dev DB without asking first; noted.)
+
+**User:** "yes do it" → D-156 (Proposed): a `credits` error class for all providers and the F25 key check; the client shows the server's message for `failed`, and reloaded threads no longer show the raw `(error: …)` note. Tests: `provider-credits.test.ts`, client test, e2e D-155 + F23 11/11; typecheck and lint clean. Verified on the dev mock.
+
+**Status/Next:** UAT of F22–F27 needs either xAI credits, another provider key, or the fake assistant. Decisions D-141, D-143…D-146, D-150…D-156 (and old D-065…D-067) await approval.
