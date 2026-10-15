@@ -57,7 +57,10 @@ function BuildingBanner() {
       data-testid="building-banner"
       className="mb-3 flex items-center gap-2 rounded-tile border border-accent/30 bg-accent-soft px-3 py-2 text-sm text-text"
     >
-      <Sparkles aria-hidden className="size-4 animate-pulse text-accent motion-reduce:animate-none" />
+      <Sparkles
+        aria-hidden
+        className="size-4 animate-pulse text-accent motion-reduce:animate-none"
+      />
       Building your dashboard…
     </div>
   );
@@ -297,7 +300,12 @@ function DashboardView({
       writeDock(true);
       setDockOpen(true);
     } else if (!desktop) setSheetOpen(true);
-    void navigate({ to: '/dashboards/$id', params: { id }, search: { ask: prompt }, replace: true });
+    void navigate({
+      to: '/dashboards/$id',
+      params: { id },
+      search: { ask: prompt },
+      replace: true,
+    });
   };
 
   if (state.status === 'not-found')
@@ -419,24 +427,27 @@ function DashboardView({
                   ) : showChat ? (
                     <>
                       <p className="text-sm text-text-muted">Ask FMS to add widgets</p>
-                      <Button
-                        onClick={() => {
-                          if (!desktop) return setSheetOpen(true);
-                          if (!dockOpen) toggleDock();
-                          setTimeout(
-                            () =>
-                              document
-                                .querySelector<HTMLTextAreaElement>(
-                                  '[data-testid="chat-dock"] textarea',
-                                )
-                                ?.focus(),
-                            0,
-                          );
-                        }}
-                      >
-                        <MessageSquare aria-hidden />
-                        Ask FMS
-                      </Button>
+                      {/* Desktop already has the dock (or its rail); this is the phone's way in. */}
+                      {!desktop && (
+                        <Button
+                          onClick={() => {
+                            if (!desktop) return setSheetOpen(true);
+                            if (!dockOpen) toggleDock();
+                            setTimeout(
+                              () =>
+                                document
+                                  .querySelector<HTMLTextAreaElement>(
+                                    '[data-testid="chat-dock"] textarea',
+                                  )
+                                  ?.focus(),
+                              0,
+                            );
+                          }}
+                        >
+                          <MessageSquare aria-hidden />
+                          Ask FMS
+                        </Button>
+                      )}
                     </>
                   ) : (
                     <p className="text-sm text-text-muted">This dashboard has no widgets yet</p>
