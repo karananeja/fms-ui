@@ -16,6 +16,7 @@ export const PERMISSIONS = [
   'requests.manage',
   'analytics.view',
   'chat.use',
+  'dashboards.use',
   'driver.self',
 ] as const;
 
@@ -43,6 +44,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   'requests.manage': 'Manage driver requests',
   'analytics.view': 'View analytics',
   'chat.use': 'Use the assistant',
+  'dashboards.use': 'Use dashboards',
   'driver.self': 'Driver self-service',
 };
 
