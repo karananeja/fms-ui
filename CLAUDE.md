@@ -26,7 +26,7 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F16 | Performance dashboard | Done, accepted |
 | F17 | Fleet assistant | Done, accepted. Real-key smoke test pending |
 | DS3, F18 | Themes & fonts; dashboard store (node:sqlite) | Done, accepted 2026-10-15 |
-| F19, F20 | AI dashboard builder; `/dashboards` route & UI | Intent signed off 2026-10-15; spec next |
+| F19, F20 | AI dashboard builder; `/dashboards` route & UI | Spec signed off 2026-10-15; implementing |
 
 Last `main` baseline (2026-10-15, after DS3 + F18): `pnpm check` 955/955, build clean, e2e chromium 89 passed (2 re-run flakes), clock 4/5 (F15-T4 order-dependent), `status-bar.perf` long task 60–63 ms vs 50 ms budget (same as on the F03 report). Last decision: **D-121** (Part 3: D-112…D-121).
 

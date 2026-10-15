@@ -448,3 +448,9 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Assistant:** Added `e2e/shots.ts` (`shot()` writes only with `FMS_SHOTS=1`; screenshot-only UAT tests are skipped otherwise). Targeted e2e 10 passed / 3 skipped with no docs changed. Merged `feature/part3-ds3-f18` into `main` (--no-ff), deleted the branch, and updated CLAUDE.md (themes/fonts conventions, baseline, D-121).
 
 **Status/Next:** DS3 and F18 accepted. Next: the F19 and F20 specs.
+
+**Assistant:** F19 and F20 specs drafted by two agents (F19-T1…T12, F20-T1…T17); F20 decisions renumbered to D-127…D-133 to avoid a clash with F19's D-126. Asked 10 questions, each with a recommendation.
+
+**User:** "approved" (all recommendations).
+
+**Assistant:** Signed off both specs with the resolved answers, accepted D-122…D-133, and started F19 ∥ F20 on `feature/part3-f19-f20`.

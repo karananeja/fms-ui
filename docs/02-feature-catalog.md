@@ -32,8 +32,8 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 | F17 | Fleet assistant chatbot (Claude, read-only tools, CSV/PDF reports) | F11, F16 | Signed off | Signed off | Done | Passed (targeted) | Accepted 2026-10-14 |
 | DS3 | Themes (light/dark/system) & fonts (Inter body, Doto display) | DS1 | Signed off | Signed off | Done | Passed | Accepted 2026-10-15 |
 | F18 | Dashboard store & contract (node:sqlite, CRUD, view-only sharing, widget catalogue) | F03, F16 | Signed off | Signed off | Done | Passed | Accepted 2026-10-15 |
-| F19 | AI dashboard builder (dashboard tools, per-dashboard chat resume, undo) | F17, F18 | Signed off | — | — | — | — |
-| F20 | Dashboards route & UI (`/dashboards`, empty states, react-grid-layout, share dialog) | F18, F19, DS3 | Signed off | — | — | — | — |
+| F19 | AI dashboard builder (dashboard tools, per-dashboard chat resume, undo) | F17, F18 | Signed off | Signed off | — | — | — |
+| F20 | Dashboards route & UI (`/dashboards`, empty states, react-grid-layout, share dialog) | F18, F19, DS3 | Signed off | Signed off | — | — | — |
 
 Suggested order: F00 → F01 → F04 → F05 → F06 → (DS1 ∥ F07)  → F08 → F09 → F02 → F03 → F10.
 Part 2 (`requirement-part-2.md`): F11 → (F12 ∥ F15) → (F13 ∥ F14) → F16 → F17.
