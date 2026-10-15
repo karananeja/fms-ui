@@ -36,3 +36,16 @@ Branch `feature/part3-f19-f20` (main checkout, shared with F20, disjoint files).
 | P-T3 | pass | rules: "add a small KPI of running vehicles" → `preview_widget` (both chats), "add a stopped vehicles widget" → `preview_widget`, `[fake:preview]` → `preview_widget`; "build me a fleet health dashboard" → 3× `add_widget` (dashboard chat) / `create_dashboard` (global); "add a note" still `add_widget`. Same events through the Anthropic and OpenAI (F21) paths |
 
 Intentional updates: tool count 15 → 16 (`dashboard-tools.test.ts`, `f17-assistant.test.ts`, `f21-providers.test.ts` + regenerated OpenAI tools snapshot, additive), `database.test.ts` schema version v1 → v2.
+
+## Addendum: auto-title for new dashboards, server side, 2026-10-15
+While a dashboard still has the default title ("Untitled dashboard") and no earlier chat turn renamed it, the latest turn's `<dashboard>` block carries `titleIsDefault` + a rename hint (system prompt and tools untouched, F24 prefix snapshot unchanged). If a successful turn ends with the title still default, the server renames it from the first user message (`titleFromPrompt`, `mock-server/assistant/auto-title.ts`) inside the turn's change set (chip "Renamed dashboard: <title>", `dashboard_changed`). The fake model adds `rename_dashboard` to its add/build rules while the hint is present.
+
+| ID | Result | Where / notes |
+|---|---|---|
+| AT-T1 | pass | `mock-server/tests/f19-auto-title.test.ts`: `titleFromPrompt` cases (filler stripped, Title Case, acronyms, ≤ 40 chars, empty → "Fleet Dashboard") |
+| AT-T2 | pass | model path, Anthropic and OpenAI fake wires: build turn calls `rename_dashboard`, 4 changes in one change set, hint only in the user turn (not the system prompt); Undo restores the default title and empty grid |
+| AT-T3 | pass | fallback: plain-text turn → renamed "No-GPS Vehicles by Fleet" before `thread_saved`, chip + undoable change on the message; with a widget change the rename extends the same change set; Undo restores the default; later turns neither hint nor rename; error turn → no rename |
+| AT-T4 | pass | user-chosen titles (at creation or via PATCH) are never touched; no hint in the block |
+| AT-T5 | pass | regression: `f19-dashboard-chat`, `f19-previews`, `f17-assistant`, `f21-providers`, `f24-prompt-caching` (snapshot unchanged), `mock-server/assistant/*` — 115/115; `tsc -b`, eslint, prettier clean |
+
+Client: no change needed. `dashboard_changed` → `onDashboardChanged` → `DashboardSession.adoptRemote`, which takes the whole server dashboard (title included).

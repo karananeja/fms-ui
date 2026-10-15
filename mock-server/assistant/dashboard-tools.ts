@@ -635,6 +635,27 @@ const renameDashboard = spec({
   },
 });
 
+/**
+ * F19 auto-title fallback: renames the current dashboard as a normal change of the turn (it
+ * extends the turn's change set, so Undo reverts it), emits `dashboard_changed` and records the
+ * chip. Throws a `ToolFailure` / store error like the tools do.
+ */
+export function autoRenameDashboard(host: ToolHost, title: string): Dashboard {
+  const chip = `Renamed dashboard: ${title}`;
+  const { dashboard } = mutate(
+    host,
+    chip,
+    () => chip,
+    (draft) => void (draft.title = title),
+  );
+  (host.turn ??= newTurnState()).chips.push({
+    tool: 'rename_dashboard',
+    label: chip.slice(0, 120),
+    status: 'ok',
+  });
+  return dashboard;
+}
+
 /** Not sorted here; `assistant-tools.ts` sorts the whole list. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const DASHBOARD_SPECS: ToolSpec<any>[] = [

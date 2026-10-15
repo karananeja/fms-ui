@@ -1,3 +1,4 @@
+import { AUTO_TITLE_HINT } from './auto-title.ts';
 import { CATALOGUE_PROMPT } from './catalogue-prompt.ts';
 
 /**
@@ -71,12 +72,18 @@ export interface DashboardBlockInput {
 
 /**
  * F19 §2: the current dashboard, sent before the text of the latest user turn of a dashboard
- * chat (never in earlier turns, which stay byte-stable).
+ * chat (never in earlier turns, which stay byte-stable). `autoTitle`: the title is still the
+ * default, so the block carries the rename hint (per request, never in the system prompt).
  */
-export function dashboardBlock(d: DashboardBlockInput, widgetTypes: readonly string[]): string {
+export function dashboardBlock(
+  d: DashboardBlockInput,
+  widgetTypes: readonly string[],
+  autoTitle = false,
+): string {
   const view = {
     id: d.id,
     title: d.title,
+    ...(autoTitle ? { titleIsDefault: true, titleHint: AUTO_TITLE_HINT } : {}),
     description: d.description,
     version: d.version,
     permittedWidgetTypes: widgetTypes,

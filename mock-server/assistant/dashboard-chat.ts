@@ -10,7 +10,8 @@ import type { MockContext } from '../context.ts';
 import { HttpError } from '../http-error.ts';
 import { DASHBOARD_CHAT_MAX_ITERATIONS } from './assistant-config.ts';
 import { chatCacheKey, runChat, type RunOptions, type RunOutcome } from './assistant-runner.ts';
-import { permittedWidgetTypes, readingOrder } from './dashboard-tools.ts';
+import { isDefaultTitle, titleFromPrompt, wantsAutoTitle } from './auto-title.ts';
+import { autoRenameDashboard, permittedWidgetTypes, readingOrder } from './dashboard-tools.ts';
 import type { ChatMessage } from './provider.ts';
 import { dashboardBlock, userContext, type UserContext } from './system-prompt.ts';
 import { newTurnState } from './tool-kit.ts';
@@ -132,16 +133,21 @@ export async function runDashboardTurn(opts: DashboardTurnOptions): Promise<RunO
   const widgetTypes = permittedWidgetTypes(permissions);
   const d = store.get(user.id, dashboardId);
   const byId = new Map(d.widgets.map((w) => [w.id, w]));
+  const threadMessages = store.thread(user.id, dashboardId).messages;
+  // Auto-title: only while the title is the default and no earlier turn renamed it.
+  const autoTitle = wantsAutoTitle(d.title, threadMessages);
   const block = dashboardBlock(
     { ...d, widgets: readingOrder(d).map((id) => byId.get(id)!) },
     widgetTypes,
+    autoTitle,
   );
   const messages = threadToMessages(
-    store.thread(user.id, dashboardId).messages,
+    threadMessages,
     userContext({ ...opts.context, widgetTypes }),
     block,
   );
   const turn = newTurnState();
+  const firstPrompt = threadMessages.find((m) => m.role === 'user')?.text ?? opts.text;
 
   return runChat({
     provider: opts.provider,
@@ -156,10 +162,37 @@ export async function runDashboardTurn(opts: DashboardTurnOptions): Promise<RunO
     cacheKey: chatCacheKey(user.id, `d:${dashboardId}`),
     onUsage: opts.onUsage,
     onFinish: (outcome) => {
+      if (autoTitle && outcome.status === 'done') autoTitleFallback(opts, outcome, firstPrompt);
       const saved = saveAssistant(opts, outcome, userMessage);
       if (saved && outcome.status !== 'client') emit(saved);
     },
   });
+}
+
+/**
+ * F19 auto-title fallback: the turn ended well but the model did not rename a dashboard that
+ * still has its default title, so it is renamed from the user's first message (same change set).
+ */
+function autoTitleFallback(opts: DashboardTurnOptions, outcome: RunOutcome, prompt: string) {
+  const { ctx, dashboardId } = opts;
+  try {
+    const d = ctx.dashboards.get(opts.host.user.id, dashboardId);
+    if (!isDefaultTitle(d.title)) return;
+    autoRenameDashboard(
+      {
+        ...opts.host,
+        mode: { kind: 'dashboard', dashboardId },
+        turn: outcome.turn,
+        emit: opts.emit,
+        entities: new Map(),
+      },
+      titleFromPrompt(prompt),
+    );
+  } catch (err) {
+    opts.log('dashboard chat: auto-title failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 function saveAssistant(

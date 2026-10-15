@@ -8,6 +8,7 @@ import {
   FAKE_OPENAI_PATH,
   XAI_CONV_ID_HEADER,
 } from './assistant-config.ts';
+import { titleFromPrompt } from './auto-title.ts';
 
 /**
  * F17 fake Messages API (D-107): `POST /__fake-anthropic/v1/messages` streams the same SSE wire
@@ -188,12 +189,19 @@ interface FakeWidget {
   settings: Record<string, unknown>;
 }
 
+interface FakeDashboard {
+  id: string;
+  widgets: FakeWidget[];
+  /** Auto-title hint: the title is still the default. */
+  titleIsDefault?: boolean;
+}
+
 /** The `<dashboard>` block of the latest user turn (dashboard chat), if any. */
-function parseDashboardBlock(text: string): { id: string; widgets: FakeWidget[] } | undefined {
+function parseDashboardBlock(text: string): FakeDashboard | undefined {
   const m = /<dashboard>\s*([\s\S]*?)\s*<\/dashboard>/.exec(text);
   if (!m) return undefined;
   try {
-    return JSON.parse(m[1]!) as { id: string; widgets: FakeWidget[] };
+    return JSON.parse(m[1]!) as FakeDashboard;
   } catch {
     return undefined;
   }
@@ -226,11 +234,33 @@ const STOP_WORDS = new Set(['remove', 'delete', 'widget', 'the', 'and', 'from', 
  * Dashboard rules, checked before the F17 rules: in a dashboard chat (a `<dashboard>` block),
  * rename / remove / arrange / "30 days" / single widget → `preview_widget` / add a note / build;
  * in the global chat, build|create|make … dashboard → `create_dashboard`, else a single-widget
- * phrase → `preview_widget` (D-135).
+ * phrase → `preview_widget` (D-135). Auto-title: while the block says the title is the default,
+ * the add-a-note and build rules also call `rename_dashboard` (title from the question).
  */
-function dashboardRule(
+function dashboardRule(question: string, dash: FakeDashboard | undefined): FakeStep[] | undefined {
+  const steps = dashboardRuleSteps(question, dash);
+  const build = steps?.[0];
+  if (
+    !dash?.titleIsDefault ||
+    !build ||
+    !('tools' in build) ||
+    !build.tools.every((t) => t.name === 'add_widget')
+  )
+    return steps;
+  return [
+    {
+      ...build,
+      tools: [
+        ...build.tools,
+        { name: 'rename_dashboard', input: { title: titleFromPrompt(question) } },
+      ],
+    },
+  ];
+}
+
+function dashboardRuleSteps(
   question: string,
-  dash: { id: string; widgets: FakeWidget[] } | undefined,
+  dash: FakeDashboard | undefined,
 ): FakeStep[] | undefined {
   const q = question.toLowerCase();
   const step = (...tools: { name: string; input: Record<string, unknown> }[]): FakeStep[] => [
