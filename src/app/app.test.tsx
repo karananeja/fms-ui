@@ -118,6 +118,7 @@ describe('F03-R1/R2: permission guards and nav', () => {
         'Live tracking',
         'Requests',
         'Analytics',
+        'Dashboards',
         'Admin',
         'Fleets',
         'Users',
