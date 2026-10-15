@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { PanelRightClose, Sparkles } from 'lucide-react';
 import type { Dashboard, WidgetPreview } from '@shared/contract/dashboards.ts';
+import { IDLE_DOCK, turnActivity, type DockState } from '@/features/assistant/chat-progress';
 import { Composer } from '@/features/assistant/components/composer';
 import { MessageList } from '@/features/assistant/components/message-list';
 import {
@@ -24,7 +25,13 @@ export function ChatDock({
   onAddPreview,
   previewStatusRef,
   draggablePreviews = false,
+  onActivity,
+  stopRef,
 }: {
+  /** F23: filled with the chat's Stop (the empty-dashboard starter's composer uses it). */
+  stopRef?: RefObject<(() => void) | null>;
+  /** F23: the running turn's state (the page shows the build skeletons from it). */
+  onActivity?(a: DockState): void;
   dashboardId: string;
   version: () => number;
   ask?: string;
@@ -56,12 +63,34 @@ export function ChatDock({
     };
   }, [previewStatusRef, setPreviewStatus]);
 
+  const { stop } = chat;
   useEffect(() => {
-    if (!ask || sent.current || state.status !== 'ready' || state.notConfigured) return;
+    if (!stopRef) return;
+    stopRef.current = stop;
+    return () => {
+      if (stopRef.current === stop) stopRef.current = null;
+    };
+  }, [stopRef, stop]);
+
+  const { streaming, changing } = turnActivity(state.streaming, state.messages.at(-1));
+  const ready = state.status === 'ready';
+  const count = state.messages.length;
+  useEffect(() => {
+    onActivity?.({ streaming, changing, ready, messages: count });
+  }, [onActivity, streaming, changing, ready, count]);
+  useEffect(() => () => onActivity?.(IDLE_DOCK), [onActivity]);
+
+  // One send per `?ask=` value; cleared once consumed, so the F23 starter can ask again.
+  useEffect(() => {
+    if (!ask) {
+      sent.current = false;
+      return;
+    }
+    if (sent.current || state.status !== 'ready' || state.notConfigured || state.streaming) return;
     sent.current = true;
     chat.send(ask);
     onAskConsumed();
-  }, [ask, state.status, state.notConfigured, chat, onAskConsumed]);
+  }, [ask, state.status, state.notConfigured, state.streaming, chat, onAskConsumed]);
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="chat-dock">
@@ -92,6 +121,7 @@ export function ChatDock({
           <MessageList
             messages={state.messages}
             onRetry={chat.retry}
+            onStop={chat.stop}
             onNavigate={() => {}}
             onUndo={(c) => void chat.undo(c.id, version())}
             undoDisabled={state.streaming}
@@ -123,6 +153,7 @@ export function ChatDock({
             placeholder="Ask FMS to add or change widgets…"
             autoFocus={false}
             draft={draft}
+            suggestions="dashboard"
           />
         </>
       )}

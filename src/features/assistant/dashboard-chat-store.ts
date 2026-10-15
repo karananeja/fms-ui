@@ -11,7 +11,7 @@ import type {
 } from '@shared/contract/dashboards.ts';
 import { ApiError, apiFetch, type ApiRequest } from '@/shared/api/api-client';
 import type { ChatError, ToolCall } from './assistant-store.ts';
-import { ChatHttpError, streamSse } from './chat-stream.ts';
+import { ChatHttpError, isInterruption, streamSse } from './chat-stream.ts';
 import { dashboardEvents } from './dashboard-events.ts';
 
 export type DashboardChangedEvent = Extract<ChatEvent, { type: 'dashboard_changed' }>;
@@ -34,7 +34,8 @@ export interface DashboardChatMessage {
   dashboards: readonly DashboardLink[];
   /** D-135: widget previews proposed in this turn (stored with their card state). */
   previews: readonly WidgetPreview[];
-  status: 'streaming' | 'done' | 'stopped' | 'error';
+  /** F23: `interrupted` = the stream broke; partial text and saved changes stay, Retry offered. */
+  status: 'streaming' | 'done' | 'stopped' | 'error' | 'interrupted';
   error: ChatError | null;
 }
 
@@ -156,7 +157,7 @@ export class DashboardChatStore {
         signal: controller.signal,
       });
       if (this.loadController !== controller || this.disposed || this.state.streaming) return;
-      this.set({ status: 'ready', error: null, messages: thread.messages.map(fromThread) });
+      this.set({ status: 'ready', error: null, messages: this.withInterrupted(thread) });
     } catch (err) {
       if (this.loadController !== controller || this.disposed || controller.signal.aborted) return;
       this.set({
@@ -167,6 +168,31 @@ export class DashboardChatStore {
       if (this.loadController === controller) this.loadController = null;
     }
   }
+
+  /**
+   * F23: the stored thread, with an interrupted turn kept visible: the stored reply of that turn
+   * (its chips and Undo come from the server) is marked `interrupted`; if the server didn't
+   * store the turn, the local pair (question + partial reply) stays at the end.
+   */
+  private withInterrupted(thread: DashboardThread): DashboardChatMessage[] {
+    const messages = thread.messages.map(fromThread);
+    const cut = this.interrupted;
+    this.interrupted = null;
+    if (!cut) return messages;
+    const i = messages.findLastIndex((m) => m.role === 'assistant' && (m.seq ?? 0) > cut.baseSeq);
+    if (i >= 0) {
+      const m = messages[i]!;
+      messages[i] = {
+        ...m,
+        status: 'interrupted',
+        text: m.text || cut.local.find((x) => x.role === 'assistant')?.text || '',
+      };
+      return messages;
+    }
+    return [...messages, ...cut.local];
+  }
+
+  private interrupted: { baseSeq: number; local: DashboardChatMessage[] } | null = null;
 
   /** Sends `text` as a new turn; ignored while a reply streams or when empty. */
   send(text: string): void {
@@ -300,8 +326,11 @@ export class DashboardChatStore {
     const id = answer.id;
     const controller = new AbortController();
     this.controller = controller;
+    const baseSeq = Math.max(0, ...this.state.messages.map((m) => m.seq ?? 0));
+    this.interrupted = null;
     this.set({ messages: [...this.state.messages, answer], streaming: true });
     let ended = false;
+    let cut = false;
     const onEvent = (e: ChatEvent) => {
       if (this.controller !== controller || ended) return;
       if (e.type === 'error' || e.type === 'done') ended = true;
@@ -310,12 +339,13 @@ export class DashboardChatStore {
     try {
       await this.stream(`${this.base}/chat`, { message }, onEvent, controller.signal);
       if (this.controller !== controller) return;
-      if (!ended)
-        this.finish(id, 'error', { code: 'failed', message: 'The answer was cut off. Try again.' });
+      if (!ended) cut = true;
     } catch (err) {
       if (this.controller !== controller) return;
       if (controller.signal.aborted) {
         this.finish(id, 'stopped', null);
+      } else if (isInterruption(err)) {
+        cut = true;
       } else {
         const http = err instanceof ChatHttpError ? err : null;
         if (http?.status === 401) this.deps.onUnauthorized?.();
@@ -326,10 +356,20 @@ export class DashboardChatStore {
       }
     } finally {
       if (this.controller === controller) {
+        if (cut) {
+          this.finish(id, 'interrupted', null);
+          const target = this.renamed.get(id) ?? id;
+          this.interrupted = {
+            baseSeq,
+            local: this.state.messages.filter(
+              (m) => m.id === userId || m.id === target || (m.seq ?? 0) > baseSeq,
+            ),
+          };
+        }
         this.controller = null;
         this.set({ streaming: false });
-        // A stop: the server saved the turn after the stream closed; pick it up.
-        if (controller.signal.aborted && !this.disposed) void this.load();
+        // A stop or a cut: the server saved what the turn did; pick it up (changes stay undoable).
+        if ((controller.signal.aborted || cut) && !this.disposed) void this.load();
       }
     }
   }

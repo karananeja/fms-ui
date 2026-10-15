@@ -26,6 +26,21 @@ export class ChatHttpError extends Error {
   }
 }
 
+/**
+ * F23: the stream broke after it started (network drop, provider cut, proxy timeout). The
+ * stores mark the reply "Interrupted", keep the partial text and offer Retry.
+ */
+export class ChatStreamCutError extends Error {
+  constructor(message = 'The connection dropped') {
+    super(message);
+    this.name = 'ChatStreamCutError';
+  }
+}
+
+/** F23: a failure the stores show as "Interrupted" rather than an error. */
+export const isInterruption = (err: unknown) =>
+  err instanceof ChatStreamCutError || (err instanceof ChatHttpError && err.status === 0);
+
 const isCode = (c: unknown): c is ChatErrorCode =>
   typeof c === 'string' && (CHAT_ERROR_CODES as readonly string[]).includes(c);
 
@@ -113,12 +128,19 @@ export async function streamSse(
       STATUS_TEXT[code] ?? json?.error?.message ?? `HTTP ${res.status}`,
     );
   }
+  // F23: heartbeat comments (`: ping`) carry no `data:` line and are skipped by the parser.
   const parser = new SseParser(onEvent);
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
   for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    parser.push(value);
+    let chunk: ReadableStreamReadResult<string>;
+    try {
+      chunk = await reader.read();
+    } catch (err) {
+      if (signal.aborted) throw err;
+      throw new ChatStreamCutError();
+    }
+    if (chunk.done) break;
+    parser.push(chunk.value);
   }
   parser.end();
 }

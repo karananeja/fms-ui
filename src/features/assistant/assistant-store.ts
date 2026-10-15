@@ -13,6 +13,7 @@ import { dashboardEvents } from './dashboard-events.ts';
 import {
   ChatHttpError,
   httpChatTransport,
+  isInterruption,
   type ChatErrorCode,
   type ChatTransport,
 } from './chat-stream.ts';
@@ -48,7 +49,8 @@ export interface AssistantMessage {
   dashboards?: readonly DashboardLink[];
   /** D-135: widget previews (panel session only; the global chat has no server thread). */
   previews?: readonly WidgetPreview[];
-  status: 'streaming' | 'done' | 'stopped' | 'error';
+  /** F23: `interrupted` = the stream ended without `done`/`error` (partial text kept, Retry). */
+  status: 'streaming' | 'done' | 'stopped' | 'error' | 'interrupted';
   error: ChatError | null;
 }
 
@@ -227,12 +229,13 @@ export class AssistantStore {
     try {
       await this.transport({ messages }, onEvent, controller.signal);
       if (this.controller !== controller) return;
-      if (!ended)
-        this.finish(id, 'error', { code: 'failed', message: 'The answer was cut off. Try again.' });
+      if (!ended) this.finish(id, 'interrupted', null);
     } catch (err) {
       if (this.controller !== controller) return;
       if (controller.signal.aborted) {
         this.finish(id, 'stopped', null);
+      } else if (isInterruption(err)) {
+        this.finish(id, 'interrupted', null);
       } else {
         const http = err instanceof ChatHttpError ? err : null;
         if (http?.status === 401) this.session?.expire?.();

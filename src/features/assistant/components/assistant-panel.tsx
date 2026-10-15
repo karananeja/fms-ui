@@ -110,6 +110,7 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
         <MessageList
           messages={state.messages}
           onRetry={() => store.retry()}
+          onStop={() => store.stop()}
           onNavigate={onClose}
           renderPreview={renderPreview}
         />
@@ -121,6 +122,7 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
         onSend={(t) => store.send(t)}
         onStop={() => store.stop()}
         draft={draft}
+        suggestions="global"
       />
     </div>
   );

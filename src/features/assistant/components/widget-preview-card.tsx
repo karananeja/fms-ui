@@ -2,6 +2,12 @@ import { lazy, Suspense, useState, type ReactNode } from 'react';
 import { GripVertical, MessageSquareText, Plus, X } from 'lucide-react';
 import type { WidgetPreview } from '@shared/contract/dashboards.ts';
 import { endPreviewDrag, startPreviewDrag } from '@/features/dashboards/lib/preview-drag';
+import {
+  RANGE_TEXT,
+  widgetRange,
+  widgetSource,
+  widgetTypeInfo,
+} from '@/features/dashboards/lib/widget-meta';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 
@@ -46,6 +52,9 @@ export function WidgetPreviewCard({
   const added = preview.status === 'added';
   const canDrag = draggable && !added && !disabled && !adding;
   const { widget } = preview;
+  const info = widgetTypeInfo(widget.type);
+  const TypeIcon = info.icon;
+  const range = widgetRange(widget);
 
   const add = async () => {
     if (!onAdd || adding) return;
@@ -81,13 +90,39 @@ export function WidgetPreviewCard({
             data-testid="preview-grip"
           />
         )}
+        <span
+          className="grid size-6 shrink-0 place-items-center rounded-md bg-accent-soft text-accent"
+          title={info.name}
+        >
+          <TypeIcon aria-hidden className="size-3.5" />
+          <span className="sr-only">{info.name}</span>
+        </span>
+        <h3 className="min-w-0 flex-1 truncate text-[13px] font-semibold" title={widget.title}>
+          {widget.title}
+        </h3>
         <span className="shrink-0 rounded-sm bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.06em] text-accent uppercase">
           Preview
         </span>
-        <h3 className="min-w-0 truncate text-[13px] font-semibold" title={widget.title}>
-          {widget.title}
-        </h3>
       </header>
+      {/* F23: what the widget shows: type, data source, time range and default size. */}
+      <p
+        data-testid="preview-meta"
+        className="flex flex-wrap items-center gap-x-1.5 border-b border-glass-border/60 px-2.5 py-1 text-[11px] text-text-muted"
+      >
+        <span>{info.name}</span>
+        <span aria-hidden>·</span>
+        <span data-testid="preview-source">{widgetSource(widget)}</span>
+        {range && (
+          <>
+            <span aria-hidden>·</span>
+            <span data-testid="preview-range">{RANGE_TEXT[range]}</span>
+          </>
+        )}
+        <span aria-hidden>·</span>
+        <span data-testid="preview-size" title="Default size (columns × rows)">
+          {preview.size.w}×{preview.size.h}
+        </span>
+      </p>
       <div
         className="relative min-h-0 p-3"
         style={{ height: previewHeight(preview.size.h) }}

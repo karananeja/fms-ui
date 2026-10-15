@@ -14,6 +14,7 @@ import {
   type PermissionHolder,
 } from '@/features/access/permissions/can';
 import { sessionStore, type SessionStore } from '@/features/auth/session/session-store';
+import { parseListSearch, type ListSearch } from '@/features/dashboards/lib/list-search';
 import { LiveTrackingPage } from '@/features/live-tracking/components/live-tracking-page';
 import { parseLiveTrackingSearch } from '@/features/live-tracking/hooks/use-selection-url-sync';
 import { AppLayout } from './app-layout';
@@ -191,8 +192,8 @@ const dashboardsRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: 'dashboards',
   staticData: { title: 'Dashboards', permission: ROUTE_PERMISSIONS['/dashboards'] },
-  validateSearch: (s: Record<string, unknown>): { tab?: 'shared' } =>
-    s.tab === 'shared' ? { tab: 'shared' } : {},
+  // F23: tab, search, sort and view live in the URL (kept by "← Dashboards").
+  validateSearch: (s: Record<string, unknown>): ListSearch => parseListSearch(s),
   component: lazyRouteComponent(
     () => import('@/features/dashboards/pages/dashboards-page'),
     'DashboardsPage',
@@ -201,7 +202,12 @@ const dashboardsRoute = createRoute({
 const dashboardRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: 'dashboards/$id',
-  staticData: { title: 'Dashboard', permission: ROUTE_PERMISSIONS['/dashboards'] },
+  // F23: the docked chat is the chat here; the header's "Ask FMS" is hidden.
+  staticData: {
+    title: 'Dashboard',
+    permission: ROUTE_PERMISSIONS['/dashboards'],
+    hideAskFms: true,
+  },
   validateSearch: (s: Record<string, unknown>): { ask?: string } => {
     const ask = optionalString(s.ask);
     return ask ? { ask: ask.slice(0, 2000) } : {};
@@ -306,5 +312,7 @@ declare module '@tanstack/react-router' {
     title?: string;
     /** F03-R1: needed to open the page (any of a list); see `AppLayout`. */
     permission?: PermissionCheck;
+    /** F23: the page has its own chat; the header's "Ask FMS" button is hidden. */
+    hideAskFms?: boolean;
   }
 }

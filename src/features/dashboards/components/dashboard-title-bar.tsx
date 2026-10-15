@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import {
+  ArrowLeft,
   Copy,
   EllipsisVertical,
   Loader2,
@@ -15,6 +17,7 @@ import { DASHBOARD_TITLE_MAX, type Dashboard } from '@shared/contract/dashboards
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import { formatUpdated } from '../lib/format';
+import { lastListSearch } from '../lib/list-search';
 import type { SaveState } from '../store/dashboard-session';
 
 const menuItem =
@@ -106,6 +109,7 @@ export function DashboardTitleBar({
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-glass-border px-4 py-3 sm:px-5">
       <div className="min-w-0 flex-1">
+        <BackToList title={d.title} />
         {editing ? (
           <input
             autoFocus
@@ -245,10 +249,39 @@ export function DashboardTitleBar({
   );
 }
 
+/**
+ * F23: "← Dashboards" back to the list with its last tab, search, sort and view; on wide screens
+ * it reads as a breadcrumb ("Dashboards / title").
+ */
+export function BackToList({ title }: { title?: string }) {
+  return (
+    <nav aria-label="Breadcrumb" className="mb-0.5 flex min-w-0 items-center gap-1 text-xs">
+      <Link
+        to="/dashboards"
+        search={lastListSearch()}
+        data-testid="back-to-dashboards"
+        className="inline-flex shrink-0 items-center gap-1 rounded-md py-0.5 pr-1 font-semibold text-text-muted outline-none hover:text-accent focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <ArrowLeft aria-hidden className="size-3.5" />
+        Dashboards
+      </Link>
+      {title && (
+        <span aria-hidden className="hidden min-w-0 truncate text-text-faint lg:inline">
+          / {title}
+        </span>
+      )}
+    </nav>
+  );
+}
+
 export function TitleBarSkeleton() {
   return (
-    <div aria-hidden className="flex items-center gap-3 border-b border-glass-border px-5 py-4">
-      <span className="h-7 w-64 animate-pulse rounded-md bg-tile motion-reduce:animate-none" />
+    <div className="border-b border-glass-border px-5 py-3">
+      <BackToList />
+      <span
+        aria-hidden
+        className="mt-1 block h-7 w-64 animate-pulse rounded-md bg-tile motion-reduce:animate-none"
+      />
     </div>
   );
 }

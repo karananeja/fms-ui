@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Dashboard, Widget, WidgetPreview } from '@shared/contract/dashboards.ts';
 import { useCan } from '@/features/access/permissions/can';
@@ -9,11 +9,14 @@ import { liveTrackingStore } from '@/features/live-tracking/store/live-tracking-
 import { ApiError } from '@/shared/api/api-client';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
 import { useNow } from '@/shared/hooks/use-now';
+import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/shared/ui/drawer';
 import { dashboardsApi, type DashboardsApi } from '../api/dashboards-api';
+import { IDLE_DOCK, type DockState } from '@/features/assistant/chat-progress';
 import { ChatDock } from '../components/chat-dock';
 import { DashboardGrid } from '../components/dashboard-grid';
+import { DashboardStarter } from '../components/dashboard-starter';
 import { DashboardTitleBar, TitleBarSkeleton } from '../components/dashboard-title-bar';
 import { DeleteDialog } from '../components/delete-dialog';
 import { ShareDialog } from '../components/share-dialog';
@@ -43,6 +46,42 @@ function writeDock(open: boolean): void {
   }
 }
 
+/** F23: shown above the grid while a chat turn builds or changes the dashboard. */
+function BuildingBanner() {
+  return (
+    <div
+      role="status"
+      data-testid="building-banner"
+      className="mb-3 flex items-center gap-2 rounded-tile border border-accent/30 bg-accent-soft px-3 py-2 text-sm text-text"
+    >
+      <Sparkles aria-hidden className="size-4 animate-pulse text-accent motion-reduce:animate-none" />
+      Building your dashboard…
+    </div>
+  );
+}
+
+/** F23: placeholder tiles where the assistant's widgets are about to land. */
+function BuildingSkeletons({ count, className }: { count: number; className?: string }) {
+  return (
+    <div
+      aria-hidden
+      className={cn('widget-enter grid gap-3 sm:grid-cols-2 lg:grid-cols-3', className)}
+      data-testid="building-skeletons"
+    >
+      {Array.from({ length: count }, (_, k) => (
+        <div
+          key={k}
+          data-testid="building-skeleton"
+          className="flex h-40 flex-col gap-2 rounded-tile border border-dashed border-accent/30 p-3"
+        >
+          <span className="h-4 w-1/3 animate-pulse rounded-md bg-tile motion-reduce:animate-none" />
+          <span className="min-h-0 flex-1 animate-pulse rounded-md bg-tile motion-reduce:animate-none" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** `/dashboards/$id` (§4): one keyed view per dashboard id. */
 export function DashboardPage({ api = dashboardsApi }: { api?: DashboardsApi }) {
   const { id } = useParams({ from: '/app/dashboards/$id' });
@@ -64,6 +103,12 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
   const [sheetOpen, setSheetOpen] = useState(!!ask);
   const [dialog, setDialog] = useState<'share' | 'delete' | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [activity, setActivity] = useState<DockState>(IDLE_DOCK);
+  // F23: a new dashboard (no widgets, empty thread) opens without the dock; the first prompt
+  // slides it in. Sticky once true (any widget or message).
+  const [docked, setDocked] = useState(false);
+  const [slide, setSlide] = useState(false);
+  const [announce, setAnnounce] = useState('');
   useAutoRefresh(cache);
 
   useEffect(() => {
@@ -97,6 +142,34 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
   const d = state.dashboard;
   const owner = d?.access === 'owner';
   const showChat = owner && canChat;
+  const empty = d?.widgets.length === 0;
+  if (showChat && d && !docked && (!empty || activity.messages > 0 || activity.streaming)) {
+    setDocked(true);
+    // A prompt (typed, chip, template or the `?ask=` hand-off) slides the dock in; a reload of a
+    // dashboard that already has a thread shows it at once.
+    if (activity.streaming) {
+      setSlide(true);
+      setAnnounce('Assistant panel opened');
+      if (desktop && !dockOpen) {
+        writeDock(true);
+        setDockOpen(true);
+      }
+    }
+  }
+  /** Owners with chat on a new dashboard: the full-width starter, the dock mounted but hidden. */
+  const starter = showChat && !!d && !docked;
+  // F23: a turn that is changing the dashboard (or filling an empty one) shows the build state.
+  const building = showChat && activity.streaming && (activity.changing || empty);
+
+  useEffect(() => {
+    if (!docked || !slide) return;
+    const t = setTimeout(
+      () =>
+        document.querySelector<HTMLTextAreaElement>('[data-testid="chat-dock"] textarea')?.focus(),
+      320,
+    );
+    return () => clearTimeout(t);
+  }, [docked, slide]);
 
   const refreshAll = () => {
     cache.refresh();
@@ -157,6 +230,18 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
       setDockOpen(!dockOpen);
     } else setSheetOpen(!sheetOpen);
   };
+  // F23 starter: the prompt goes through the dock (as a one-shot `?ask=`), opened if needed.
+  const stopRef = useRef<(() => void) | null>(null);
+  const startWith = (prompt: string) => {
+    setDocked(true);
+    setSlide(true);
+    setAnnounce('Assistant panel opened');
+    if (desktop && !dockOpen) {
+      writeDock(true);
+      setDockOpen(true);
+    } else if (!desktop) setSheetOpen(true);
+    void navigate({ to: '/dashboards/$id', params: { id }, search: { ask: prompt }, replace: true });
+  };
 
   if (state.status === 'not-found')
     return (
@@ -193,6 +278,8 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
       onAddPreview={(p) => addPreview(p)}
       previewStatusRef={previewStatusRef}
       draggablePreviews={desktop}
+      onActivity={setActivity}
+      stopRef={stopRef}
     />
   );
 
@@ -210,7 +297,7 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
                 compact={compact}
                 refreshing={refreshing}
                 chat={
-                  showChat
+                  showChat && docked
                     ? { open: desktop ? dockOpen : sheetOpen, onToggle: toggleDock, desktop }
                     : null
                 }
@@ -224,8 +311,12 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
             ) : (
               <TitleBarSkeleton />
             )}
-            <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-5">
-              {!d ? (
+            <div
+              className="min-h-0 flex-1 overflow-auto p-4 sm:p-5"
+              data-testid="dashboard-scroll"
+            >
+              {building && <BuildingBanner />}
+              {!d || (starter && !activity.ready) ? (
                 <div className="grid gap-3 sm:grid-cols-3" aria-busy>
                   {[0, 1, 2].map((k) => (
                     <div
@@ -234,9 +325,14 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
                     />
                   ))}
                 </div>
+              ) : d.widgets.length === 0 && building ? (
+                <BuildingSkeletons count={3} />
               ) : d.widgets.length === 0 ? (
                 <div
-                  className="flex flex-col items-center gap-3 rounded-tile py-16 text-center"
+                  className={cn(
+                    'flex flex-col items-center gap-3 rounded-tile text-center',
+                    starter ? 'py-2' : 'py-16',
+                  )}
                   data-testid="dashboard-empty"
                   // D-135: a preview dropped on an empty dashboard lands top-left.
                   onDragOver={(e) => {
@@ -251,23 +347,28 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
                     void addPreview(p).catch(() => {});
                   }}
                 >
-                  {showChat ? (
+                  {starter ? (
+                    <DashboardStarter
+                      streaming={activity.streaming}
+                      onSend={startWith}
+                      onStop={() => stopRef.current?.()}
+                    />
+                  ) : showChat ? (
                     <>
                       <p className="text-sm text-text-muted">Ask FMS to add widgets</p>
                       <Button
                         onClick={() => {
-                          if (desktop) {
-                            if (!dockOpen) toggleDock();
-                            setTimeout(
-                              () =>
-                                document
-                                  .querySelector<HTMLTextAreaElement>(
-                                    '[data-testid="chat-dock"] textarea',
-                                  )
-                                  ?.focus(),
-                              0,
-                            );
-                          } else setSheetOpen(true);
+                          if (!desktop) return setSheetOpen(true);
+                          if (!dockOpen) toggleDock();
+                          setTimeout(
+                            () =>
+                              document
+                                .querySelector<HTMLTextAreaElement>(
+                                  '[data-testid="chat-dock"] textarea',
+                                )
+                                ?.focus(),
+                            0,
+                          );
                         }}
                       >
                         <MessageSquare aria-hidden />
@@ -279,24 +380,44 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
                   )}
                 </div>
               ) : (
-                <DashboardGrid
-                  dashboard={d}
-                  owner={owner}
-                  onLayout={(l) => session.scheduleLayout(l)}
-                  onWidgetRefresh={refreshWidget}
-                  onWidgetRename={(wid, t) => session.setWidgetTitle(wid, t)}
-                  onWidgetRemove={removeWidget}
-                  onDropPreview={(p, at) => void addPreview(p, at).catch(() => {})}
-                />
+                <>
+                  <DashboardGrid
+                    dashboard={d}
+                    owner={owner}
+                    onLayout={(l) => session.scheduleLayout(l)}
+                    onWidgetRefresh={refreshWidget}
+                    onWidgetRename={(wid, t) => session.setWidgetTitle(wid, t)}
+                    onWidgetRemove={removeWidget}
+                    onDropPreview={(p, at) => void addPreview(p, at).catch(() => {})}
+                  />
+                  {building && <BuildingSkeletons count={1} className="mt-3" />}
+                </>
               )}
             </div>
           </div>
-          {dock && desktop && dockOpen && (
-            <aside className="flex w-[360px] shrink-0 flex-col border-l border-glass-border bg-surface-solid shadow-panel">
+          {/* F23: one aside (one chat instance): hidden while the starter shows, then slid in. */}
+          {dock && desktop && (!docked || dockOpen) && (
+            <aside
+              inert={!docked}
+              aria-hidden={!docked || undefined}
+              data-testid="dock-panel"
+              data-state={docked ? 'open' : 'hidden'}
+              className={cn(
+                'flex shrink-0 flex-col bg-surface-solid',
+                docked
+                  ? 'w-[360px] border-l border-glass-border shadow-panel'
+                  : 'w-0 overflow-hidden',
+                docked && slide && 'dock-slide-in',
+              )}
+            >
               {dock}
             </aside>
           )}
-          {dock && desktop && !dockOpen && (
+          {dock && !desktop && !docked && !sheetOpen && <div hidden>{dock}</div>}
+          <p role="status" aria-live="polite" className="sr-only" data-testid="dock-announce">
+            {announce}
+          </p>
+          {dock && desktop && docked && !dockOpen && (
             <aside className="flex w-11 shrink-0 flex-col items-center border-l border-glass-border bg-surface-solid py-3">
               <Button
                 variant="ghost"
@@ -309,7 +430,7 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
               </Button>
             </aside>
           )}
-          {dock && !desktop && (
+          {dock && !desktop && (docked || sheetOpen) && (
             <Drawer open={sheetOpen} onOpenChange={setSheetOpen}>
               <DrawerContent className="h-[85dvh]">
                 <DrawerTitle className="sr-only">Ask FMS</DrawerTitle>
