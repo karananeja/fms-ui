@@ -66,6 +66,36 @@ On load the app checks the session (`/api/auth/me`; in dev it signs in automatic
 diagnostics panel (connection, vehicle count, rows/s, state size, clock offset, vehicle picker).
 In dev, `window.__fmsLive` exposes `{pushCount, firstDataAt, snapshotCompleteAt}`.
 
+### AI assistant providers (F17, F19, F21)
+
+The fleet assistant and the dashboard chat run on the mock server; keys never reach the browser.
+Copy `.env.example` to `.env` (git-ignored; the mock server loads it at startup) and fill in one provider:
+
+| Provider | `FMS_ASSISTANT_PROVIDER` | Key | `FMS_ASSISTANT_MODEL` |
+|---|---|---|---|
+| xAI Grok | `xai` | `XAI_API_KEY` | required, e.g. `grok-4` or `grok-4-fast-non-reasoning` (check the xAI console for current ids) |
+| OpenAI | `openai` | `OPENAI_API_KEY` | required, e.g. `gpt-5` |
+| Anthropic Claude | `anthropic` | `ANTHROPIC_API_KEY` | optional, defaults to `claude-opus-5-5` |
+| Scripted fake model | `fake` (or `FMS_ASSISTANT_FAKE=1`) | none | none |
+
+Grok example:
+
+```sh
+FMS_ASSISTANT_PROVIDER=xai
+XAI_API_KEY=xai-...
+FMS_ASSISTANT_MODEL=grok-4
+```
+
+- With `FMS_ASSISTANT_PROVIDER` empty, the first provider whose key is set wins (anthropic → openai → xai).
+  With no key, dev uses the fake model and production answers "not configured".
+- `xai` / `openai` without `FMS_ASSISTANT_MODEL` are "not configured"; the mock server logs one
+  `Assistant not configured: …` line with the reason.
+- `FMS_ASSISTANT_BASE_URL` overrides the API base URL (defaults: `https://api.x.ai/v1`, `https://api.openai.com/v1`).
+- `openai` and `xai` share one fetch-based chat-completions adapter (`mock-server/assistant/openai-provider.ts`);
+  tools, system prompt, step limits and the browser events are the same as with Claude.
+- Tests use the fake model on either wire format: `FMS_ASSISTANT_FAKE=1` plus `FMS_ASSISTANT_PROVIDER=openai`
+  (or `xai`) drives `/__fake-openai/v1/chat/completions`; without a provider it drives `/__fake-anthropic`.
+
 ## Scripts
 
 | Script | What it does |

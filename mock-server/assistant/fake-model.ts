@@ -1,11 +1,18 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { ASSISTANT_MODEL, FAKE_MODEL_PATH } from './assistant-config.ts';
+import {
+  ASSISTANT_MODEL,
+  FAKE_MODEL_PATH,
+  FAKE_OPENAI_MODEL,
+  FAKE_OPENAI_PATH,
+} from './assistant-config.ts';
 
 /**
  * F17 fake Messages API (D-107): `POST /__fake-anthropic/v1/messages` streams the same SSE wire
  * format as the Anthropic API, so the real SDK, tool runner and tools all run; only the model
- * is canned. It is stateless per request: the step of a scripted conversation is the number of
+ * is canned. F21: `POST /__fake-openai/v1/chat/completions` plays the same scripts and rules in
+ * the OpenAI chat-completions SSE format (`tool_calls` deltas), for the OpenAI-compatible
+ * adapter. It is stateless per request: the step of a scripted conversation is the number of
  * assistant turns since the user's question, and the script is recovered from the tool_use ids
  * it handed out (`toolu_fake_<script>_<step>_<n>`).
  *
@@ -354,7 +361,14 @@ function answerOne(o: ToolOutcome): string {
   }
 }
 
-// ---- request parsing ----
+// ---- request parsing (both wire formats → one neutral transcript) ----
+
+interface FakeMessage {
+  role: 'user' | 'assistant';
+  text: string;
+  toolUses: { id: string; name: string; input: Record<string, unknown> }[];
+  toolResults: { toolUseId: string; content: string; isError: boolean }[];
+}
 
 interface WireBlock {
   type: string;
@@ -371,14 +385,79 @@ interface WireMessage {
   content: string | WireBlock[];
 }
 
-const blocks = (m: WireMessage): WireBlock[] =>
-  typeof m.content === 'string' ? [{ type: 'text', text: m.content }] : m.content;
-const isQuestion = (m: WireMessage) =>
-  m.role === 'user' && !blocks(m).some((b) => b.type === 'tool_result');
-const resultText = (b: WireBlock) =>
-  typeof b.content === 'string' ? b.content : (b.content ?? []).map((c) => c.text ?? '').join('');
+/** Anthropic Messages API messages. */
+function fromAnthropic(messages: WireMessage[]): FakeMessage[] {
+  return messages.map((m) => {
+    const blocks: WireBlock[] =
+      typeof m.content === 'string' ? [{ type: 'text', text: m.content }] : m.content;
+    return {
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      text: blocks.map((b) => b.text ?? '').join('\n'),
+      toolUses: blocks
+        .filter((b) => b.type === 'tool_use')
+        .map((b) => ({ id: b.id ?? '', name: b.name ?? '', input: b.input ?? {} })),
+      toolResults: blocks
+        .filter((b) => b.type === 'tool_result')
+        .map((b) => ({
+          toolUseId: b.tool_use_id ?? '',
+          content:
+            typeof b.content === 'string'
+              ? b.content
+              : (b.content ?? []).map((c) => c.text ?? '').join(''),
+          isError: b.is_error === true,
+        })),
+    };
+  });
+}
 
-// ---- SSE writer ----
+interface OaWireMessage {
+  role: string;
+  content?: string | { type: string; text?: string }[] | null;
+  tool_calls?: { id: string; function: { name: string; arguments: string } }[];
+  tool_call_id?: string;
+}
+
+/** Chat-completions messages: the system message is dropped, consecutive `tool` messages merged. */
+function fromOpenAi(messages: OaWireMessage[]): FakeMessage[] {
+  const out: FakeMessage[] = [];
+  const text = (c: OaWireMessage['content']) =>
+    typeof c === 'string' ? c : (c ?? []).map((p) => p.text ?? '').join('\n');
+  for (const m of messages) {
+    if (m.role === 'system' || m.role === 'developer') continue;
+    if (m.role === 'tool') {
+      const content = text(m.content);
+      const isError = content.startsWith('Error: ');
+      const result = {
+        toolUseId: m.tool_call_id ?? '',
+        content: isError ? content.slice('Error: '.length) : content,
+        isError,
+      };
+      const prev = out.at(-1);
+      if (prev?.toolResults.length) prev.toolResults.push(result);
+      else out.push({ role: 'user', text: '', toolUses: [], toolResults: [result] });
+      continue;
+    }
+    out.push({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      text: text(m.content),
+      toolUses: (m.tool_calls ?? []).map((c) => {
+        let input: Record<string, unknown> = {};
+        try {
+          input = JSON.parse(c.function.arguments || '{}') as Record<string, unknown>;
+        } catch {
+          // keep {}
+        }
+        return { id: c.id, name: c.function.name, input };
+      }),
+      toolResults: [],
+    });
+  }
+  return out;
+}
+
+const isQuestion = (m: FakeMessage) => m.role === 'user' && !m.toolResults.length;
+
+// ---- SSE writers ----
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -387,37 +466,209 @@ export interface FakeModelStats {
   /** Streams cut short because the caller went away. */
   aborted: number;
   /** The latest request (caching-hygiene checks). */
-  lastRequest?: { beta: string | undefined; body: unknown };
+  lastRequest?: { beta: string | undefined; body: unknown; wire?: 'anthropic' | 'openai' };
 }
 
-/** Registers the fake endpoint; returns the script queue and stats for the dev routes. */
+type ToolCall = { id: string; name: string; input: Record<string, unknown> };
+
+/** One reply in a wire format. */
+interface WireWriter {
+  start(): void;
+  text(text: string, delayMs?: number): Promise<void>;
+  tools(calls: ToolCall[]): void;
+  finish(stop: 'end_turn' | 'tool_use' | 'refusal'): void;
+}
+
+interface Stream {
+  send: (chunk: string) => void;
+  closed: () => boolean;
+}
+
+/** Splits text into stream parts: word by word with a pause, else 24-char slices. */
+async function streamText(
+  text: string,
+  delayMs: number,
+  closed: () => boolean,
+  part: (s: string) => void,
+) {
+  const parts = delayMs > 0 ? text.split(/(?<= )/) : (text.match(/[\s\S]{1,24}/g) ?? []);
+  for (const p of parts) {
+    if (closed()) return;
+    part(p);
+    if (delayMs > 0) await sleep(delayMs);
+  }
+}
+
+function anthropicWriter(out: Stream, meta: { requests: number; question: string; step: number }) {
+  const send = (event: string, data: unknown) =>
+    out.send(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  let index = 0;
+  let outputTokens = 0;
+  const writer: WireWriter = {
+    start() {
+      send('message_start', {
+        type: 'message_start',
+        message: {
+          id: `msg_fake_${Date.now().toString(36)}_${meta.requests}`,
+          type: 'message',
+          role: 'assistant',
+          model: ASSISTANT_MODEL,
+          content: [],
+          stop_reason: null,
+          stop_sequence: null,
+          usage: {
+            input_tokens: 40 + meta.question.length,
+            output_tokens: 1,
+            cache_creation_input_tokens: meta.step === 0 ? 1800 : 0,
+            cache_read_input_tokens: meta.step === 0 ? 0 : 1800,
+          },
+        },
+      });
+    },
+    async text(text, delayMs = 0) {
+      send('content_block_start', {
+        type: 'content_block_start',
+        index,
+        content_block: { type: 'text', text: '' },
+      });
+      await streamText(text, delayMs, out.closed, (part) => {
+        send('content_block_delta', {
+          type: 'content_block_delta',
+          index,
+          delta: { type: 'text_delta', text: part },
+        });
+        outputTokens++;
+      });
+      if (out.closed()) return;
+      send('content_block_stop', { type: 'content_block_stop', index });
+      index++;
+    },
+    tools(calls) {
+      for (const t of calls) {
+        send('content_block_start', {
+          type: 'content_block_start',
+          index,
+          content_block: { type: 'tool_use', id: t.id, name: t.name, input: {} },
+        });
+        send('content_block_delta', {
+          type: 'content_block_delta',
+          index,
+          delta: { type: 'input_json_delta', partial_json: JSON.stringify(t.input) },
+        });
+        send('content_block_stop', { type: 'content_block_stop', index });
+        index++;
+        outputTokens += 10;
+      }
+    },
+    finish(stop) {
+      send('message_delta', {
+        type: 'message_delta',
+        delta: {
+          stop_reason: stop,
+          stop_sequence: null,
+          ...(stop === 'refusal'
+            ? { stop_details: { type: 'refusal', category: null, explanation: 'fake refusal' } }
+            : {}),
+        },
+        usage: { output_tokens: outputTokens },
+      });
+      send('message_stop', { type: 'message_stop' });
+    },
+  };
+  return writer;
+}
+
+/** Chat-completions chunks: `data: {…}` lines, tool calls split over several `tool_calls` deltas. */
+function openAiWriter(
+  out: Stream,
+  meta: { requests: number; question: string; step: number; model: string },
+) {
+  const id = `chatcmpl-fake-${Date.now().toString(36)}-${meta.requests}`;
+  const created = Math.floor(Date.now() / 1000);
+  let outputTokens = 0;
+  const chunk = (delta: object, finish: string | null = null) =>
+    out.send(
+      `data: ${JSON.stringify({
+        id,
+        object: 'chat.completion.chunk',
+        created,
+        model: meta.model,
+        choices: [{ index: 0, delta, finish_reason: finish }],
+      })}\n\n`,
+    );
+  const writer: WireWriter = {
+    start() {
+      chunk({ role: 'assistant', content: '' });
+    },
+    async text(text, delayMs = 0) {
+      await streamText(text, delayMs, out.closed, (part) => {
+        chunk({ content: part });
+        outputTokens++;
+      });
+    },
+    tools(calls) {
+      calls.forEach((t, n) => {
+        chunk({
+          tool_calls: [
+            { index: n, id: t.id, type: 'function', function: { name: t.name, arguments: '' } },
+          ],
+        });
+        const args = JSON.stringify(t.input);
+        const mid = Math.ceil(args.length / 2);
+        for (const piece of [args.slice(0, mid), args.slice(mid)])
+          if (piece) chunk({ tool_calls: [{ index: n, function: { arguments: piece } }] });
+        outputTokens += 10;
+      });
+    },
+    finish(stop) {
+      chunk(
+        {},
+        stop === 'tool_use' ? 'tool_calls' : stop === 'refusal' ? 'content_filter' : 'stop',
+      );
+      const cached = meta.step === 0 ? 0 : 1800;
+      out.send(
+        `data: ${JSON.stringify({
+          id,
+          object: 'chat.completion.chunk',
+          created,
+          model: meta.model,
+          choices: [],
+          usage: {
+            prompt_tokens: 40 + meta.question.length + cached,
+            completion_tokens: outputTokens,
+            total_tokens: 40 + meta.question.length + cached + outputTokens,
+            prompt_tokens_details: { cached_tokens: cached },
+          },
+        })}\n\n`,
+      );
+      out.send('data: [DONE]\n\n');
+    },
+  };
+  return writer;
+}
+
+/**
+ * Registers the fake endpoints (Anthropic Messages and OpenAI chat completions, same scripts and
+ * rules); returns the script queue and stats for the dev routes.
+ */
 export function registerFakeModel(app: FastifyInstance) {
   const queue: FakeStep[][] = [];
   const custom = new Map<string, FakeStep[]>();
   let seq = 0;
   const stats: FakeModelStats = { requests: 0, aborted: 0 };
 
-  app.post(`${FAKE_MODEL_PATH}/v1/messages`, async (req, reply) => {
-    stats.requests++;
-    stats.lastRequest = {
-      beta: req.headers['anthropic-beta'] as string | undefined,
-      body: req.body,
-    };
-    const body = req.body as { messages?: WireMessage[] };
-    const messages = body.messages ?? [];
+  /** The step to play for this transcript (stateless: recovered from the tool ids). */
+  function plan(messages: FakeMessage[]) {
     let start = messages.length - 1;
     while (start > 0 && !isQuestion(messages[start]!)) start--;
-    const question = blocks(messages[start] ?? { role: 'user', content: '' })
-      .map((b) => b.text ?? '')
-      .join('\n');
+    const question = messages[start]?.text ?? '';
     const after = messages.slice(start + 1);
     const step = after.filter((m) => m.role === 'assistant').length;
 
     // Which script: from earlier tool ids, else a queued one, else the rules.
     let key: string | undefined;
     for (const m of after)
-      for (const b of blocks(m))
-        if (b.type === 'tool_use' && b.id?.startsWith('toolu_fake_')) key = b.id.split('_')[2];
+      for (const u of m.toolUses) if (u.id.startsWith('toolu_fake_')) key = u.id.split('_')[2];
     let steps: FakeStep[];
     if (key && key !== 'auto') steps = custom.get(key) ?? BUILTIN[key] ?? [];
     else if (step === 0 && queue.length) {
@@ -434,19 +685,16 @@ export function registerFakeModel(app: FastifyInstance) {
     const last = after.at(-1);
     const prev = after.at(-2);
     const outcomes: ToolOutcome[] = [];
-    if (last && prev && prev.role === 'assistant') {
-      const uses = blocks(prev).filter((b) => b.type === 'tool_use');
-      for (const b of blocks(last))
-        if (b.type === 'tool_result') {
-          const use = uses.find((u) => u.id === b.tool_use_id);
-          outcomes.push({
-            name: use?.name ?? '',
-            input: use?.input ?? {},
-            content: resultText(b),
-            isError: b.is_error === true,
-          });
-        }
-    }
+    if (last && prev && prev.role === 'assistant')
+      for (const r of last.toolResults) {
+        const use = prev.toolUses.find((u) => u.id === r.toolUseId);
+        outcomes.push({
+          name: use?.name ?? '',
+          input: use?.input ?? {},
+          content: r.content,
+          isError: r.isError,
+        });
+      }
 
     let current: FakeStep;
     if (key === 'auto' && step >= steps.length) current = { text: answerFrom(outcomes) };
@@ -456,22 +704,16 @@ export function registerFakeModel(app: FastifyInstance) {
         ...current,
         text: current.text.replace('{{result}}', outcomes[0]?.content ?? ''),
       };
+    return { current, key, step, question };
+  }
 
-    if ('error' in current) {
-      const type =
-        current.error === 429
-          ? 'rate_limit_error'
-          : current.error === 529
-            ? 'overloaded_error'
-            : current.error >= 500
-              ? 'api_error'
-              : 'invalid_request_error';
-      return reply
-        .code(current.error)
-        .header('x-should-retry', 'false')
-        .send({ type: 'error', error: { type, message: `fake ${type}` } });
-    }
-
+  /** Streams one planned reply with the given writer. */
+  async function play(
+    reply: FastifyReply,
+    planned: ReturnType<typeof plan>,
+    makeWriter: (out: Stream) => WireWriter,
+  ) {
+    const { current, key, step } = planned;
     reply.hijack();
     const res = reply.raw;
     res.writeHead(200, {
@@ -486,95 +728,90 @@ export function registerFakeModel(app: FastifyInstance) {
         stats.aborted++;
       }
     });
-    const send = (event: string, data: unknown) => {
-      if (!closed) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    };
-
-    const id = `msg_fake_${Date.now().toString(36)}_${stats.requests}`;
-    send('message_start', {
-      type: 'message_start',
-      message: {
-        id,
-        type: 'message',
-        role: 'assistant',
-        model: ASSISTANT_MODEL,
-        content: [],
-        stop_reason: null,
-        stop_sequence: null,
-        usage: {
-          input_tokens: 40 + question.length,
-          output_tokens: 1,
-          cache_creation_input_tokens: step === 0 ? 1800 : 0,
-          cache_read_input_tokens: step === 0 ? 0 : 1800,
-        },
+    const out: Stream = {
+      send: (chunk) => {
+        if (!closed) res.write(chunk);
       },
-    });
-    let index = 0;
-    let outputTokens = 0;
-    const textBlock = async (text: string, delayMs = 0) => {
-      send('content_block_start', {
-        type: 'content_block_start',
-        index,
-        content_block: { type: 'text', text: '' },
-      });
-      const parts = delayMs > 0 ? text.split(/(?<= )/) : (text.match(/[\s\S]{1,24}/g) ?? []);
-      for (const part of parts) {
-        if (closed) return;
-        send('content_block_delta', {
-          type: 'content_block_delta',
-          index,
-          delta: { type: 'text_delta', text: part },
-        });
-        outputTokens++;
-        if (delayMs > 0) await sleep(delayMs);
-      }
-      send('content_block_stop', { type: 'content_block_stop', index });
-      index++;
+      closed: () => closed,
     };
-
-    let stopReason = 'end_turn';
+    const w = makeWriter(out);
+    w.start();
+    let stop: 'end_turn' | 'tool_use' | 'refusal' = 'end_turn';
     if ('tools' in current) {
-      if (current.text) await textBlock(current.text);
-      current.tools.forEach((t, n) => {
-        send('content_block_start', {
-          type: 'content_block_start',
-          index,
-          content_block: {
-            type: 'tool_use',
-            id: `toolu_fake_${key}_${step}_${n}`,
-            name: t.name,
-            input: {},
-          },
-        });
-        send('content_block_delta', {
-          type: 'content_block_delta',
-          index,
-          delta: { type: 'input_json_delta', partial_json: JSON.stringify(t.input) },
-        });
-        send('content_block_stop', { type: 'content_block_stop', index });
-        index++;
-        outputTokens += 10;
-      });
-      stopReason = 'tool_use';
+      if (current.text) await w.text(current.text);
+      w.tools(
+        current.tools.map((t, n) => ({
+          id: `toolu_fake_${key}_${step}_${n}`,
+          name: t.name,
+          input: t.input,
+        })),
+      );
+      stop = 'tool_use';
     } else if ('refusal' in current) {
-      if (current.text) await textBlock(current.text);
-      stopReason = 'refusal';
-    } else await textBlock(current.text, current.delayMs);
-
+      if (current.text) await w.text(current.text);
+      stop = 'refusal';
+    } else if ('text' in current) await w.text(current.text, current.delayMs);
     if (closed) return;
-    send('message_delta', {
-      type: 'message_delta',
-      delta: {
-        stop_reason: stopReason,
-        stop_sequence: null,
-        ...(stopReason === 'refusal'
-          ? { stop_details: { type: 'refusal', category: null, explanation: 'fake refusal' } }
-          : {}),
-      },
-      usage: { output_tokens: outputTokens },
-    });
-    send('message_stop', { type: 'message_stop' });
+    w.finish(stop);
     res.end();
+  }
+
+  const errorType = (status: number) =>
+    status === 429
+      ? 'rate_limit_error'
+      : status === 529
+        ? 'overloaded_error'
+        : status >= 500
+          ? 'api_error'
+          : 'invalid_request_error';
+
+  app.post(`${FAKE_MODEL_PATH}/v1/messages`, async (req, reply) => {
+    stats.requests++;
+    stats.lastRequest = {
+      beta: req.headers['anthropic-beta'] as string | undefined,
+      body: req.body,
+      wire: 'anthropic',
+    };
+    const body = req.body as { messages?: WireMessage[] };
+    const planned = plan(fromAnthropic(body.messages ?? []));
+    const { current } = planned;
+    if ('error' in current) {
+      const type = errorType(current.error);
+      return reply
+        .code(current.error)
+        .header('x-should-retry', 'false')
+        .send({ type: 'error', error: { type, message: `fake ${type}` } });
+    }
+    await play(reply, planned, (out) =>
+      anthropicWriter(out, {
+        requests: stats.requests,
+        question: planned.question,
+        step: planned.step,
+      }),
+    );
+  });
+
+  /** F21: the same scripts over the OpenAI-compatible chat-completions wire format. */
+  app.post(`${FAKE_OPENAI_PATH}/chat/completions`, async (req, reply) => {
+    stats.requests++;
+    stats.lastRequest = { beta: undefined, body: req.body, wire: 'openai' };
+    const body = req.body as { model?: string; messages?: OaWireMessage[] };
+    const planned = plan(fromOpenAi(body.messages ?? []));
+    const { current } = planned;
+    if ('error' in current) {
+      const type = errorType(current.error);
+      return reply
+        .code(current.error)
+        .send({ error: { message: `fake ${type}`, type, code: type } });
+    }
+    await play(reply, planned, (out) =>
+      openAiWriter(out, {
+        requests: stats.requests,
+        question: planned.question,
+        step: planned.step,
+        model: body.model ?? FAKE_OPENAI_MODEL,
+      }),
+    );
   });
 
   return {

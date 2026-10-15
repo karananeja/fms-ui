@@ -1,5 +1,3 @@
-import type Anthropic from '@anthropic-ai/sdk';
-import type { BetaMessageParam } from '@anthropic-ai/sdk/resources/beta/messages';
 import {
   CHAT_CHIPS_MAX,
   CHAT_MAX_TURNS,
@@ -12,6 +10,7 @@ import { HttpError } from '../http-error.ts';
 import { DASHBOARD_CHAT_MAX_ITERATIONS } from './assistant-config.ts';
 import { runChat, type RunOptions, type RunOutcome } from './assistant-runner.ts';
 import { permittedWidgetTypes, readingOrder } from './dashboard-tools.ts';
+import type { ChatMessage } from './provider.ts';
 import { dashboardBlock, userContext, type UserContext } from './system-prompt.ts';
 import { newTurnState } from './tool-kit.ts';
 
@@ -68,12 +67,12 @@ export function threadToMessages(
   thread: readonly ThreadMessage[],
   context: string,
   dashboard: string,
-): BetaMessageParam[] {
+): ChatMessage[] {
   let recent = thread.slice(-CHAT_MAX_TURNS);
   const firstUser = recent.findIndex((m) => m.role === 'user');
   recent = firstUser < 0 ? [] : recent.slice(firstUser);
   const lastUser = recent.findLastIndex((m) => m.role === 'user');
-  return recent.map((m, k): BetaMessageParam => {
+  return recent.map((m, k): ChatMessage => {
     if (m.role === 'assistant')
       return { role: 'assistant', content: `${m.text.trim() || '(no answer)'}${changeNote(m)}` };
     const blocks: { type: 'text'; text: string }[] = [];
@@ -101,14 +100,13 @@ export function storedText(outcome: Pick<RunOutcome, 'text' | 'status' | 'error'
 
 export interface DashboardTurnOptions extends Pick<
   RunOptions,
-  'client' | 'signal' | 'abortReason' | 'log' | 'emit'
+  'provider' | 'signal' | 'abortReason' | 'log' | 'emit'
 > {
   ctx: MockContext;
   host: Omit<RunOptions['host'], 'mode' | 'turn'>;
   dashboardId: string;
   text: string;
   context: UserContext;
-  client: Anthropic;
 }
 
 /** Runs one turn; the caller holds the lock and releases it afterwards. Never throws. */
@@ -132,7 +130,7 @@ export async function runDashboardTurn(opts: DashboardTurnOptions): Promise<void
   const turn = newTurnState();
 
   await runChat({
-    client: opts.client,
+    provider: opts.provider,
     host: { ...opts.host, mode: { kind: 'dashboard', dashboardId }, turn },
     context: opts.context,
     messages,
