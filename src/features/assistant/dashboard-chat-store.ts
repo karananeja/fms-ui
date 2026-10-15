@@ -300,6 +300,8 @@ export class DashboardChatStore {
         }));
       case 'dashboard_changed':
         this.update(id, (m) => ({
+          // The running mutating tool's chip takes the past-tense label ("Updated widget: …").
+          tools: relabelRunning(m.tools, e.label),
           change: {
             id: e.changeId,
             summary: e.summary,
@@ -359,7 +361,11 @@ export class DashboardChatStore {
     this.update(id, (m) => ({
       status,
       error,
-      tools: m.tools.map((t) => (t.ok === null ? { ...t, ok: false } : t)),
+      // Once the turn is stored, its saved chips (final labels + Undo) replace the live ones.
+      tools:
+        status === 'done' && m.chips.length > 0
+          ? []
+          : m.tools.map((t) => (t.ok === null ? { ...t, ok: false } : t)),
     }));
     if (error?.code === 'not_configured') this.set({ notConfigured: true });
   }
@@ -395,4 +401,12 @@ export class DashboardChatStore {
     this.state = { ...this.state, ...patch };
     for (const l of this.listeners) l();
   }
+}
+
+function relabelRunning<T extends { ok: boolean | null; label: string }>(
+  tools: readonly T[],
+  label: string,
+): readonly T[] {
+  const i = tools.findLastIndex((t) => t.ok === null);
+  return i < 0 ? tools : tools.map((t, j) => (j === i ? { ...t, label } : t));
 }

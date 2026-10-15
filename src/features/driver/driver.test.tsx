@@ -8,7 +8,7 @@ import { MyVehicleCard } from './components/my-vehicle-card';
 import { ReportWizard } from './components/report-wizard';
 import { groupIncidents, incidentSteps, incidentSummary, orderIncidents } from './driver-model';
 import { DriverStore } from './driver-store';
-import { appendPhrase, type RecognitionLike } from './use-dictation';
+import { appendPhrase, type RecognitionLike } from '@/shared/hooks/use-dictation';
 
 const NOW = Date.now();
 const req = (over: Partial<DriverRequest> = {}): DriverRequest => ({

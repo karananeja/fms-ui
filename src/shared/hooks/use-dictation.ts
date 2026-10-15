@@ -32,15 +32,15 @@ export const DICTATION_LANGS = [
 export type DictationLang = (typeof DICTATION_LANGS)[number]['id'];
 
 const ERRORS: Record<string, string> = {
-  'not-allowed': 'Allow the microphone to speak your note.',
-  'service-not-allowed': 'Allow the microphone to speak your note.',
+  'not-allowed': 'Allow the microphone to use voice input.',
+  'service-not-allowed': 'Allow the microphone to use voice input.',
   'no-speech': 'Didn’t hear anything. Try again.',
   'audio-capture': 'No microphone found.',
   network: 'Voice needs a network connection.',
 };
 
 /**
- * F13 / D-110: speech-to-text for the problem note. `onText(final)` gets each finished phrase;
+ * F13 / D-110: speech-to-text (driver problem note, assistant chat). `onText(final)` gets each finished phrase;
  * `interim` holds the words still being recognised. Stops by itself after a pause.
  */
 export function useDictation(
@@ -104,7 +104,7 @@ export function useDictation(
   return { supported: create !== null, listening, interim, error, start, stop };
 }
 
-/** Appends a dictated phrase to the note with one space, capitalising a new sentence. */
+/** Appends a dictated phrase to the text with one space, capitalising a new sentence. */
 export function appendPhrase(note: string, phrase: string): string {
   if (!phrase) return note;
   const base = note.trimEnd();
