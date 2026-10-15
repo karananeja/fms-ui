@@ -432,3 +432,9 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Assistant:** Signed off the DS3/F18/F19/F20 intents, accepted D-112…D-116, committed the docs to `main`, and started the DS3 and F18 specs in parallel.
 
 **Status/Next:** waiting for spec sign-off for DS3 and F18.
+
+**Assistant:** Specs drafted by two agents: DS3 (tests DS3-T1…T11) and F18 (tests F18-T1…T11). Proposed decision IDs clashed, so F18's were renumbered to D-119…D-121. Asked 10 questions, each with a recommendation.
+
+**User:** "approved" (all recommendations).
+
+**Assistant:** Signed off both specs with the resolved answers, accepted D-117…D-121, and started the DS3 ∥ F18 implementation on `feature/part3-ds3-f18`.
