@@ -179,6 +179,7 @@ describe('F24-T2 earlier turns never change; per-request context only in the lat
       change: null,
       previews: [],
       createdAt: seq,
+      outcome: 'done',
     });
     const thread = [m(1, 'user', 'q1'), m(2, 'assistant', 'a1'), m(3, 'user', 'q2')];
     const t2 = threadToMessages(thread, '<context>A</context>', '<dashboard>v1</dashboard>');

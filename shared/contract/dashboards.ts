@@ -529,6 +529,9 @@ export type UpdatePreviewBody = z.infer<typeof updatePreviewBodySchema>;
 export const PREVIEWS_PER_MESSAGE_MAX = 30;
 
 export const threadRoleSchema = z.enum(['user', 'assistant']);
+export const THREAD_OUTCOMES = ['done', 'error', 'interrupted', 'stopped'] as const;
+export const threadOutcomeSchema = z.enum(THREAD_OUTCOMES);
+export type ThreadOutcome = z.infer<typeof threadOutcomeSchema>;
 export const threadMessageSchema = z.object({
   id: z.string(),
   seq: z.number().int().min(1),
@@ -539,6 +542,13 @@ export const threadMessageSchema = z.object({
   /** D-135: widget previews made in this (assistant) message. */
   previews: z.array(widgetPreviewSchema).default([]),
   createdAt: epochMsSchema,
+  /**
+   * D-155: how the turn of this (assistant) message ended. `interrupted` = the client went away,
+   * the provider stream was cut or the turn timed out; `stopped` = the user pressed Stop.
+   */
+  outcome: threadOutcomeSchema.default('done'),
+  /** D-155: the chat error code of an `error` / `interrupted` turn (e.g. `refusal`, `timeout`). */
+  errorCode: z.string().max(40).optional(),
 });
 export type ThreadMessage = z.infer<typeof threadMessageSchema>;
 
@@ -555,6 +565,8 @@ export const appendMessageSchema = z.strictObject({
   chips: z.array(toolChipSchema).max(50).default([]),
   changeId: z.string().optional(),
   previews: z.array(widgetPreviewSchema).max(PREVIEWS_PER_MESSAGE_MAX).default([]),
+  outcome: threadOutcomeSchema.default('done'),
+  errorCode: z.string().max(40).optional(),
 });
 export type AppendMessage = z.input<typeof appendMessageSchema>;
 

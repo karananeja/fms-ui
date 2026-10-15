@@ -35,6 +35,8 @@ export const END_REASONS: readonly EndReason[] = [
   'provider-cut',
 ];
 
+export type AbortReason = 'timeout' | 'client' | 'stop';
+
 /** How a run ended (F19: the dashboard chat stores the answer before the final event). */
 export interface RunOutcome {
   /** The streamed answer text (plus any iteration note). */
@@ -58,8 +60,11 @@ export interface RunOptions {
   messages?: ChatMessage[];
   emit: (event: ChatEvent) => void;
   signal: AbortSignal;
-  /** Why `signal` fired: the 60 s timeout, or the client closing the connection. */
-  abortReason: () => 'timeout' | 'client' | undefined;
+  /**
+   * Why `signal` fired: the 60 s timeout, the client closing the connection, or (D-155) the
+   * user's Stop on the dashboard chat (`POST …/chat/stop`), which ends like a client abort.
+   */
+  abortReason: () => AbortReason | undefined;
   log: (msg: string, data?: object) => void;
   maxIterations?: number;
   /**
@@ -175,7 +180,7 @@ export async function runChat(opts: RunOptions): Promise<RunOutcome> {
     emit({ type: 'done', stopReason, usage });
   } catch (err) {
     const reason = opts.abortReason();
-    if (reason === 'client') {
+    if (reason === 'client' || reason === 'stop') {
       log('assistant run cancelled by the client', { provider: provider.name });
       await finish({ text: answer, status: 'client', turn, endReason: 'client-abort' });
       return final;

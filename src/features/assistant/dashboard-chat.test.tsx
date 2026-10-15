@@ -80,6 +80,7 @@ const msg = (
   change: null,
   previews: [],
   createdAt: seq,
+  outcome: 'done',
   ...over,
 });
 const changedEvent = (version: number): ChatEvent => ({
@@ -119,6 +120,7 @@ function fakeRest(threads: ThreadMessage[][]) {
     if (path.endsWith('/thread'))
       return { messages: threads.length > 1 ? threads.shift()! : threads[0]! };
     if (path.includes('/undo')) return undoResult(path, req);
+    if (path.endsWith('/chat/stop')) return undefined;
     throw new Error(`unexpected ${path}`);
   });
   let undoResult: (path: string, req?: unknown) => unknown = () => dashboard({ version: 3 });
@@ -240,6 +242,10 @@ describe('F19-T9 DashboardChatStore', () => {
     store.send('build it');
     store.stop();
     await act(async () => {});
+    // D-155: the server is told first (stored as `stopped`), then the stream is aborted.
+    expect(rest.calls.some(([p, r]) => p.endsWith('/chat/stop') && r?.method === 'POST')).toBe(
+      true,
+    );
     expect(fake.calls[0]!.signal.aborted).toBe(true);
     expect(store.getSnapshot().streaming).toBe(false);
     expect(rest.calls.filter(([p]) => p.endsWith('/thread')).length).toBe(2);
@@ -286,7 +292,7 @@ describe('F19-T9 components', () => {
       ]),
       history: createMemoryHistory({ initialEntries: ['/'] }),
     });
-    render(
+    return render(
       <SessionContext value={session}>
         <RouterProvider router={router} />
       </SessionContext>,
@@ -352,5 +358,94 @@ describe('F19-T9 components', () => {
     expect(screen.getByTestId('dashboard-link-card')).toHaveTextContent('Fleet overview');
     expect(bus).toHaveBeenCalledWith({ kind: 'created', dashboardId: 'dash-9' });
     off();
+  });
+
+  it.each([
+    ['error', 'busy', 'error'],
+    ['interrupted', 'timeout', 'interrupted'],
+    ['stopped', undefined, 'stopped'],
+  ] as const)(
+    'D-155: a stored %s turn shows Retry after a fresh load',
+    async (outcome, errorCode, status) => {
+      const rest = fakeRest([
+        [msg(1, 'user'), msg(2, 'assistant', { outcome, ...(errorCode ? { errorCode } : {}) })],
+      ]);
+      await renderWith(
+        <DashboardChatDepsContext value={{ api: rest.api, stream: fakeStream().stream }}>
+          <Harness onUndo={() => {}} />
+        </DashboardChatDepsContext>,
+      );
+      expect(await screen.findByTestId('assistant-retry')).toBeInTheDocument();
+      expect(screen.getByTestId('assistant-message')).toHaveAttribute('data-status', status);
+      if (outcome === 'error')
+        expect(screen.getByTestId('assistant-error')).toHaveAttribute('data-code', 'busy');
+    },
+  );
+
+  it('D-155: the global panel keeps Retry when closed and reopened', async () => {
+    const transport: ChatTransport = () => Promise.reject(new ChatHttpError(500, 'busy', 'x'));
+    const store = new AssistantStore({ transport });
+    const panel = () => (
+      <AssistantStoreContext value={store}>
+        <AssistantPanel onClose={() => {}} />
+      </AssistantStoreContext>
+    );
+    const first = await renderWith(panel());
+    await screen.findByRole('textbox', { name: 'Message the assistant' });
+    await act(async () => store.send('Which vehicles have no GPS?'));
+    expect(await screen.findByTestId('assistant-retry')).toBeInTheDocument();
+    first.unmount();
+    await renderWith(panel());
+    expect(await screen.findByTestId('assistant-retry')).toBeInTheDocument();
+    expect(screen.getAllByTestId('user-message')).toHaveLength(1);
+  });
+});
+
+describe('D-155 DashboardChatStore retry after a reload', () => {
+  it('sends retryOf, keeps one user message, and folds the stored reply in place', async () => {
+    const failed = msg(2, 'assistant', { outcome: 'interrupted', text: 'Part' });
+    const rest = fakeRest([[msg(1, 'user', { text: 'add a kpi' }), failed]]);
+    const fake = fakeStream();
+    const store = new DashboardChatStore('dash-1', {}, { api: rest.api, stream: fake.stream });
+    await store.load();
+    expect(store.getSnapshot().messages.at(-1)!.status).toBe('interrupted');
+    store.retry();
+    expect(fake.calls[0]!.body).toEqual({ message: 'add a kpi', retryOf: 'msg-2' });
+    expect(store.getSnapshot().messages.map((m) => [m.role, m.status])).toEqual([
+      ['user', 'done'],
+      ['assistant', 'streaming'],
+    ]);
+    await fake.emit(
+      { type: 'text', delta: 'Done.' },
+      {
+        type: 'thread_saved',
+        messages: [msg(1, 'user', { text: 'add a kpi' }), msg(2, 'assistant', { text: 'Done.' })],
+      },
+      { type: 'done', stopReason: 'end_turn' },
+    );
+    await fake.end();
+    const s = store.getSnapshot();
+    expect(s.messages.map((m) => [m.id, m.status])).toEqual([
+      ['msg-1', 'done'],
+      ['msg-2', 'done'],
+    ]);
+  });
+
+  it('a 409 not_retryable reloads the thread instead of asking twice', async () => {
+    const rest = fakeRest([
+      [msg(1, 'user'), msg(2, 'assistant', { outcome: 'error', errorCode: 'failed' })],
+      [msg(1, 'user'), msg(2, 'assistant')],
+    ]);
+    const fake = fakeStream();
+    const store = new DashboardChatStore('dash-1', {}, { api: rest.api, stream: fake.stream });
+    await store.load();
+    store.retry();
+    await fake.fail(new ChatHttpError(409, 'failed', 'Only the latest failed reply can be retried'));
+    await act(async () => {});
+    expect(fake.calls).toHaveLength(1);
+    expect(store.getSnapshot().messages.map((m) => [m.id, m.status])).toEqual([
+      ['msg-1', 'done'],
+      ['msg-2', 'done'],
+    ]);
   });
 });

@@ -246,7 +246,7 @@ describe('F19-T6 resume: transcript rebuilt from the thread', () => {
 });
 
 describe('F19-T7 errors keep what was done', () => {
-  it('client abort mid-turn: the change stays undoable, the answer is saved with "(stopped)"', async () => {
+  it('client abort mid-turn: the change stays undoable, the answer is saved "(interrupted)" (D-155)', async () => {
     const d = await newDashboard();
     await script({
       steps: [
@@ -262,7 +262,8 @@ describe('F19-T7 errors keep what was done', () => {
     await idle();
     const t = await thread(d.id);
     expect(t.messages).toHaveLength(2);
-    expect(t.messages[1]!.text).toMatch(/\(stopped\)$/);
+    expect(t.messages[1]!.text).toMatch(/\(interrupted\)$/);
+    expect(t.messages[1]!.outcome).toBe('interrupted');
     expect(t.messages[1]!.change).toMatchObject({ undoable: true });
     expect((await getDash(d.id)).title).toBe('Mid turn');
   });

@@ -340,4 +340,16 @@ CREATE TABLE dashboard_activity (
 CREATE INDEX dashboard_activity_dash ON dashboard_activity (dashboard_id, at DESC);
 `,
   },
+  {
+    version: 11,
+    name: 'dashboard_message_outcome',
+    // D-155: how a dashboard-chat turn ended, kept on its assistant message so Retry survives a
+    // reload (existing rows are 'done').
+    sql: `
+ALTER TABLE dashboard_messages
+  ADD COLUMN outcome TEXT NOT NULL DEFAULT 'done'
+  CHECK (outcome IN ('done','error','interrupted','stopped'));
+ALTER TABLE dashboard_messages ADD COLUMN error_code TEXT;
+`,
+  },
 ];

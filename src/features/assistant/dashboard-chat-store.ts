@@ -1,4 +1,9 @@
-import { CHAT_MAX_CHARS, type ChatEvent, type DashboardLink } from '@shared/contract/assistant.ts';
+import {
+  CHAT_ERROR_CODES,
+  CHAT_MAX_CHARS,
+  type ChatEvent,
+  type DashboardLink,
+} from '@shared/contract/assistant.ts';
 import type {
   ChangeSet,
   Dashboard,
@@ -10,8 +15,8 @@ import type {
   WidgetPreviewStatus,
 } from '@shared/contract/dashboards.ts';
 import { ApiError, apiFetch, type ApiRequest } from '@/shared/api/api-client';
-import type { ChatError, ToolCall } from './assistant-store.ts';
-import { ChatHttpError, isInterruption, streamSse } from './chat-stream.ts';
+import { ERROR_TEXT, type ChatError, type ToolCall } from './assistant-store.ts';
+import { ChatHttpError, isInterruption, streamSse, type ChatErrorCode } from './chat-stream.ts';
 import { dashboardEvents } from './dashboard-events.ts';
 
 export type DashboardChangedEvent = Extract<ChatEvent, { type: 'dashboard_changed' }>;
@@ -90,20 +95,36 @@ const initial: DashboardChatState = {
   restore: null,
 };
 
-const fromThread = (m: ThreadMessage): DashboardChatMessage => ({
-  id: m.id,
-  seq: m.seq,
-  role: m.role,
-  text: m.text,
-  chips: m.chips,
-  change: m.change,
-  createdAt: m.createdAt,
-  tools: [],
-  dashboards: [],
-  previews: m.previews ?? [],
-  status: 'done',
-  error: null,
-});
+const errorCode = (code: string | undefined): ChatErrorCode =>
+  (CHAT_ERROR_CODES as readonly string[]).includes(code ?? '')
+    ? (code as ChatErrorCode)
+    : 'failed';
+
+/** D-155: a stored message; its turn's outcome gives the status (Retry after a reload). */
+const fromThread = (m: ThreadMessage): DashboardChatMessage => {
+  const outcome = m.role === 'assistant' ? (m.outcome ?? 'done') : 'done';
+  const code = errorCode(m.errorCode);
+  return {
+    id: m.id,
+    seq: m.seq,
+    role: m.role,
+    text: m.text,
+    chips: m.chips,
+    change: m.change,
+    createdAt: m.createdAt,
+    tools: [],
+    dashboards: [],
+    previews: m.previews ?? [],
+    status: outcome,
+    error: outcome === 'error' ? { code, message: ERROR_TEXT[code] } : null,
+  };
+};
+
+const RETRYABLE: ReadonlySet<DashboardChatMessage['status']> = new Set([
+  'error',
+  'interrupted',
+  'stopped',
+]);
 
 /**
  * F19 §7: the chat of one dashboard (main thread, F17-R6 style). The server thread is the
@@ -211,15 +232,44 @@ export class DashboardChatStore {
     void this.run(user.id, message);
   }
 
-  /** Aborts the stream; the server still saves what the turn did. */
+  /**
+   * D-155: asks the server to stop the turn (`POST …/chat/stop`, stored as `stopped` and answered
+   * once saved), then aborts the stream; the server still saves what the turn did.
+   */
   stop(): void {
-    this.controller?.abort();
+    const controller = this.controller;
+    if (!controller || this.stopping === controller) return;
+    this.stopping = controller;
+    void this.api(`${this.base}/chat/stop`, { method: 'POST' })
+      .catch(() => {})
+      .finally(() => controller.abort());
   }
 
-  /** Sends the last user text again as a new turn. */
+  private stopping: AbortController | null = null;
+
+  /**
+   * Re-runs the last turn. D-155: when its stored reply failed (also after a reload), the server
+   * re-runs that turn in place (`retryOf`: no second user message); else the last user text is
+   * sent again as a new turn.
+   */
   retry(): void {
-    if (this.state.streaming) return;
-    const last = [...this.state.messages].reverse().find((m) => m.role === 'user');
+    if (this.state.streaming || this.disposed) return;
+    const msgs = this.state.messages;
+    const failed = msgs.at(-1);
+    const user = msgs.at(-2);
+    if (
+      failed?.role === 'assistant' &&
+      failed.seq !== null &&
+      RETRYABLE.has(failed.status) &&
+      user?.role === 'user' &&
+      user.seq !== null
+    ) {
+      this.loadController?.abort();
+      this.set({ messages: msgs.slice(0, -1), notice: null, restore: null });
+      void this.run(user.id, user.text, failed.id);
+      return;
+    }
+    const last = [...msgs].reverse().find((m) => m.role === 'user');
     if (last) this.send(last.text);
   }
 
@@ -324,7 +374,7 @@ export class DashboardChatStore {
     this.listeners.clear();
   }
 
-  private async run(userId: string, message: string): Promise<void> {
+  private async run(userId: string, message: string, retryOf?: string): Promise<void> {
     const answer: DashboardChatMessage = { ...this.blank('assistant'), status: 'streaming' };
     const id = answer.id;
     const controller = new AbortController();
@@ -334,27 +384,48 @@ export class DashboardChatStore {
     this.set({ messages: [...this.state.messages, answer], streaming: true });
     let ended = false;
     let cut = false;
+    let stopped = false;
     const onEvent = (e: ChatEvent) => {
       if (this.controller !== controller || ended) return;
       if (e.type === 'error' || e.type === 'done') ended = true;
       this.apply(userId, id, e);
     };
     try {
-      await this.stream(`${this.base}/chat`, { message }, onEvent, controller.signal);
+      const body = retryOf ? { message, retryOf } : { message };
+      await this.stream(`${this.base}/chat`, body, onEvent, controller.signal);
       if (this.controller !== controller) return;
-      if (!ended) cut = true;
+      // D-155: after Stop the server ends the stream (no `done`); that is not a cut.
+      if (!ended) {
+        if (this.stopping === controller) {
+          stopped = true;
+          this.finish(id, 'stopped', null);
+        } else cut = true;
+      }
     } catch (err) {
       if (this.controller !== controller) return;
       if (controller.signal.aborted) {
+        stopped = true;
         this.finish(id, 'stopped', null);
       } else if (isInterruption(err)) {
         cut = true;
+      } else if (
+        retryOf &&
+        err instanceof ChatHttpError &&
+        err.status === 409 &&
+        err.code !== 'chat_busy'
+      ) {
+        // D-155: 409 `not_retryable`: that turn is no longer the latest failed one (e.g. it did
+        // finish on the server); the reload below shows the stored thread.
+        this.set({ messages: this.state.messages.filter((m) => m.id !== id) });
       } else if (err instanceof ChatHttpError && err.code === 'chat_busy') {
         // F27 (D-154): someone else's turn is running: a notice, not an error bubble.
         this.set({
-          messages: this.state.messages.filter((m) => m.id !== userId && m.id !== id),
+          // A retry's user message is stored: keep it (and reload the failed reply below).
+          messages: this.state.messages.filter(
+            (m) => m.id !== id && (retryOf !== undefined || m.id !== userId),
+          ),
           notice: err.message,
-          restore: message,
+          restore: retryOf ? null : message,
         });
       } else {
         const http = err instanceof ChatHttpError ? err : null;
@@ -377,9 +448,12 @@ export class DashboardChatStore {
           };
         }
         this.controller = null;
+        if (this.stopping === controller) this.stopping = null;
         this.set({ streaming: false });
         // A stop or a cut: the server saved what the turn did; pick it up (changes stay undoable).
-        if ((controller.signal.aborted || cut) && !this.disposed) void this.load();
+        // D-155: so does a refused retry (the failed reply comes back from the thread).
+        const reload = stopped || cut || controller.signal.aborted || (!!retryOf && !ended);
+        if (reload && !this.disposed) void this.load();
       }
     }
   }

@@ -35,6 +35,7 @@ import {
   type ShareAccess,
   type ShareCandidate,
   type ThreadMessage,
+  type ThreadOutcome,
   type ToolChip,
   type UpdateDashboardBody,
   type User,
@@ -129,7 +130,11 @@ interface MessageRow {
   change_id: string | null;
   previews_json: string;
   created_at: number;
+  outcome: ThreadOutcome;
+  error_code: string | null;
 }
+const MESSAGE_COLUMNS =
+  'id, seq, role, text, chips, change_id, previews_json, created_at, outcome, error_code';
 
 const draftSchema = z.strictObject({
   title: z.string(),
@@ -508,7 +513,7 @@ export class Dashboards {
     const changes = this.changeSets(row, userId);
     const rows = this.db
       .prepare(
-        'SELECT id, seq, role, text, chips, change_id, previews_json, created_at FROM dashboard_messages WHERE dashboard_id = ? AND user_id = ? ORDER BY seq',
+        `SELECT ${MESSAGE_COLUMNS} FROM dashboard_messages WHERE dashboard_id = ? AND user_id = ? ORDER BY seq`,
       )
       .all(id, userId) as unknown as MessageRow[];
     return { messages: rows.map((m) => this.toMessage(m, changes)) };
@@ -536,10 +541,12 @@ export class Dashboards {
         change_id: input.changeId ?? null,
         previews_json: JSON.stringify(input.previews satisfies WidgetPreview[]),
         created_at: this.clock.now(),
+        outcome: input.outcome,
+        error_code: input.errorCode ?? null,
       };
       this.db
         .prepare(
-          'INSERT INTO dashboard_messages (id, dashboard_id, seq, role, text, chips, change_id, previews_json, created_at, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO dashboard_messages (id, dashboard_id, seq, role, text, chips, change_id, previews_json, created_at, user_id, outcome, error_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run(
           message.id,
@@ -552,6 +559,8 @@ export class Dashboards {
           message.previews_json,
           message.created_at,
           userId,
+          message.outcome,
+          message.error_code,
         );
       this.db
         .prepare(
@@ -561,6 +570,59 @@ export class Dashboards {
         )
         .run(id, userId, id, userId, THREAD_MESSAGES_MAX);
       return this.toMessage(message, this.changeSets(row, userId));
+    });
+  }
+
+  /**
+   * D-155: the turn a retry re-runs: `assistantId` must be the last message of the caller's
+   * thread, end other than `done` and follow a user message; else 409 `not_retryable`.
+   */
+  retryTurn(
+    userId: string,
+    id: string,
+    assistantId: string,
+  ): { user: ThreadMessage; failed: ThreadMessage } {
+    const [user, failed] = this.thread(userId, id).messages.slice(-2);
+    if (
+      !user ||
+      !failed ||
+      failed.id !== assistantId ||
+      failed.role !== 'assistant' ||
+      failed.outcome === 'done' ||
+      user.role !== 'user'
+    )
+      throw new HttpError(409, 'not_retryable', 'Only the latest failed reply can be retried');
+    return { user, failed };
+  }
+
+  /** D-155: overwrites a stored assistant message in place (same id and seq) with a retry's reply. */
+  replaceMessage(userId: string, id: string, messageId: string, msg: AppendMessage): ThreadMessage {
+    const input = parse(appendMessageSchema, msg);
+    return transaction(this.db, () => {
+      const row = this.requireEditable(userId, id);
+      if (input.changeId && !this.changeRow(id, input.changeId))
+        throw new HttpError(422, 'validation_failed', `Unknown change ${input.changeId}`);
+      const res = this.db
+        .prepare(
+          "UPDATE dashboard_messages SET text = ?, chips = ?, change_id = ?, previews_json = ?, outcome = ?, error_code = ?, created_at = ? WHERE id = ? AND dashboard_id = ? AND user_id = ? AND role = 'assistant'",
+        )
+        .run(
+          input.text,
+          JSON.stringify(input.chips satisfies ToolChip[]),
+          input.changeId ?? null,
+          JSON.stringify(input.previews satisfies WidgetPreview[]),
+          input.outcome,
+          input.errorCode ?? null,
+          this.clock.now(),
+          messageId,
+          id,
+          userId,
+        );
+      if (Number(res.changes) === 0) throw new HttpError(404, 'not_found', 'Message not found');
+      const stored = this.db
+        .prepare(`SELECT ${MESSAGE_COLUMNS} FROM dashboard_messages WHERE id = ?`)
+        .get(messageId) as unknown as MessageRow;
+      return this.toMessage(stored, this.changeSets(row, userId));
     });
   }
 
@@ -1082,6 +1144,8 @@ export class Dashboards {
       change: (m.change_id && changes.get(m.change_id)) || null,
       previews: JSON.parse(m.previews_json || '[]') as WidgetPreview[],
       createdAt: m.created_at,
+      outcome: m.outcome ?? 'done',
+      ...(m.error_code ? { errorCode: m.error_code } : {}),
     };
   }
 }

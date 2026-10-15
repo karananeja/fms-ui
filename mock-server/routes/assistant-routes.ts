@@ -32,6 +32,7 @@ import {
   chatCacheKey,
   END_REASONS,
   runChat,
+  type AbortReason,
   type EndReason,
 } from '../assistant/assistant-runner.ts';
 import { runDashboardTurn, storedText, takeChatLock } from '../assistant/dashboard-chat.ts';
@@ -46,7 +47,9 @@ import { HttpError } from '../http-error.ts';
  * F17 assistant (registered without a prefix):
  * - `POST /api/chat` (`chat.use`): SSE, one JSON `ChatEvent` per `data:` line.
  * - `POST /api/dashboards/:id/chat` (`chat.use` + `dashboards.use`, owner or editor; F19/F27): SSE,
- *   one turn of that dashboard's chat (409 `chat_busy` while another turn runs on it).
+ *   one turn of that dashboard's chat (409 `chat_busy` while another turn runs on it). D-155:
+ *   `retryOf` re-runs the caller's latest failed turn (409 `not_retryable` otherwise).
+ * - `POST /api/dashboards/:id/chat/stop` (D-155): the user's Stop; the turn is stored `stopped`.
  * - `GET /api/chat/reports/:id`: a generated report, only for the user who created it.
  * - Fake mode / dev: `POST /__fake-anthropic/v1/messages` (fake Messages API),
  *   `POST /__fake-openai/v1/chat/completions` (fake chat-completions API, F21),
@@ -170,7 +173,7 @@ export async function assistantRoutes(app: FastifyInstance) {
   /** Timeout + client-close abort wiring and the provider for one run. */
   function runSetup(env: Env, res: FastifyReply['raw'], timeoutMs: number) {
     const controller = new AbortController();
-    let abortReason: 'timeout' | 'client' | undefined;
+    let abortReason: AbortReason | undefined;
     const timer = setTimeout(() => {
       abortReason = 'timeout';
       controller.abort();
@@ -186,8 +189,17 @@ export async function assistantRoutes(app: FastifyInstance) {
       signal: controller.signal,
       abortReason: () => abortReason,
       clear: () => clearTimeout(timer),
+      /** D-155: the user's Stop (dashboard chat): ends like a client abort, stored as `stopped`. */
+      stop: () => {
+        if (abortReason) return;
+        abortReason = 'stop';
+        controller.abort();
+      },
     };
   }
+
+  /** D-155: the running dashboard-chat turn per dashboard (one at a time, see the lock). */
+  const running = new Map<string, { userId: string; stop: () => void; done: Promise<void> }>();
 
   function hostFor(user: User, permissions: readonly Permission[], sid: string) {
     return {
@@ -283,7 +295,7 @@ export async function assistantRoutes(app: FastifyInstance) {
     const dashboard = ctx.dashboards.get(user.id, dashboardId);
     if (dashboard.access === 'viewer')
       throw new HttpError(403, 'forbidden', 'You can only view this dashboard');
-    const { message } = parse(dashboardChatRequestSchema, req.body);
+    const { message, retryOf } = parse(dashboardChatRequestSchema, req.body);
     const sid = req.cookies[SESSION_COOKIE]!;
     const env = envFor(user.id);
     const started = Date.now();
@@ -295,14 +307,28 @@ export async function assistantRoutes(app: FastifyInstance) {
       return;
     }
     const release = takeChatLock(ctx, dashboardId, { userId: user.id, name: user.name });
+    let retry: ReturnType<typeof ctx.dashboards.retryTurn> | undefined;
+    try {
+      // D-155: 409 `not_retryable` unless it is the caller's latest turn and it did not end `done`.
+      if (retryOf) retry = ctx.dashboards.retryTurn(user.id, dashboardId, retryOf);
+    } catch (err) {
+      release();
+      throw err;
+    }
     let run: ReturnType<typeof runSetup> | undefined;
     let res: FastifyReply['raw'] | undefined;
     let endReason: EndReason = 'error';
+    let finished = () => {};
     activeRuns++;
     try {
       const stream = openStream(reply);
       res = stream.res;
       run = runSetup(env, res, DASHBOARD_CHAT_TIMEOUT_MS);
+      running.set(dashboardId, {
+        userId: user.id,
+        stop: run.stop,
+        done: new Promise<void>((r) => (finished = r)),
+      });
       const outcome = await runDashboardTurn({
         ctx,
         provider: run.provider,
@@ -310,6 +336,7 @@ export async function assistantRoutes(app: FastifyInstance) {
         context: contextFor(user, permissions),
         dashboardId,
         text: message,
+        retry,
         emit: stream.emit,
         signal: run.signal,
         abortReason: run.abortReason,
@@ -329,11 +356,32 @@ export async function assistantRoutes(app: FastifyInstance) {
         );
     } finally {
       activeRuns--;
+      running.delete(dashboardId);
       release();
       run?.clear();
       if (res && !res.writableEnded) res.end();
       if (res) streamEnded('dashboard', endReason, started);
+      finished();
     }
+  });
+
+  /**
+   * D-155: the user's Stop on the dashboard chat. Aborts the caller's running turn there (stored
+   * as `stopped`, the stream ends after `thread_saved`) and answers once it is saved (≤ 5 s).
+   * 204 also when nothing of the caller's is running.
+   */
+  app.post<{ Params: { id: string } }>('/api/dashboards/:id/chat/stop', async (req, reply) => {
+    const { user } = authorize(ctx, req, 'chat.use');
+    authorize(ctx, req, 'dashboards.use');
+    ctx.dashboards.get(user.id, req.params.id);
+    const run = running.get(req.params.id);
+    if (run && run.userId === user.id) {
+      run.stop();
+      let timer: NodeJS.Timeout | undefined;
+      await Promise.race([run.done, new Promise<void>((r) => (timer = setTimeout(r, 5000)))]);
+      clearTimeout(timer);
+    }
+    return reply.code(204).send();
   });
 
   app.get<{ Params: { id: string } }>('/api/chat/reports/:id', async (req, reply) => {

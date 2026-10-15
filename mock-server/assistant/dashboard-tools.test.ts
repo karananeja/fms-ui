@@ -177,6 +177,7 @@ describe('F19-T2 prompt and caching', () => {
           : null,
       previews: [],
       createdAt: 0,
+      outcome: 'done' as const,
     });
     const msgs = threadToMessages(
       [m(1, 'user', 'q1'), m(2, 'assistant', 'a1'), m(3, 'user', 'q2')],

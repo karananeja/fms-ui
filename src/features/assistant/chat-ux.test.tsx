@@ -117,7 +117,8 @@ describe('F23-T2 dashboard chat: Interrupted', () => {
     expect(last).toMatchObject({ id: 'msg-4', status: 'interrupted', text: 'Adding' });
     expect(last.change?.undoable).toBe(true);
     t.store.retry();
-    expect(t.bodies.at(-1)).toEqual({ message: 'add a kpi' });
+    // D-155: the stored turn is re-run in place (no second user message).
+    expect(t.bodies.at(-1)).toEqual({ message: 'add a kpi', retryOf: 'msg-4' });
   });
 
   it('keeps the local pair when the server did not store the turn', async () => {
