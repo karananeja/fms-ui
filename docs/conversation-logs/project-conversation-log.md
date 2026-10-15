@@ -504,3 +504,15 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "why is feature catalog not updated?" → it had fallen behind after the F23–F26 rows were removed during the revert; updated for F22–F27, snapshots and the sheet fix.
 
 **Status/Next:** the Retry-after-return fix (D-155) is in progress; then one full check + e2e and UAT of F22–F27 on `feature/f22-persist-admin-data`.
+
+## 2026-10-16: Resume, D-155 wrap-up and the full run
+
+**User:** "Resume the existing project…" (recover the state from the docs and git, continue from where the work stopped).
+
+**Assistant:** Found the D-155 Retry fix and the layout overflow fixes done but uncommitted; targeted tests green (vitest 81/81, e2e D-155 3/3, overflow + analytics 7/7). Committed them separately on `feature/f22-persist-admin-data`. The full `pnpm check` found the new overflow e2e spec using DOM globals the e2e tsconfig lacks; typed it the way the other specs do.
+
+**User:** "i dont see the retry option in one of the dashboards i have" → cause: replies saved before migration v11 were all marked `done` (the "Untitled dashboard" turn failed at 00:05 with "assistant is not set up correctly"). Added migration v12 that backfills the outcome from the stored note (`(error: …)` → error, `(stopped)` → interrupted); the dev mock applied it (1 error, 3 interrupted). Reload shows Retry.
+
+**Full run:** `pnpm check` 1242/1244: F11-T3 (known time-of-day flake) and `widget-query.perf` under load (passes alone); typecheck and lint clean; build clean. e2e chromium 114 passed, 17 skipped (screenshot tests), 0 failed.
+
+**Status/Next:** F22–F27, D-142 snapshots, D-155 and the layout fixes are ready for UAT on `feature/f22-persist-admin-data`; proposed decisions D-136…D-155 await approval. Grok smoke test still to be done by the user. After "approved": merge `--no-ff` into `main` and delete the branch.
