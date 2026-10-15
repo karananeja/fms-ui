@@ -379,29 +379,53 @@ export class Dashboards {
   }
 
   /**
-   * One assistant turn in one transaction: snapshot, `mutate(draft)`, validate + normalise,
-   * write `version + 1` and one change set. Throws 409 `version_conflict` on a stale version.
+   * One assistant tool call in one transaction: snapshot, `mutate(draft)`, validate + normalise,
+   * write `version + 1` and record a change set. Throws 409 `version_conflict` on a stale version.
+   *
+   * F19 §6 `extend`: when that change set is still the latest, not undone and nothing was written
+   * after it (`version === after_version`), it is extended (new `after_version` and `summary`,
+   * same `before` snapshot) instead of inserting a new one. `summary` may be a function of
+   * whether it extends.
    */
   applyTurn(
     ownerId: string,
     id: string,
     expectedVersion: number,
-    summary: string,
+    summary: string | ((extending: boolean) => string),
     mutate: (draft: DashboardDraft) => void,
-  ): { dashboard: Dashboard; change: ChangeSet } {
+    opts: { extend?: string } = {},
+  ): { dashboard: Dashboard; change: ChangeSet; extended: boolean } {
     return transaction(this.db, () => {
       const row = this.requireOwned(ownerId, id);
       this.requireVersion(row, expectedVersion);
+      const prior = opts.extend ? this.changeRow(id, opts.extend) : undefined;
+      const extending =
+        !!prior &&
+        prior.id === this.latestChangeId(id) &&
+        prior.undone_at === null &&
+        row.version === prior.after_version;
+      const text = (typeof summary === 'function' ? summary(extending) : summary).slice(0, 500);
       const before = this.content(row);
       const draft: DashboardDraft = structuredClone(before);
       mutate(draft);
       const parsed = parse(draftSchema, draft);
       const content = this.commitContent(ownerId, before.widgets, parsed);
       const dashboard = this.write(row, content);
+      if (extending) {
+        const change: ChangeRow = { ...prior, summary: text, after_version: dashboard.version };
+        this.db
+          .prepare('UPDATE dashboard_changes SET summary = ?, after_version = ? WHERE id = ?')
+          .run(change.summary, change.after_version, change.id);
+        return {
+          dashboard,
+          change: this.toChange(change, change.id, dashboard.version),
+          extended: true,
+        };
+      }
       const change: ChangeRow = {
         id: `chg-${randomUUID()}`,
         dashboard_id: id,
-        summary: summary.slice(0, 500),
+        summary: text,
         before: JSON.stringify(before),
         before_version: row.version,
         after_version: dashboard.version,
@@ -428,7 +452,11 @@ export class Dashboards {
              ORDER BY created_at DESC, rowid DESC LIMIT ?)`,
         )
         .run(id, id, CHANGE_SETS_KEPT);
-      return { dashboard, change: this.toChange(change, change.id, dashboard.version) };
+      return {
+        dashboard,
+        change: this.toChange(change, change.id, dashboard.version),
+        extended: false,
+      };
     });
   }
 

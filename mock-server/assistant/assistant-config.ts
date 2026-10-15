@@ -16,6 +16,9 @@ export const ASSISTANT_EFFORT = 'medium' as const;
 export const ASSISTANT_MAX_TOKENS = 16_000;
 export const ASSISTANT_MAX_ITERATIONS = 8;
 export const ASSISTANT_TIMEOUT_MS = 60_000;
+/** F19 §8: the dashboard chat gets more steps and time per turn than the global chat. */
+export const DASHBOARD_CHAT_MAX_ITERATIONS = 12;
+export const DASHBOARD_CHAT_TIMEOUT_MS = 90_000;
 /** Server-side refusal fallback (`fallbacks: "default"`). */
 export const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 /** Path prefix of the fake Messages API (the SDK appends `/v1/messages`). */

@@ -152,12 +152,7 @@ export function buildReport(ctx: MockContext, user: User, req: ReportRequest): R
       const yn = (b: boolean) => (b ? 'Yes' : 'No');
       for (let i = 0; i < sim.count; i++) {
         if (!mask[sim.fleet[i]!]) continue;
-        const insight = noGpsInsight(
-          sim,
-          i,
-          now,
-          requests.openBreakdown(sim.vehicleId(i))?.reason,
-        );
+        const insight = noGpsInsight(sim, i, now, requests.openBreakdown(sim.vehicleId(i))?.reason);
         if (!insight) continue;
         rows.push([
           sim.regno(i),

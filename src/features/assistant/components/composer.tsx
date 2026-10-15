@@ -9,9 +9,15 @@ export function Composer({
   disabled = false,
   onSend,
   onStop,
+  placeholder = 'Ask about vehicles, drivers or reports…',
+  autoFocus = true,
 }: {
   streaming: boolean;
   disabled?: boolean;
+  /** F19: the dashboard chat asks for changes instead. */
+  placeholder?: string;
+  /** F19: the docked chat on a dashboard page does not grab focus on load. */
+  autoFocus?: boolean;
   onSend(text: string): void;
   onStop(): void;
 }) {
@@ -44,13 +50,13 @@ export function Composer({
         ref={ref}
         rows={2}
         // The sheet opens straight into typing.
-        autoFocus
+        autoFocus={autoFocus}
         value={text}
         maxLength={CHAT_MAX_CHARS}
         disabled={disabled}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={onKeyDown}
-        placeholder="Ask about vehicles, drivers or reports…"
+        placeholder={placeholder}
         aria-label="Message the assistant"
         className="max-h-40 min-h-10 flex-1 resize-none rounded-tile border border-tile-border bg-tile px-3 py-2 text-sm text-text outline-none placeholder:text-text-faint focus-visible:border-accent/60 disabled:opacity-50"
       />

@@ -3,10 +3,12 @@ import {
   CHAT_MAX_TURNS,
   type ChatEvent,
   type ChatTurn,
+  type DashboardLink,
   type EntityRef,
   type ReportDescriptor,
 } from '@shared/contract/assistant.ts';
 import { sessionStore, type SessionState } from '@/features/auth/session/session-store';
+import { dashboardEvents } from './dashboard-events.ts';
 import {
   ChatHttpError,
   httpChatTransport,
@@ -41,6 +43,8 @@ export interface AssistantMessage {
   tools: readonly ToolCall[];
   reports: readonly ReportDescriptor[];
   entities: readonly EntityRef[];
+  /** F19: dashboards created in this answer (shown as "Open dashboard" cards). */
+  dashboards?: readonly DashboardLink[];
   status: 'streaming' | 'done' | 'stopped' | 'error';
   error: ChatError | null;
 }
@@ -73,6 +77,7 @@ export const ERROR_TEXT: Record<ChatErrorCode, string> = {
   refusal: "I can't help with that.",
   timeout: 'That took too long. Try again or ask a narrower question.',
   failed: 'Something went wrong. Try again.',
+  chat_busy: 'Another reply is in progress on this dashboard',
 };
 
 /** Shown when the panel is empty. */
@@ -236,6 +241,11 @@ export class AssistantStore {
         }));
       case 'entities':
         return this.update(id, (m) => ({ entities: [...m.entities, ...e.items] }));
+      case 'dashboard_created':
+        dashboardEvents.emit({ kind: 'created', dashboardId: e.dashboard.id });
+        return this.update(id, (m) => ({
+          dashboards: [...(m.dashboards ?? []), { summary: e.dashboard, url: e.url }],
+        }));
       case 'error':
         return this.finish(id, 'error', { code: e.code, message: e.message });
       case 'done':

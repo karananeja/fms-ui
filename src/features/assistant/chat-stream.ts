@@ -72,15 +72,29 @@ export class SseParser {
   }
 }
 
-/** F17-R2: `POST /api/chat` with the session cookie, read as Server-Sent Events. */
-export const httpChatTransport: ChatTransport = async (req, onEvent, signal) => {
+/** User-facing text for pre-stream statuses that have their own copy. */
+const STATUS_TEXT: Partial<Record<ChatErrorCode, string>> = {
+  chat_busy: 'Another reply is in progress on this dashboard',
+};
+
+/**
+ * `POST url` with a JSON body and the session cookie, read as Server-Sent Events (one
+ * `ChatEvent` per `data:` line). Pre-stream failures throw `ChatHttpError`; an abort rejects
+ * with the fetch `AbortError`. Shared by the F17 global chat and the F19 dashboard chat.
+ */
+export async function streamSse(
+  url: string,
+  body: unknown,
+  onEvent: (e: ChatEvent) => void,
+  signal: AbortSignal,
+): Promise<void> {
   let res: Response;
   try {
-    res = await fetch('/api/chat', {
+    res = await fetch(url, {
       method: 'POST',
       credentials: 'include',
       headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
-      body: JSON.stringify(req),
+      body: JSON.stringify(body),
       signal,
     });
   } catch (err) {
@@ -88,14 +102,15 @@ export const httpChatTransport: ChatTransport = async (req, onEvent, signal) => 
     throw new ChatHttpError(0, 'failed', "Couldn't reach the server");
   }
   if (!res.ok || !res.body) {
-    const body = (await res.json().catch(() => null)) as {
+    const json = (await res.json().catch(() => null)) as {
       error?: { code?: unknown; message?: string };
     } | null;
-    const code = body?.error?.code;
+    const raw = json?.error?.code;
+    const code = isCode(raw) ? raw : res.status === 429 || res.status >= 500 ? 'busy' : 'failed';
     throw new ChatHttpError(
       res.status,
-      isCode(code) ? code : res.status === 429 || res.status >= 500 ? 'busy' : 'failed',
-      body?.error?.message ?? `HTTP ${res.status}`,
+      code,
+      STATUS_TEXT[code] ?? json?.error?.message ?? `HTTP ${res.status}`,
     );
   }
   const parser = new SseParser(onEvent);
@@ -106,4 +121,8 @@ export const httpChatTransport: ChatTransport = async (req, onEvent, signal) => 
     parser.push(value);
   }
   parser.end();
-};
+}
+
+/** F17-R2: `POST /api/chat` with the session cookie, read as Server-Sent Events. */
+export const httpChatTransport: ChatTransport = (req, onEvent, signal) =>
+  streamSse('/api/chat', req, onEvent, signal);

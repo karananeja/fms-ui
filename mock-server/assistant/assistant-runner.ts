@@ -9,6 +9,7 @@ import {
   FALLBACK_BETA,
 } from './assistant-config.ts';
 import { buildTools, type ToolHost } from './assistant-tools.ts';
+import { newTurnState, type TurnState } from './tool-kit.ts';
 import { SYSTEM_PROMPT, userContext, type UserContext } from './system-prompt.ts';
 
 /**
@@ -17,17 +18,36 @@ import { SYSTEM_PROMPT, userContext, type UserContext } from './system-prompt.ts
  * with exactly one `done` or `error` event (none if the client went away).
  */
 
+/** How a run ended (F19: the dashboard chat stores the answer before the final event). */
+export interface RunOutcome {
+  /** The streamed answer text (plus any iteration note). */
+  text: string;
+  /** `client`: the caller went away (nothing more is emitted). */
+  status: 'done' | 'error' | 'client';
+  error?: { code: Extract<ChatEvent, { type: 'error' }>['code']; message: string };
+  stopReason?: string;
+  turn: TurnState;
+}
+
 export interface RunOptions {
   client: Anthropic;
   host: Omit<ToolHost, 'emit' | 'entities'>;
   context: UserContext;
-  turns: ChatTurn[];
+  /** The client transcript (F17), or … */
+  turns?: ChatTurn[];
+  /** … prebuilt API messages (F19 dashboard chat, built from the stored thread). */
+  messages?: BetaMessageParam[];
   emit: (event: ChatEvent) => void;
   signal: AbortSignal;
   /** Why `signal` fired: the 60 s timeout, or the client closing the connection. */
   abortReason: () => 'timeout' | 'client' | undefined;
   log: (msg: string, data?: object) => void;
   maxIterations?: number;
+  /**
+   * Called once when the run ends, before the final `done` / `error` event (also on a client
+   * abort, when no event follows). Awaited.
+   */
+  onFinish?: (outcome: RunOutcome) => void | Promise<void>;
 }
 
 export const REFUSAL_MESSAGE =
@@ -70,8 +90,14 @@ export function requestPrefix() {
 export async function runChat(opts: RunOptions): Promise<void> {
   const { client, emit, signal, log } = opts;
   const entities: ToolHost['entities'] = new Map();
-  const tools = buildTools({ ...opts.host, emit, entities });
-  const usage = { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, cacheCreationInputTokens: 0 };
+  const turn = opts.host.turn ?? newTurnState();
+  const tools = buildTools({ ...opts.host, turn, emit, entities });
+  const usage = {
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadInputTokens: 0,
+    cacheCreationInputTokens: 0,
+  };
   const maxIterations = opts.maxIterations ?? ASSISTANT_MAX_ITERATIONS;
   let answer = '';
   let last: BetaMessage | undefined;
@@ -83,7 +109,7 @@ export async function runChat(opts: RunOptions): Promise<void> {
       {
         ...requestPrefix(),
         tools,
-        messages: toApiMessages(opts.turns, opts.context),
+        messages: opts.messages ?? toApiMessages(opts.turns ?? [], opts.context),
         max_iterations: maxIterations,
         stream: true,
       },
@@ -105,7 +131,7 @@ export async function runChat(opts: RunOptions): Promise<void> {
     if (!last) throw new Error('no message');
     // stop_reason before content: a final refusal (after any fallback) ends with an error.
     if (last.stop_reason === 'refusal') {
-      emit({ type: 'error', code: 'refusal', message: REFUSAL_MESSAGE });
+      await fail('refusal', REFUSAL_MESSAGE);
       return;
     }
     let stopReason: string = last.stop_reason ?? 'end_turn';
@@ -118,15 +144,17 @@ export async function runChat(opts: RunOptions): Promise<void> {
     }
     const mentioned = [...entities.values()].filter((e) => answer.includes(e.label));
     if (mentioned.length) emit({ type: 'entities', items: mentioned });
+    await finish({ text: answer, status: 'done', stopReason, turn });
     emit({ type: 'done', stopReason, usage });
   } catch (err) {
     const reason = opts.abortReason();
     if (reason === 'client') {
       log('assistant run cancelled by the client', { iterations });
+      await finish({ text: answer, status: 'client', turn });
       return;
     }
     if (reason === 'timeout' || err instanceof Anthropic.APIConnectionTimeoutError) {
-      emit({ type: 'error', code: 'timeout', message: 'The assistant took too long. Try again.' });
+      await fail('timeout', 'The assistant took too long. Try again.');
       return;
     }
     if (
@@ -136,17 +164,27 @@ export async function runChat(opts: RunOptions): Promise<void> {
       (err instanceof Anthropic.APIError && (err.status ?? 0) >= 500)
     ) {
       log('assistant busy', { status: err instanceof Anthropic.APIError ? err.status : undefined });
-      emit({ type: 'error', code: 'busy', message: BUSY_MESSAGE });
+      await fail('busy', BUSY_MESSAGE);
       return;
     }
     log('assistant run failed', { error: err instanceof Error ? err.message : String(err) });
-    emit({
-      type: 'error',
-      code: 'failed',
-      message:
-        err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError
-          ? 'The assistant is not set up correctly. Ask an administrator.'
-          : 'Something went wrong. Try again.',
-    });
+    await fail(
+      'failed',
+      err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError
+        ? 'The assistant is not set up correctly. Ask an administrator.'
+        : 'Something went wrong. Try again.',
+    );
+  }
+
+  async function finish(outcome: RunOutcome) {
+    try {
+      await opts.onFinish?.(outcome);
+    } catch (err) {
+      log('assistant onFinish failed', { error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  async function fail(code: NonNullable<RunOutcome['error']>['code'], message: string) {
+    await finish({ text: answer, status: 'error', error: { code, message }, turn });
+    emit({ type: 'error', code, message });
   }
 }

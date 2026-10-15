@@ -1,5 +1,12 @@
 import { z } from 'zod';
 import { epochMsSchema } from './common.ts';
+import {
+  dashboardSchema,
+  dashboardSummarySchema,
+  threadMessageSchema,
+  widgetSchema,
+  type WidgetInput,
+} from './dashboards.ts';
 
 /**
  * F17 fleet assistant: `POST /api/chat` takes the whole transcript (text only, ≤ 30 turns, oldest
@@ -67,7 +74,15 @@ export const entityRefSchema = z.object({
 });
 export type EntityRef = z.infer<typeof entityRefSchema>;
 
-export const CHAT_ERROR_CODES = ['not_configured', 'busy', 'refusal', 'timeout', 'failed'] as const;
+/** `chat_busy` is pre-stream only (409: a turn is already running on that dashboard, F19). */
+export const CHAT_ERROR_CODES = [
+  'not_configured',
+  'busy',
+  'refusal',
+  'timeout',
+  'failed',
+  'chat_busy',
+] as const;
 
 export const chatEventSchema = z.discriminatedUnion('type', [
   /** Streamed answer text. */
@@ -85,6 +100,26 @@ export const chatEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('entities'), items: z.array(entityRefSchema) }),
   /** Ends the stream (no `done` follows). */
   z.object({ type: z.literal('error'), code: z.enum(CHAT_ERROR_CODES), message: z.string() }),
+  /** F19: after every successful mutating dashboard tool call; `dashboard` is the full new state. */
+  z.object({
+    type: z.literal('dashboard_changed'),
+    dashboardId: z.string(),
+    changeId: z.string(),
+    version: z.number().int().min(1),
+    /** Chip text, e.g. "Added widget: Top idle vehicles". */
+    label: z.string(),
+    /** The turn's change summary so far. */
+    summary: z.string(),
+    dashboard: dashboardSchema,
+  }),
+  /** F19: `create_dashboard` succeeded (both chats). */
+  z.object({
+    type: z.literal('dashboard_created'),
+    dashboard: dashboardSummarySchema,
+    url: z.string(),
+  }),
+  /** F19 dashboard chat only: the stored user + assistant messages of this turn. */
+  z.object({ type: z.literal('thread_saved'), messages: z.array(threadMessageSchema) }),
   z.object({
     type: z.literal('done'),
     stopReason: z.string(),
@@ -99,3 +134,58 @@ export const chatEventSchema = z.discriminatedUnion('type', [
   }),
 ]);
 export type ChatEvent = z.infer<typeof chatEventSchema>;
+
+// ---- F19 dashboard chat ----
+
+/** Mutating dashboard tool calls per turn (F19 §8). */
+export const DASHBOARD_CHAT_MAX_MUTATIONS = 30;
+/** F19 §3 tools that change a dashboard (their chips get the change style and Undo). */
+export const DASHBOARD_MUTATING_TOOLS = [
+  'add_widget',
+  'arrange_widgets',
+  'remove_widget',
+  'rename_dashboard',
+  'update_widget',
+] as const;
+export const isDashboardMutatingTool = (name: string) =>
+  (DASHBOARD_MUTATING_TOOLS as readonly string[]).includes(name);
+
+/** Chips stored per assistant message. */
+export const CHAT_CHIPS_MAX = 50;
+
+/** `POST /api/dashboards/:id/chat`: only the new message; the server keeps the thread. */
+export const dashboardChatRequestSchema = z.strictObject({
+  message: z.string().trim().min(1).max(CHAT_MAX_CHARS),
+});
+export type DashboardChatRequest = z.infer<typeof dashboardChatRequestSchema>;
+
+/** A dashboard created from a chat answer, with its page URL (`/dashboards/<id>`). */
+export interface DashboardLink {
+  summary: z.infer<typeof dashboardSummarySchema>;
+  url: string;
+}
+
+/** A catalogue widget as the assistant writes it: no `id` (assigned by the server). */
+export type WidgetToolInput = WidgetInput extends infer W
+  ? W extends unknown
+    ? Omit<W, 'id'>
+    : never
+  : never;
+
+function withoutId(schema: z.ZodType): z.ZodType {
+  if (schema instanceof z.ZodDiscriminatedUnion) {
+    const options = (schema.options as z.ZodType[]).map(withoutId);
+    return z.discriminatedUnion(
+      schema.def.discriminator,
+      options as unknown as [z.ZodObject, ...z.ZodObject[]],
+    );
+  }
+  if (schema instanceof z.ZodObject) return schema.omit({ id: true });
+  return schema;
+}
+
+/**
+ * F19 §3 `widgetToolInput`: the F18 catalogue without `id`. Reference fields (`fleetId`,
+ * `fleetIds`, `vehicleId`, `driverId`) may hold names/regnos; the tools resolve them to ids.
+ */
+export const widgetToolInputSchema = withoutId(widgetSchema) as z.ZodType<WidgetToolInput>;

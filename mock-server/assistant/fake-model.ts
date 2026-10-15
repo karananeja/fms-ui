@@ -33,7 +33,9 @@ export type FakeStep = z.infer<typeof fakeStepSchema>;
 
 /** `POST /api/dev/assistant/script`: a built-in script by name, or explicit steps. */
 export const fakeScriptBodySchema = z.union([
-  z.object({ name: z.enum(['refusal', 'busy', 'loop', 'slow', 'failed']) }),
+  z.object({
+    name: z.enum(['refusal', 'busy', 'loop', 'slow', 'failed', 'dash-invalid', 'dash-many']),
+  }),
   /** Steps are played in order; the last step repeats if the conversation goes on. */
   z.object({ steps: z.array(fakeStepSchema).min(1).max(20) }),
 ]);
@@ -45,6 +47,22 @@ const BUILTIN: Record<string, FakeStep[]> = {
   failed: [{ error: 400 }],
   /** Always calls a tool: exercises the 8-iteration cap. */
   loop: [{ tools: [{ name: 'find_vehicles', input: { limit: 1 } }] }],
+  /** F19: a widget outside the catalogue → tool error → an apologetic answer. */
+  'dash-invalid': [
+    {
+      tools: [
+        {
+          name: 'add_widget',
+          input: { widget: { type: 'iframe', title: 'Embedded page', url: 'https://example.com' } },
+        },
+      ],
+    },
+    {
+      text: "Sorry, I can't add that: dashboards only support the built-in widget types. ({{result}})",
+    },
+  ],
+  /** F19: always calls a tool: exercises the 12-step cap of the dashboard chat. */
+  'dash-many': [{ tools: [{ name: 'get_dashboard', input: {} }] }],
   /** A long, slow answer: exercises Stop / abort. */
   slow: [
     {
@@ -71,13 +89,17 @@ const DRIVER_NAME = /driver\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/;
  * - anything else → a plain text answer.
  * After the tool step, the answer is written from the tool results.
  */
-export function ruleScript(question: string): { key: string; steps: FakeStep[] } {
+export function ruleScript(raw: string): { key: string; steps: FakeStep[] } {
+  const dash = parseDashboardBlock(raw);
+  const question = stripBlocks(raw);
   const q = question.toLowerCase();
-  const named = /\[fake:([a-z]+)\]/.exec(q)?.[1];
+  const named = /\[fake:([a-z-]+)\]/.exec(q)?.[1];
   if (named && BUILTIN[named]) return { key: named, steps: BUILTIN[named] };
   const tool = (name: string, input: Record<string, unknown>): FakeStep[] => [
     { tools: [{ name, input }] },
   ];
+  const dashSteps = dashboardRule(question, dash);
+  if (dashSteps) return { key: 'auto', steps: dashSteps };
   if (/\b(export|report|csv|pdf|download)\b/.test(q)) {
     const kind = /no.?gps/.test(q)
       ? 'no-gps'
@@ -94,7 +116,8 @@ export function ruleScript(question: string): { key: string; steps: FakeStep[] }
     };
   }
   const regno = REGNO.exec(question)?.[1];
-  if (regno) return { key: 'auto', steps: tool('get_vehicle', { regno: regno.replace(/\s/g, '') }) };
+  if (regno)
+    return { key: 'auto', steps: tool('get_vehicle', { regno: regno.replace(/\s/g, '') }) };
   const prefix = REGNO_PREFIX.exec(question)?.[1];
   if (prefix) return { key: 'auto', steps: tool('find_vehicles', { query: prefix, limit: 5 }) };
   if (/driver/.test(q)) {
@@ -116,6 +139,121 @@ export function ruleScript(question: string): { key: string; steps: FakeStep[] }
       },
     ],
   };
+}
+
+// ---- F19 dashboard rules (D-126) ----
+
+interface FakeWidget {
+  id: string;
+  type: string;
+  title: string;
+  settings: Record<string, unknown>;
+}
+
+/** The `<dashboard>` block of the latest user turn (dashboard chat), if any. */
+function parseDashboardBlock(text: string): { id: string; widgets: FakeWidget[] } | undefined {
+  const m = /<dashboard>\s*([\s\S]*?)\s*<\/dashboard>/.exec(text);
+  if (!m) return undefined;
+  try {
+    return JSON.parse(m[1]!) as { id: string; widgets: FakeWidget[] };
+  } catch {
+    return undefined;
+  }
+}
+
+const stripBlocks = (text: string) =>
+  text
+    .replace(/<context>[\s\S]*?<\/context>/g, '')
+    .replace(/<dashboard>[\s\S]*?<\/dashboard>/g, '')
+    .trim();
+
+/** The three widgets the fake builds ("running vs stopped and top idle vehicles"). */
+export const FAKE_DASHBOARD_WIDGETS = [
+  { type: 'kpi', title: 'Running vehicles', source: 'live', status: 'running' },
+  { type: 'status-breakdown', title: 'Running vs stopped', display: 'donut' },
+  {
+    type: 'ranking',
+    title: 'Top idle vehicles',
+    entity: 'vehicles',
+    metric: 'idleMs',
+    order: 'desc',
+    limit: 10,
+    range: '7d',
+  },
+];
+
+const STOP_WORDS = new Set(['remove', 'delete', 'widget', 'the', 'and', 'from', 'this', 'please']);
+
+/**
+ * Dashboard rules, checked before the F17 rules: in a dashboard chat (a `<dashboard>` block),
+ * rename / remove / arrange / "30 days" / add a note / build; in the global chat,
+ * build|create|make … dashboard → `create_dashboard`.
+ */
+function dashboardRule(
+  question: string,
+  dash: { id: string; widgets: FakeWidget[] } | undefined,
+): FakeStep[] | undefined {
+  const q = question.toLowerCase();
+  const step = (...tools: { name: string; input: Record<string, unknown> }[]): FakeStep[] => [
+    { tools },
+  ];
+  if (!dash) {
+    if (/\bdashboards?\b/.test(q) && /\b(build|create|make)\b/.test(q))
+      return step({
+        name: 'create_dashboard',
+        input: { title: 'Fleet overview', widgets: FAKE_DASHBOARD_WIDGETS },
+      });
+    return undefined;
+  }
+  const widgets = dash.widgets;
+  const rename = /\brename\b[\s\S]*?\bto\s+["“']([^"”']+)["”']/i.exec(question);
+  if (rename) return step({ name: 'rename_dashboard', input: { title: rename[1]!.trim() } });
+  if (/\b(remove|delete)\b/.test(q) && widgets.length) {
+    const words = new Set(q.split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !STOP_WORDS.has(w)));
+    // The widget whose title shares the most words with the question, else the last one.
+    let hit = widgets.at(-1)!;
+    let best = 0;
+    for (const w of widgets) {
+      const score = w.title
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter((t) => words.has(t)).length;
+      if (score > best) [hit, best] = [w, score];
+    }
+    return step({ name: 'remove_widget', input: { widgetIds: [hit.id] } });
+  }
+  if (/\b(arrange|rearrange|reorder)\b/.test(q) && widgets.length)
+    return step({
+      name: 'arrange_widgets',
+      input: { order: widgets.map((w) => w.id).reverse() },
+    });
+  if (/\b(change|update|make)\b/.test(q) && /\b30\s*(days?|d)\b/.test(q)) {
+    const ranking = widgets.find((w) => w.type === 'ranking');
+    if (ranking)
+      return step({
+        name: 'update_widget',
+        input: {
+          widgetId: ranking.id,
+          widget: { type: ranking.type, title: ranking.title, ...ranking.settings, range: '30d' },
+        },
+      });
+  }
+  if (/\badd\b/.test(q) && /\b(note|text)\b/.test(q))
+    return step({
+      name: 'add_widget',
+      input: { widget: { type: 'text', title: 'Note', body: 'Check the no-GPS vehicles first.' } },
+    });
+  if (/\b(build|add)\b/.test(q)) {
+    if (!widgets.length)
+      return step(
+        ...FAKE_DASHBOARD_WIDGETS.map((widget) => ({ name: 'add_widget', input: { widget } })),
+      );
+    return step({
+      name: 'add_widget',
+      input: { widget: { type: 'kpi', title: 'All vehicles', source: 'live', status: 'total' } },
+    });
+  }
+  return undefined;
 }
 
 // ---- answers written from tool results (built-in rules) ----
@@ -178,7 +316,9 @@ function answerOne(o: ToolOutcome): string {
       if (!items.length) return 'No drivers match that.';
       return [
         `You have ${String(r.total)} matching drivers. The first ${Math.min(5, items.length)}:`,
-        ...items.slice(0, 5).map((d) => `- ${d.name}${d.currentVehicle ? ` (${d.currentVehicle})` : ''}`),
+        ...items
+          .slice(0, 5)
+          .map((d) => `- ${d.name}${d.currentVehicle ? ` (${d.currentVehicle})` : ''}`),
       ].join('\n');
     }
     case 'create_report':
@@ -187,6 +327,26 @@ function answerOne(o: ToolOutcome): string {
       return `There are ${String(r.total)} requests. By status: ${Object.entries(r.byStatus as Json)
         .map(([k, v]) => `${k} ${String(v)}`)
         .join(', ')}.`;
+    case 'create_dashboard': {
+      const ws = r.widgets as unknown[];
+      return `I created **${String(o.input.title)}** with ${ws.length} widgets. [Open it](${String(r.url)})`;
+    }
+    case 'get_dashboard':
+      return r.title !== undefined
+        ? `**${String(r.title)}** has ${(r.widgets as unknown[]).length} widgets.`
+        : `Done: ${o.content.slice(0, 200)}`;
+    case 'add_widget':
+      return `Added **${String((o.input.widget as Json | undefined)?.title)}**.`;
+    case 'update_widget':
+      return `Updated **${String((o.input.widget as Json | undefined)?.title)}**.`;
+    case 'remove_widget': {
+      const n = (r.removed as unknown[]).length;
+      return `Removed ${n} widget${n === 1 ? '' : 's'}.`;
+    }
+    case 'arrange_widgets':
+      return 'Rearranged the widgets.';
+    case 'rename_dashboard':
+      return `Renamed the dashboard to **${String(r.title)}**.`;
     case 'fleet_summary':
       return `Across ${String(r.vehicles)} vehicles from ${String(r.from)} to ${String(r.to)}: ${String(r.distanceKm)} km driven, uptime ${String(r.uptimePct)} %, ${String(r.breakdowns)} breakdowns.`;
     default:
@@ -216,9 +376,7 @@ const blocks = (m: WireMessage): WireBlock[] =>
 const isQuestion = (m: WireMessage) =>
   m.role === 'user' && !blocks(m).some((b) => b.type === 'tool_result');
 const resultText = (b: WireBlock) =>
-  typeof b.content === 'string'
-    ? b.content
-    : (b.content ?? []).map((c) => c.text ?? '').join('');
+  typeof b.content === 'string' ? b.content : (b.content ?? []).map((c) => c.text ?? '').join('');
 
 // ---- SSE writer ----
 
@@ -241,7 +399,10 @@ export function registerFakeModel(app: FastifyInstance) {
 
   app.post(`${FAKE_MODEL_PATH}/v1/messages`, async (req, reply) => {
     stats.requests++;
-    stats.lastRequest = { beta: req.headers['anthropic-beta'] as string | undefined, body: req.body };
+    stats.lastRequest = {
+      beta: req.headers['anthropic-beta'] as string | undefined,
+      body: req.body,
+    };
     const body = req.body as { messages?: WireMessage[] };
     const messages = body.messages ?? [];
     let start = messages.length - 1;
@@ -291,7 +452,10 @@ export function registerFakeModel(app: FastifyInstance) {
     if (key === 'auto' && step >= steps.length) current = { text: answerFrom(outcomes) };
     else current = steps[Math.min(step, steps.length - 1)] ?? { text: '' };
     if ('text' in current && !('tools' in current) && !('refusal' in current))
-      current = { ...current, text: current.text.replace('{{result}}', outcomes[0]?.content ?? '') };
+      current = {
+        ...current,
+        text: current.text.replace('{{result}}', outcomes[0]?.content ?? ''),
+      };
 
     if ('error' in current) {
       const type =
@@ -353,7 +517,7 @@ export function registerFakeModel(app: FastifyInstance) {
         index,
         content_block: { type: 'text', text: '' },
       });
-      const parts = delayMs > 0 ? text.split(/(?<= )/) : text.match(/[\s\S]{1,24}/g) ?? [];
+      const parts = delayMs > 0 ? text.split(/(?<= )/) : (text.match(/[\s\S]{1,24}/g) ?? []);
       for (const part of parts) {
         if (closed) return;
         send('content_block_delta', {

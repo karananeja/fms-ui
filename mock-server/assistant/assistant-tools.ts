@@ -9,21 +9,15 @@ import {
   REQUEST_TYPES,
   type AnalyticsSeries,
   type AnalyticsSummary,
-  type ChatEvent,
   type Driver,
   type DriverRequest,
-  type EntityRef,
   type Kpis,
   type NoGpsInsight,
-  type Permission,
-  type User,
 } from '@shared/contract/index.ts';
 import { VEHICLE_STATUSES, type VehicleStatus } from '@shared/domain/vehicle-status.ts';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import type { MockContext } from '../context.ts';
 import { DAY_MS, istDay, istDayStart } from '../generator/history-sim.ts';
-import type { VehicleSim } from '../generator/vehicle-sim.ts';
 import {
   buildReport,
   formatIst,
@@ -34,8 +28,24 @@ import {
   STATUS_LABEL,
   toCsv,
   toPdf,
-  type ReportStore,
 } from './reports.ts';
+import {
+  has,
+  newTurnState,
+  normRegno,
+  notFound,
+  notPermitted,
+  resolveFleet,
+  resolveVehicle,
+  spec,
+  ToolFailure,
+  type ToolHost,
+  type ToolSpec,
+} from './tool-kit.ts';
+
+import { DASHBOARD_SPECS } from './dashboard-tools.ts';
+
+export { ToolFailure, type ToolHost } from './tool-kit.ts';
 
 /**
  * F17 read-only tools (spec §3). Every tool runs as the signed-in user: REST routes are called
@@ -44,42 +54,6 @@ import {
  * for users without `drivers.manage`), the tool reads the same in-memory state behind the same
  * permission and scope checks the live-tracking / analytics routes use. Out-of-scope = not found.
  */
-
-/** A model-visible tool failure ("not found", "not permitted", bad input). */
-export class ToolFailure extends Error {
-  constructor(
-    message: string,
-    readonly kind: 'not_found' | 'not_permitted' | 'invalid' = 'invalid',
-  ) {
-    super(message);
-  }
-}
-const notFound = (what: string) =>
-  new ToolFailure(`${what} was not found among the data you can access.`, 'not_found');
-const notPermitted = (what: string) =>
-  new ToolFailure(`Not permitted: your role does not allow ${what}.`, 'not_permitted');
-
-export interface ApiResult {
-  status: number;
-  body: unknown;
-}
-
-/** What a tool run may touch: the caller, in-process API access and the event stream. */
-export interface ToolHost {
-  ctx: MockContext;
-  user: User;
-  permissions: readonly Permission[];
-  /** `GET` an API path in-process as the user (session cookie). */
-  api: (path: string) => Promise<ApiResult>;
-  reports: ReportStore;
-  emit: (event: ChatEvent) => void;
-  /** Vehicles/drivers seen in tool results, linked if their label shows up in the answer. */
-  entities: Map<string, EntityRef>;
-  logError: (err: unknown) => void;
-}
-
-const has = (host: ToolHost, ...perms: Permission[]) =>
-  perms.some((p) => host.permissions.includes(p));
 
 /** `GET` that maps 403 → not permitted, 404 → not found, other 4xx → invalid. */
 async function get<T>(host: ToolHost, path: string, what: string): Promise<T> {
@@ -99,45 +73,6 @@ const qs = (params: Record<string, string | number | undefined>) => {
   const s = p.toString();
   return s ? `?${s}` : '';
 };
-
-// ---- lookups ----
-
-const regnoIndex = new WeakMap<VehicleSim, Map<string, number>>();
-const normRegno = (s: string) => s.toUpperCase().replace(/[\s-]/g, '');
-
-function vehicleByRegno(sim: VehicleSim, regno: string): number {
-  let index = regnoIndex.get(sim);
-  if (!index) {
-    index = new Map();
-    for (let i = 0; i < sim.count; i++) index.set(sim.regno(i), i);
-    regnoIndex.set(sim, index);
-  }
-  return index.get(normRegno(regno)) ?? -1;
-}
-
-/** Vehicle index by regno or id, in the user's scope (out of scope = not found). */
-function resolveVehicle(host: ToolHost, ref: { regno?: string; vehicleId?: string }): number {
-  const { sim, tree } = host.ctx;
-  const label = ref.regno ?? ref.vehicleId;
-  if (!label) throw new ToolFailure('Give a regno or a vehicleId.');
-  const i =
-    ref.regno !== undefined ? vehicleByRegno(sim, ref.regno) : sim.indexOf(ref.vehicleId ?? '');
-  if (i < 0 || !tree.inScope(sim.fleetId(i), host.user.fleetIds))
-    throw notFound(`Vehicle ${label}`);
-  return i;
-}
-
-/** Fleet id by name or id, in the user's scope. */
-function resolveFleet(host: ToolHost, fleet: string | undefined): string | undefined {
-  if (fleet === undefined || fleet.trim() === '') return undefined;
-  const { tree } = host.ctx;
-  const q = fleet.trim().toLowerCase();
-  for (const node of tree.nodes) {
-    if (!node || (node.id.toLowerCase() !== q && node.name.toLowerCase() !== q)) continue;
-    if (tree.inScope(node.id, host.user.fleetIds)) return node.id;
-  }
-  throw notFound(`Fleet "${fleet}"`);
-}
 
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const parseDay = (s: string, field: string) => {
@@ -211,16 +146,6 @@ function statusCounts(host: ToolHost, fleetId: string | undefined) {
 const optionalDate = (what: string) =>
   z.string().describe(`${what} as an IST date, YYYY-MM-DD (inclusive).`).optional();
 
-interface ToolSpec<S extends z.ZodType> {
-  name: string;
-  description: string;
-  schema: S;
-  label: (input: z.infer<S>) => string;
-  run: (host: ToolHost, input: z.infer<S>) => Promise<{ result: unknown; summary: string }>;
-}
-
-const spec = <S extends z.ZodType>(s: ToolSpec<S>) => s;
-
 const findVehicles = spec({
   name: 'find_vehicles',
   description:
@@ -247,9 +172,7 @@ const findVehicles = spec({
       if (!mask[sim.fleet[i]!]) continue;
       if (q) {
         const m = sim.meta(i);
-        if (
-          ![m.regno, m.vin, m.vehicleId, m.deviceId].some((v) => normRegno(v).includes(q))
-        )
+        if (![m.regno, m.vin, m.vehicleId, m.deviceId].some((v) => normRegno(v).includes(q)))
           continue;
       }
       const status = sim.status(i, now);
@@ -523,7 +446,7 @@ function requestView(host: ToolHost, r: DriverRequest) {
 const listRequests = spec({
   name: 'list_requests',
   description:
-    'Driver requests (breakdown, replacement, RSA) in the user\'s fleets, newest first, filtered by type, status, fleet and creation date. Returns counts by type and status and up to 25 requests. Without dates it covers all requests.',
+    "Driver requests (breakdown, replacement, RSA) in the user's fleets, newest first, filtered by type, status, fleet and creation date. Returns counts by type and status and up to 25 requests. Without dates it covers all requests.",
   schema: z.object({
     type: z.enum(REQUEST_TYPES).optional(),
     status: z.enum(REQUEST_STATUSES).optional(),
@@ -592,7 +515,9 @@ const fleetSummary = spec({
     );
     return {
       result: {
-        fleet: fleetId ? fleetName(host, fleetId) : host.user.fleetIds.map((f) => fleetName(host, f)),
+        fleet: fleetId
+          ? fleetName(host, fleetId)
+          : host.user.fleetIds.map((f) => fleetName(host, f)),
         from: istDateOf(w.from),
         to: istDateOf(w.to - 1),
         vehicles: s.vehicleCount,
@@ -619,8 +544,7 @@ const createReport = spec({
   }),
   label: (i) => `Building the ${i.kind} report (${i.format.toUpperCase()})…`,
   async run(host, input) {
-    if (!has(host, REPORT_PERMISSION[input.kind]))
-      throw notPermitted(`the ${input.kind} report`);
+    if (!has(host, REPORT_PERMISSION[input.kind])) throw notPermitted(`the ${input.kind} report`);
     const fleetId = resolveFleet(host, input.fleet);
     const now = host.ctx.clock.now();
     const w = windowOf(now, input.from, input.to);
@@ -655,7 +579,7 @@ const createReport = spec({
   },
 });
 
-/** All tools, sorted by name (fixed order keeps the cached prefix stable). */
+/** All tools (F17 read tools + F19 dashboard tools), sorted by name: a fixed order keeps the cached prefix stable. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const SPECS: ToolSpec<any>[] = [
   createReport,
@@ -666,45 +590,113 @@ const SPECS: ToolSpec<any>[] = [
   getVehicle,
   listRequests,
   vehicleHistory,
+  ...DASHBOARD_SPECS,
 ].sort((a, b) => a.name.localeCompare(b.name));
 
 export const TOOL_NAMES = SPECS.map((s) => s.name);
 
-/** Runnable tools bound to one chat request. Definitions are identical for every user. */
+const CHIP_LABEL_MAX = 120;
+const clip = (s: string) => (s.length > CHIP_LABEL_MAX ? `${s.slice(0, CHIP_LABEL_MAX - 1)}…` : s);
+
+/** "widget.range: Invalid option: expected one of …" for each zod issue (≤ 5). */
+export function issuesText(error: z.ZodError): string {
+  return error.issues
+    .slice(0, 5)
+    .map((i) => `${i.path.length ? `${i.path.join('.')}: ` : ''}${i.message}`)
+    .join('; ');
+}
+
+/**
+ * A JSON schema the strict-tool grammar accepts: drops numeric/string length bounds, `pattern`,
+ * `maxItems` and `minItems > 1` (zod still validates them) and turns `oneOf` into `anyOf`.
+ */
+export function strictSafeSchema(schema: unknown): unknown {
+  if (Array.isArray(schema)) return schema.map(strictSafeSchema);
+  if (!schema || typeof schema !== 'object') return schema;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(schema as Record<string, unknown>)) {
+    if (
+      [
+        '$schema',
+        'minimum',
+        'maximum',
+        'exclusiveMinimum',
+        'exclusiveMaximum',
+        'multipleOf',
+        'minLength',
+        'maxLength',
+        'pattern',
+        'maxItems',
+      ].includes(k)
+    )
+      continue;
+    if (k === 'minItems' && typeof v === 'number' && v > 1) continue;
+    if (k === 'properties' && v && typeof v === 'object') {
+      out[k] = Object.fromEntries(
+        Object.entries(v as Record<string, unknown>).map(([p, sub]) => [p, strictSafeSchema(sub)]),
+      );
+      continue;
+    }
+    out[k === 'oneOf' ? 'anyOf' : k] = strictSafeSchema(v);
+  }
+  return out;
+}
+
+/** Runnable tools bound to one chat request. Definitions are identical for every user and chat. */
 export function buildTools(host: ToolHost): BetaRunnableTool[] {
+  const turn = (host.turn ??= newTurnState());
   return SPECS.map((s) => {
+    const record = (label: string, ok: boolean) => {
+      turn.chips.push({ tool: s.name, label: clip(label), status: ok ? 'ok' : 'error' });
+    };
     const tool = betaZodTool({
       name: s.name,
       description: s.description,
       inputSchema: s.schema,
-      run: async (input, context) => {
+      run: async (raw, context) => {
         const id = context?.toolUse.id ?? randomUUID();
-        host.emit({ type: 'tool_start', id, name: s.name, label: s.label(input) });
+        let label = s.name;
         try {
-          const { result, summary } = await s.run(host, input);
+          let input = raw;
+          if (s.validateInRun) {
+            const parsed = (s.schema as z.ZodType).safeParse(raw);
+            if (!parsed.success) {
+              host.emit({ type: 'tool_start', id, name: s.name, label: s.name });
+              throw new ToolFailure(`Invalid input: ${issuesText(parsed.error)}`);
+            }
+            input = parsed.data;
+          }
+          label = s.label(input);
+          host.emit({ type: 'tool_start', id, name: s.name, label });
+          const { result, summary, chip } = await s.run(host, input);
           host.emit({ type: 'tool_end', id, ok: true, summary });
+          record(chip ?? label, true);
           return JSON.stringify(result);
         } catch (err) {
           const failure =
             err instanceof ToolFailure ? err : new ToolFailure('The tool failed unexpectedly.');
           if (!(err instanceof ToolFailure)) host.logError(err);
-          host.emit({
-            type: 'tool_end',
-            id,
-            ok: false,
-            summary:
-              failure.kind === 'not_found'
-                ? 'Not found'
-                : failure.kind === 'not_permitted'
-                  ? 'Not permitted'
-                  : failure.message,
-          });
+          const short =
+            failure.kind === 'not_found'
+              ? 'Not found'
+              : failure.kind === 'not_permitted'
+                ? 'Not permitted'
+                : failure.message;
+          host.emit({ type: 'tool_end', id, ok: false, summary: short });
+          record(s.validateInRun ? failure.message : label, false);
           // The runner turns this into an `is_error` tool result; nothing reaches the user as a throw.
           throw new ToolError(failure.message);
         }
       },
     });
-    return { ...tool, strict: true };
+    if (!s.validateInRun) return { ...tool, strict: true };
+    return {
+      ...tool,
+      input_schema: strictSafeSchema((tool as { input_schema: unknown }).input_schema),
+      // Validated in `run`, so a bad widget reaches the model as an `is_error` result with paths.
+      parse: (args: unknown) => args,
+      strict: true,
+    } as BetaRunnableTool;
   });
 }
 

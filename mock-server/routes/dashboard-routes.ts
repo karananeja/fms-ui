@@ -7,6 +7,7 @@ import {
   updateDashboardBodySchema,
 } from '@shared/contract/index.ts';
 import type { FastifyInstance } from 'fastify';
+import { chatBusy, isChatRunning } from '../assistant/dashboard-chat.ts';
 import { authorize, parse } from '../context.ts';
 
 type IdParams = { Params: { id: string } };
@@ -77,6 +78,8 @@ export async function dashboardRoutes(app: FastifyInstance) {
     async (req) => {
       const user = auth(req);
       const { version } = parse(undoBodySchema, req.body);
+      // F19 D-124: no undo while an assistant turn runs on this dashboard.
+      if (isChatRunning(ctx, req.params.id)) throw chatBusy();
       return dashboards.undo(user.id, req.params.id, req.params.changeId, version);
     },
   );
