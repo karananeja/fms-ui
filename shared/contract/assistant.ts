@@ -161,6 +161,12 @@ export const CHAT_CHIPS_MAX = 50;
 /** `POST /api/dashboards/:id/chat`: only the new message; the server keeps the thread. */
 export const dashboardChatRequestSchema = z.strictObject({
   message: z.string().trim().min(1).max(CHAT_MAX_CHARS),
+  /**
+   * D-155: re-run the caller's latest turn whose assistant message (this id) did not end `done`.
+   * Its stored user message is reused (no duplicate) and the failed reply is replaced; 409
+   * `not_retryable` when it is not the latest turn of the caller's thread or it ended `done`.
+   */
+  retryOf: z.string().min(1).max(100).optional(),
 });
 export type DashboardChatRequest = z.infer<typeof dashboardChatRequestSchema>;
 

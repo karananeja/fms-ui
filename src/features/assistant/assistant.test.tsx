@@ -288,11 +288,17 @@ describe('F17-T5: panel', () => {
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
   });
 
-  it('a stream that ends without done is reported as cut off', async () => {
+  it('F23: a stream that ends without done is Interrupted (partial text kept, Retry)', async () => {
     const t = await renderPanel();
     await t.user.type(t.box, 'q{Enter}');
     await t.emit({ type: 'text', delta: 'Half' });
     await t.end();
-    expect(screen.getByTestId('assistant-error')).toHaveAttribute('data-code', 'failed');
+    const answer = screen.getByTestId('assistant-message');
+    expect(answer).toHaveAttribute('data-status', 'interrupted');
+    expect(answer).toHaveTextContent('Half');
+    expect(screen.getByTestId('assistant-interrupted')).toBeInTheDocument();
+    expect(screen.queryByTestId('assistant-error')).toBeNull();
+    await t.user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(t.requests.at(-1)?.messages).toEqual([{ role: 'user', content: 'q' }]);
   });
 });

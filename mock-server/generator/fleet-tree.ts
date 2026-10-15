@@ -1,4 +1,6 @@
 import { MAX_FLEET_DEPTH, type Fleet } from '@shared/contract/index.ts';
+import type { DatabaseSync, StatementSync } from 'node:sqlite';
+import { atomic } from '../db/database.ts';
 import { HttpError } from '../http-error.ts';
 import { REGIONS } from './catalogue.ts';
 
@@ -16,7 +18,30 @@ export interface FleetNode {
 const HUBS_PER_CITY = 3;
 const TEAMS_PER_HUB = 2;
 
-/** In-memory fleet tree. Nodes are addressed by a stable index; deleted slots become `null`. */
+interface FleetRow {
+  idx: number;
+  id: string;
+  parent_idx: number;
+  name: string;
+  depth: number;
+  city: number;
+  region: number;
+}
+
+/** Vehicle placement the tree needs to rebuild `direct[]` on hydrate (a `VehicleSim`). */
+export interface FleetPlacement {
+  readonly count: number;
+  readonly fleet: Uint32Array;
+  indexOf(vehicleId: string): number;
+  restoreSeedPlacement(): void;
+  moveTo(i: number, fleetIdx: number, record?: boolean): void;
+}
+
+/**
+ * Fleet tree. Nodes are addressed by a stable index; deleted slots become `null`. Built from the
+ * seeded layout; once `attach`ed to the database (F22, D-139) every node change and every vehicle
+ * move is written through, and `hydrate` replaces the nodes with the stored ones.
+ */
 export class FleetTree {
   readonly nodes: (FleetNode | null)[] = [];
   readonly byId = new Map<string, FleetNode>();
@@ -26,6 +51,8 @@ export class FleetTree {
   direct: number[] = [];
   /** Bumped on every structural change so scope caches can be rebuilt. */
   version = 0;
+  private db?: DatabaseSync;
+  private stmt?: { upsert: StatementSync; remove: StatementSync; move: StatementSync };
 
   constructor() {
     const root = this.add(-1, 'Acme Mobility', -1, -1);
@@ -45,6 +72,75 @@ export class FleetTree {
     for (const n of this.nodes) if (n) this.seededByDepth[n.depth]!.push(n.idx);
   }
 
+  /** Writes every later node change and vehicle move to `db`. */
+  attach(db: DatabaseSync): void {
+    this.db = db;
+    this.stmt = {
+      upsert: db.prepare(
+        `INSERT INTO fleets (idx, id, parent_idx, name, depth, city, region) VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (idx) DO UPDATE SET id = excluded.id, parent_idx = excluded.parent_idx,
+           name = excluded.name, depth = excluded.depth, city = excluded.city, region = excluded.region`,
+      ),
+      remove: db.prepare('DELETE FROM fleets WHERE idx = ?'),
+      move: db.prepare(
+        `INSERT INTO vehicle_fleet (vehicle_id, fleet_idx) VALUES (?, ?)
+         ON CONFLICT (vehicle_id) DO UPDATE SET fleet_idx = excluded.fleet_idx`,
+      ),
+    };
+  }
+
+  private save(n: FleetNode): void {
+    this.stmt?.upsert.run(n.idx, n.id, n.parent, n.name, n.depth, n.city, n.region);
+  }
+
+  /** Persists a vehicle move (called by `VehicleSim.moveTo`). */
+  recordMove(vehicleId: string, fleetIdx: number): void {
+    this.stmt?.move.run(vehicleId, fleetIdx);
+  }
+
+  /**
+   * Replaces the nodes with the stored ones, puts every vehicle back on its seeded fleet, then
+   * applies the stored moves (silently) and rebuilds `direct[]` (F22 §4).
+   */
+  hydrate(sim: FleetPlacement, warn: (msg: string) => void = () => {}): void {
+    const db = this.db!;
+    const rows = db.prepare('SELECT * FROM fleets ORDER BY idx').all() as unknown as FleetRow[];
+    this.nodes.length = 0;
+    this.byId.clear();
+    for (const r of rows) {
+      while (this.nodes.length < r.idx) this.nodes.push(null);
+      const node: FleetNode = {
+        idx: r.idx,
+        id: r.id,
+        parent: r.parent_idx,
+        name: r.name,
+        depth: r.depth,
+        city: r.city,
+        region: r.region,
+      };
+      this.nodes.push(node);
+      this.byId.set(node.id, node);
+    }
+    // Deleted seeded fleets keep their slot, so new fleets never reuse a seeded id.
+    const seeded = this.seededByDepth.reduce((n, l) => n + l.length, 0);
+    while (this.nodes.length < seeded) this.nodes.push(null);
+    sim.restoreSeedPlacement();
+    this.direct = new Array<number>(this.nodes.length).fill(0);
+    for (let i = 0; i < sim.count; i++) this.direct[sim.fleet[i]!]!++;
+    const moves = db
+      .prepare('SELECT vehicle_id, fleet_idx FROM vehicle_fleet')
+      .all() as unknown as { vehicle_id: string; fleet_idx: number }[];
+    for (const m of moves) {
+      const i = sim.indexOf(m.vehicle_id);
+      if (i < 0 || !this.nodes[m.fleet_idx]) {
+        warn(`skipping stored move of unknown vehicle ${m.vehicle_id} → fleet ${m.fleet_idx}`);
+        continue;
+      }
+      sim.moveTo(i, m.fleet_idx, false);
+    }
+    this.version++;
+  }
+
   private add(parent: number, name: string, city: number, region: number): FleetNode {
     const idx = this.nodes.length;
     const depth = parent < 0 ? 1 : this.node(parent).depth + 1;
@@ -54,6 +150,10 @@ export class FleetTree {
     this.direct.push(0);
     this.version++;
     return node;
+  }
+
+  private persist(fn: () => void): void {
+    if (this.db) atomic(this.db, fn);
   }
 
   node(idx: number): FleetNode {
@@ -125,7 +225,9 @@ export class FleetTree {
         `Fleets can be nested at most ${MAX_FLEET_DEPTH} levels deep`,
       );
     }
-    return this.add(parent.idx, name, parent.city, parent.region);
+    const node = this.add(parent.idx, name, parent.city, parent.region);
+    this.save(node);
+    return node;
   }
 
   update(id: string, patch: { name?: string; parentId?: string }): FleetNode {
@@ -149,11 +251,18 @@ export class FleetTree {
         );
       }
       const shift = parent.depth + 1 - node.depth;
-      for (const n of this.nodes) if (n && this.isDescendant(n.idx, node.idx)) n.depth += shift;
+      const moved = this.nodes.filter(
+        (n): n is FleetNode => !!n && this.isDescendant(n.idx, node.idx),
+      );
+      for (const n of moved) n.depth += shift;
       node.parent = parent.idx;
       this.version++;
+      if (patch.name !== undefined) node.name = patch.name;
+      this.persist(() => moved.forEach((n) => this.save(n)));
+      return node;
     }
     if (patch.name !== undefined) node.name = patch.name;
+    this.save(node);
     return node;
   }
 
@@ -168,6 +277,7 @@ export class FleetTree {
     this.nodes[node.idx] = null;
     this.byId.delete(id);
     this.version++;
+    this.stmt?.remove.run(node.idx);
   }
 
   /** Flat list of the fleets inside the given subtrees, with subtree vehicle counts. */

@@ -33,6 +33,8 @@ export const ROUTE_PERMISSIONS = {
   '/admin/invites': 'users.invite',
   '/admin/roles': 'roles.manage',
   '/admin/share-links': 'share.revoke',
+  // F25: last, so it never becomes the default landing page.
+  '/settings/ai': 'chat.use',
 } as const satisfies Record<string, PermissionCheck>;
 
 export type AppPath = keyof typeof ROUTE_PERMISSIONS;

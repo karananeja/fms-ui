@@ -68,6 +68,7 @@ const assistantMsg = (previews: WidgetPreview[]): ThreadMessage => ({
   change: null,
   previews,
   createdAt: 2,
+  outcome: 'done',
 });
 
 function fakeDashApi(start: Dashboard) {

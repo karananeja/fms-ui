@@ -29,6 +29,10 @@ export const emptyUsage = (): Usage => ({
   cacheCreationInputTokens: 0,
 });
 
+/** F24: all input tokens of a run (uncached + read from cache + written to cache). */
+export const totalInput = (u: Usage) =>
+  u.inputTokens + u.cacheReadInputTokens + u.cacheCreationInputTokens;
+
 export interface ProviderTurn {
   /** Tool host of the turn (the tools emit their own `tool_*` / report / dashboard events). */
   host: ToolHost;
@@ -37,6 +41,11 @@ export interface ProviderTurn {
   signal: AbortSignal;
   /** Called for every streamed text delta of every reply. */
   onText: (delta: string) => void;
+  /**
+   * F24 (D-141): opaque, stable per user + chat (hashed). OpenAI sends it as `prompt_cache_key`,
+   * xAI as the `x-grok-conv-id` header; Anthropic does not need it.
+   */
+  cacheKey?: string;
 }
 
 export interface ProviderResult {
@@ -52,9 +61,21 @@ export interface ProviderResult {
 
 /** How a thrown provider error maps to the chat error codes. */
 export interface ErrorClass {
-  kind: 'timeout' | 'busy' | 'auth' | 'failed';
+  /** `credits`: the provider account is out of credits or over its spending limit. */
+  kind: 'timeout' | 'busy' | 'auth' | 'credits' | 'failed';
   status?: number;
 }
+
+/**
+ * The provider's own wording for an exhausted account: OpenAI 429 `insufficient_quota` ("You
+ * exceeded your current quota"), xAI 403 ("used all available credits or reached its monthly
+ * spending limit"), Anthropic 400 ("Your credit balance is too low").
+ */
+export const isOutOfCredits = (message: string) =>
+  /credits?\b|quota|spending limit|billing/i.test(message);
+
+export const OUT_OF_CREDITS_MESSAGE =
+  'The AI provider account is out of credits or over its spending limit. Ask an administrator.';
 
 export interface ChatProvider {
   readonly name: ProviderName;
@@ -70,6 +91,16 @@ export class ProviderHttpError extends Error {
     readonly status: number,
     message: string,
   ) {
+    super(message);
+  }
+}
+
+/**
+ * F24: the provider's stream ended without a finish (no `[DONE]` / `finish_reason`). Classified
+ * as `busy` (worth a retry); logged as the `provider-cut` end reason.
+ */
+export class ProviderCutError extends Error {
+  constructor(message = 'the provider stream ended before the reply finished') {
     super(message);
   }
 }

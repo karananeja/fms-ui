@@ -1,6 +1,6 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
-import { RotateCcw } from 'lucide-react';
+import { Loader2, RotateCcw, Unplug } from 'lucide-react';
 import {
   isDashboardMutatingTool,
   type DashboardLink,
@@ -16,6 +16,7 @@ import { can, ROUTE_PERMISSIONS } from '@/features/access/permissions/can';
 import { selectMe, useSession } from '@/features/auth/session/use-session';
 import { cn } from '@/shared/lib/utils';
 import { ERROR_TEXT, type ChatError, type ToolCall } from '../assistant-store.ts';
+import { formatElapsed, progressLabel } from '../chat-progress.ts';
 import { ChangeChip } from './change-chip.tsx';
 import { DashboardLinkCard } from './dashboard-link-card.tsx';
 import { Markdown, type RenderEntity } from './markdown.tsx';
@@ -78,8 +79,46 @@ export interface ChatViewMessage {
   chips?: readonly StoredChip[];
   change?: ChangeSet | null;
   previews?: readonly WidgetPreview[];
-  status?: 'streaming' | 'done' | 'stopped' | 'error';
+  status?: 'streaming' | 'done' | 'stopped' | 'error' | 'interrupted';
   error?: ChatError | null;
+}
+
+/** F23: the progress row of a streaming answer: spinner, current step, elapsed time, Cancel. */
+function ProgressRow({ label, onStop }: { label: string; onStop?: () => void }) {
+  const [start] = useState(() => Date.now());
+  const [now, setNow] = useState(start);
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div
+      data-testid="chat-progress"
+      role="status"
+      className="flex items-center gap-2 rounded-tile border border-tile-border bg-tile px-2.5 py-1.5 text-xs text-text-muted"
+    >
+      <Loader2
+        aria-hidden
+        className="size-3.5 shrink-0 animate-spin text-accent motion-reduce:animate-none"
+      />
+      <span data-testid="chat-progress-label" className="min-w-0 flex-1 truncate">
+        {label}
+      </span>
+      <span data-testid="chat-progress-elapsed" className="shrink-0 text-text-faint tabular-nums">
+        {formatElapsed(now - start)}
+      </span>
+      {onStop && (
+        <button
+          type="button"
+          onClick={onStop}
+          data-testid="progress-stop"
+          className="shrink-0 rounded-md px-1.5 py-0.5 font-bold text-accent outline-none hover:bg-surface-solid focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Cancel
+        </button>
+      )}
+    </div>
+  );
 }
 
 /** F19 Undo wiring (dashboard chat only). */
@@ -130,6 +169,7 @@ function Answer({
   onNavigate,
   undo,
   renderPreview,
+  onStop,
 }: {
   m: ChatViewMessage;
   last: boolean;
@@ -138,12 +178,13 @@ function Answer({
   onNavigate(): void;
   undo: UndoProps;
   renderPreview?: (p: WidgetPreview) => ReactNode;
+  onStop?: () => void;
 }) {
   const tools = m.tools ?? [];
   const status = m.status ?? 'done';
   const live = tools.length > 0;
-  const thinking = status === 'streaming' && !m.text && tools.every((t) => t.ok !== null);
   const error = m.error ?? null;
+  const changed = (m.chips?.length ?? 0) > 0 || !!m.change;
   return (
     <div data-testid="assistant-message" data-status={status} className="space-y-2">
       {live ? (
@@ -154,11 +195,6 @@ function Answer({
         </ul>
       ) : (
         (m.chips?.length ?? 0) > 0 && <StoredChips m={m} undo={undo} />
-      )}
-      {thinking && (
-        <p className="animate-pulse text-xs text-text-muted" aria-live="polite">
-          Thinking…
-        </p>
       )}
       {m.text && (
         <div className="text-sm leading-relaxed text-text">
@@ -172,7 +208,21 @@ function Answer({
         <DashboardLinkCard key={d.summary.id} link={d} onNavigate={onNavigate} />
       ))}
       {renderPreview && (m.previews ?? []).map((p) => <div key={p.id}>{renderPreview(p)}</div>)}
+      {status === 'streaming' && <ProgressRow label={progressLabel(m)} onStop={onStop} />}
       {status === 'stopped' && <p className="text-xs text-text-faint">Stopped.</p>}
+      {status === 'interrupted' && (
+        <div
+          data-testid="assistant-interrupted"
+          className="flex items-start gap-2 rounded-tile border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-text"
+        >
+          <Unplug aria-hidden className="mt-0.5 size-3.5 shrink-0 text-warn" />
+          <p>
+            <span className="font-semibold">Interrupted.</span> The connection dropped before the
+            answer finished{m.text ? '; the partial answer is kept above' : ''}.
+            {changed && ' Changes it already made are listed above and can still be undone.'}
+          </p>
+        </div>
+      )}
       {error && (
         <div
           role={error.code === 'refusal' ? undefined : 'alert'}
@@ -185,19 +235,23 @@ function Answer({
               : 'border-danger/30 bg-danger/10 text-text',
           )}
         >
-          {ERROR_TEXT[error.code]}
+          {/* `failed` covers many causes; the server's message names this one (e.g. no credits). */}
+          {error.code === 'failed' && error.message ? error.message : ERROR_TEXT[error.code]}
         </div>
       )}
-      {last && (status === 'error' || status === 'stopped') && error?.code !== 'refusal' && (
-        <button
-          type="button"
-          onClick={onRetry}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-bold text-accent outline-none hover:bg-tile focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <RotateCcw className="size-3.5" aria-hidden />
-          Retry
-        </button>
-      )}
+      {last &&
+        (status === 'error' || status === 'stopped' || status === 'interrupted') &&
+        error?.code !== 'refusal' && (
+          <button
+            type="button"
+            data-testid="assistant-retry"
+            onClick={onRetry}
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-bold text-accent outline-none hover:bg-tile focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <RotateCcw className="size-3.5" aria-hidden />
+            Retry
+          </button>
+        )}
     </div>
   );
 }
@@ -211,10 +265,13 @@ export function MessageList({
   undoDisabled,
   undoing,
   renderPreview,
+  onStop,
 }: {
   messages: readonly ChatViewMessage[];
   onRetry(): void;
   onNavigate(): void;
+  /** F23: Cancel in the progress row of a streaming answer. */
+  onStop?: () => void;
   /** D-135: the host's preview card (its actions differ per chat). */
   renderPreview?: (p: WidgetPreview) => ReactNode;
 } & UndoProps) {
@@ -259,6 +316,7 @@ export function MessageList({
             onNavigate={onNavigate}
             undo={undo}
             renderPreview={renderPreview}
+            onStop={onStop}
           />
         ),
       )}

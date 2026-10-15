@@ -66,3 +66,34 @@ export function transaction<T>(db: DatabaseSync, fn: () => T): T {
     throw err;
   }
 }
+
+const depth = new WeakMap<DatabaseSync, number>();
+
+/**
+ * Re-entrant transaction (F22, D-140): the outermost call runs `BEGIN IMMEDIATE … COMMIT` and
+ * rolls back if anything inside throws; nested calls (one mutation crossing stores) just run.
+ * Also nests inside a `transaction()` that is already open on this connection.
+ */
+export function atomic<T>(db: DatabaseSync, fn: () => T): T {
+  const d = depth.get(db) ?? 0;
+  if (d > 0 || db.isTransaction) {
+    depth.set(db, d + 1);
+    try {
+      return fn();
+    } finally {
+      depth.set(db, d);
+    }
+  }
+  db.exec('BEGIN IMMEDIATE');
+  depth.set(db, 1);
+  try {
+    const result = fn();
+    db.exec('COMMIT');
+    return result;
+  } catch (err) {
+    if (db.isTransaction) db.exec('ROLLBACK');
+    throw err;
+  } finally {
+    depth.set(db, 0);
+  }
+}

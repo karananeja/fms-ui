@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { Plus, RotateCcw } from 'lucide-react';
+import { ArrowDownUp, LayoutGrid, List, Plus, RotateCcw, Search } from 'lucide-react';
 import { Tabs } from 'radix-ui';
 import { toast } from 'sonner';
 import {
@@ -18,8 +18,17 @@ import {
   DashboardCard,
   DashboardCardSkeleton,
   type CardAction,
+  type ListView,
 } from '../components/dashboard-card';
-import { DashboardsEmptyState } from '../components/dashboards-empty-state';
+import { CreateWithAiHero, DashboardsEmptyState } from '../components/dashboards-empty-state';
+import {
+  arrange,
+  LIST_Q_MAX,
+  parseListSearch,
+  rememberListSearch,
+  type ListSearch,
+  type ListSort,
+} from '../lib/list-search';
 import { DeleteDialog } from '../components/delete-dialog';
 import { RenameDialog } from '../components/rename-dialog';
 import { ShareDialog } from '../components/share-dialog';
@@ -40,8 +49,17 @@ const touch = (list: DashboardList, id: string, fn: (d: DashboardSummary) => Das
 export function DashboardsPage({ api = dashboardsApi }: { api?: DashboardsApi }) {
   const [store] = useState(() => new DashboardListStore(api));
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
-  const { tab } = useSearch({ from: '/app/dashboards' });
+  const search = useSearch({ from: '/app/dashboards' });
   const navigate = useNavigate();
+  // F23: list state in the URL (replace, so Back leaves the page) and remembered for "← Dashboards".
+  const setSearch = (patch: Partial<ListSearch>) =>
+    void navigate({
+      to: '/dashboards',
+      search: (prev) => parseListSearch({ ...prev, ...patch }),
+      replace: true,
+    });
+  useEffect(() => rememberListSearch(search), [search]);
+  const [qText, setQText] = useState(search.q ?? '');
   const canChat = useCan('chat.use');
   const now = useNow(60_000);
   const [busy, setBusy] = useState(false);
@@ -154,13 +172,35 @@ export function DashboardsPage({ api = dashboardsApi }: { api?: DashboardsApi })
     </span>
   );
 
-  const cards = (list: DashboardSummary[]) => (
-    <ul className={grid}>
-      {list.map((d) => (
-        <DashboardCard key={d.id} d={d} now={now} onAction={onAction} />
-      ))}
-    </ul>
-  );
+  const view: ListView = search.view === 'list' ? 'list' : 'grid';
+  const sort: ListSort = search.sort ?? 'recent';
+  const q = qText.trim();
+  const shownMine = arrange(mine, q, sort);
+  const shownShared = arrange(shared, q, sort);
+  const listClass = view === 'grid' ? grid : 'flex flex-col gap-2';
+
+  const cards = (list: DashboardSummary[]) =>
+    list.length ? (
+      <ul className={listClass} data-testid="dashboard-list" data-view={view}>
+        {list.map((d) => (
+          <DashboardCard key={d.id} d={d} now={now} onAction={onAction} api={api} view={view} />
+        ))}
+      </ul>
+    ) : (
+      <div className="flex flex-col items-center gap-2 py-10 text-sm text-text-muted">
+        <p data-testid="no-matches">No dashboards match “{q}”</p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setQText('');
+            setSearch({ q: undefined });
+          }}
+        >
+          Clear search
+        </Button>
+      </div>
+    );
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-5 sm:px-6">
@@ -168,6 +208,10 @@ export function DashboardsPage({ api = dashboardsApi }: { api?: DashboardsApi })
         <h1 className="font-display text-2xl font-black tracking-wide">Dashboards</h1>
         <div className="ml-auto">{newButton}</div>
       </header>
+
+      {canChat && data && (mine.length > 0 || shared.length > 0) && (
+        <CreateWithAiHero busy={busy} disabled={atLimit} onBuild={(p) => void create(p)} />
+      )}
 
       {state.status === 'error' && !data ? (
         <div
@@ -181,10 +225,10 @@ export function DashboardsPage({ api = dashboardsApi }: { api?: DashboardsApi })
           </Button>
         </div>
       ) : !data ? (
-        <ul className={grid} aria-busy>
-          <DashboardCardSkeleton />
-          <DashboardCardSkeleton />
-          <DashboardCardSkeleton />
+        <ul className={listClass} aria-busy data-testid="dashboards-loading">
+          {[0, 1, 2, 3, 4, 5].map((k) => (
+            <DashboardCardSkeleton key={k} view={view} />
+          ))}
         </ul>
       ) : !mine.length && !shared.length ? (
         <DashboardsEmptyState
@@ -196,29 +240,88 @@ export function DashboardsPage({ api = dashboardsApi }: { api?: DashboardsApi })
         />
       ) : (
         <Tabs.Root
-          value={tab === 'shared' ? 'shared' : 'mine'}
-          onValueChange={(v) =>
-            void navigate({
-              to: '/dashboards',
-              search: v === 'shared' ? { tab: 'shared' } : {},
-              replace: true,
-            })
-          }
+          value={search.tab === 'shared' ? 'shared' : 'mine'}
+          onValueChange={(v) => setSearch({ tab: v === 'shared' ? 'shared' : undefined })}
         >
-          <Tabs.List
-            aria-label="Dashboards"
-            className="mb-4 inline-flex gap-1 rounded-tile border border-tile-border bg-tile p-1"
-          >
-            <Tabs.Trigger value="mine" className={tabClass}>
-              My dashboards ({mine.length})
-            </Tabs.Trigger>
-            <Tabs.Trigger value="shared" className={tabClass}>
-              Shared with me ({shared.length})
-            </Tabs.Trigger>
-          </Tabs.List>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <Tabs.List
+              aria-label="Dashboards"
+              className="inline-flex gap-1 rounded-tile border border-tile-border bg-tile p-1"
+            >
+              <Tabs.Trigger value="mine" className={tabClass} data-testid="tab-mine">
+                My dashboards ({q ? `${shownMine.length}/${mine.length}` : mine.length})
+              </Tabs.Trigger>
+              <Tabs.Trigger value="shared" className={tabClass} data-testid="tab-shared">
+                Shared with me ({q ? `${shownShared.length}/${shared.length}` : shared.length})
+              </Tabs.Trigger>
+            </Tabs.List>
+            <div className="ml-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+              <label className="relative min-w-40 flex-1 sm:max-w-64">
+                <span className="sr-only">Search dashboards</span>
+                <Search
+                  aria-hidden
+                  className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-text-faint"
+                />
+                <input
+                  type="search"
+                  data-testid="dashboards-search"
+                  value={qText}
+                  maxLength={LIST_Q_MAX}
+                  placeholder="Search by title, description or owner"
+                  onChange={(e) => {
+                    setQText(e.target.value);
+                    setSearch({ q: e.target.value || undefined });
+                  }}
+                  className="h-9 w-full rounded-tile border border-tile-border bg-tile pr-2 pl-8 text-sm outline-none placeholder:text-text-faint focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 text-xs text-text-muted">
+                <ArrowDownUp aria-hidden className="size-3.5" />
+                <span className="sr-only">Sort dashboards</span>
+                <select
+                  data-testid="dashboards-sort"
+                  value={sort}
+                  onChange={(e) => {
+                    const s = e.target.value as ListSort;
+                    setSearch({ sort: s === 'recent' ? undefined : s });
+                  }}
+                  className="h-9 rounded-tile border border-tile-border bg-tile px-2 text-sm text-text outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="recent">Recently updated</option>
+                  <option value="name">Name (A–Z)</option>
+                  <option value="widgets">Most widgets</option>
+                </select>
+              </label>
+              <div
+                role="group"
+                aria-label="Layout"
+                className="inline-flex rounded-tile border border-tile-border bg-tile p-0.5"
+              >
+                {(
+                  [
+                    ['grid', LayoutGrid, 'Grid view'],
+                    ['list', List, 'List view'],
+                  ] as const
+                ).map(([v, Icon, label]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    aria-label={label}
+                    title={label}
+                    aria-pressed={view === v}
+                    data-testid={`view-${v}`}
+                    onClick={() => setSearch({ view: v === 'list' ? 'list' : undefined })}
+                    className="grid size-8 place-items-center rounded-[10px] text-text-muted outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-accent-soft aria-pressed:text-accent"
+                  >
+                    <Icon aria-hidden className="size-4" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           <Tabs.Content value="mine" className="outline-none">
             {mine.length ? (
-              cards(mine)
+              cards(shownMine)
             ) : (
               <DashboardsEmptyState
                 canChat={canChat}
@@ -230,7 +333,7 @@ export function DashboardsPage({ api = dashboardsApi }: { api?: DashboardsApi })
           </Tabs.Content>
           <Tabs.Content value="shared" className="outline-none">
             {shared.length ? (
-              cards(shared)
+              cards(shownShared)
             ) : (
               <p className="py-10 text-center text-sm text-text-muted">
                 Nothing shared with you yet

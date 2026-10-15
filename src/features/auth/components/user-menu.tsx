@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { LogOut } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import { KeyRound, LogOut } from 'lucide-react';
 import { Popover } from 'radix-ui';
 import type { Me } from '@shared/contract/index.ts';
+import { ROUTE_PERMISSIONS, useCan } from '@/features/access/permissions/can';
 import { cn } from '@/shared/lib/utils';
 import { ThemeToggle } from '@/shared/ui/theme-toggle';
 import { initials } from '../lib/initials.ts';
@@ -56,6 +58,22 @@ function SignOutButton({ className }: { className?: string }) {
   );
 }
 
+/** F25: the user's own AI keys; hidden without the assistant. */
+function AiSettingsLink({ onNavigate }: { onNavigate?: () => void }) {
+  const allowed = useCan(ROUTE_PERMISSIONS['/settings/ai']);
+  if (!allowed) return null;
+  return (
+    <Link
+      to="/settings/ai"
+      onClick={onNavigate}
+      className="flex w-full items-center gap-2 rounded-tile px-3 py-2.5 text-sm text-text-muted outline-none hover:bg-tile hover:text-text focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <KeyRound className="size-4" aria-hidden />
+      AI assistant settings
+    </Link>
+  );
+}
+
 /**
  * F02-R11: the signed-in user (initials, name, email, role) and "Sign out" — a popover from the
  * rail's avatar on desktop, an inline block at the bottom of the mobile drawer.
@@ -74,13 +92,19 @@ export function UserMenu({ variant }: { variant: 'rail' | 'drawer' }) {
         <div className="px-3 pb-2">
           <ThemeToggle variant="menu" />
         </div>
+        <AiSettingsLink />
         <SignOutButton />
       </section>
     );
   }
 
+  return <RailMenu me={me} />;
+}
+
+function RailMenu({ me }: { me: Me }) {
+  const [open, setOpen] = useState(false);
   return (
-    <Popover.Root>
+    <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger
         aria-label={`Account: ${me.user.name}`}
         className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:ring-2 data-[state=open]:ring-accent"
@@ -103,6 +127,7 @@ export function UserMenu({ variant }: { variant: 'rail' | 'drawer' }) {
             <ThemeToggle variant="menu" />
           </div>
           <div className="border-t border-glass-border pt-1">
+            <AiSettingsLink onNavigate={() => setOpen(false)} />
             <SignOutButton />
           </div>
         </Popover.Content>

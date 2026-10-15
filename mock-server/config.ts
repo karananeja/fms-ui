@@ -10,6 +10,8 @@ export interface MockConfig {
   dev: boolean;
   /** SQLite file (`MOCK_DB`), or `:memory:` (vitest/e2e). D-119. */
   dbPath: string;
+  /** `MOCK_DB_RESET=1`: wipe the database and re-seed it at start (F22, D-137). Dev only. */
+  dbReset: boolean;
 }
 
 export const MAX_VEHICLES = 1_000_000;
@@ -34,5 +36,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): MockConfig {
     dev: env.NODE_ENV !== 'production',
     // vitest never touches the dev database, even when a test calls `buildServer()` directly.
     dbPath: env.MOCK_DB || (env.VITEST ? ':memory:' : DEFAULT_DB_PATH),
+    dbReset: env.MOCK_DB_RESET === '1' || env.MOCK_DB_RESET === 'true',
   };
 }

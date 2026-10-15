@@ -50,9 +50,51 @@
   height: 100%;
 }
 
+/* F23: widgets fade in as they land (on load and when the assistant adds one). */
+@keyframes widget-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.widget-enter {
+  animation: widget-enter 320ms ease-out both;
+}
+
+/* F23: the dashboard dock slides in from the right on the first prompt of a new dashboard. */
+@keyframes dock-slide-in {
+  from {
+    width: 0;
+    opacity: 0;
+    transform: translateX(48px);
+  }
+  to {
+    width: 360px;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.dock-slide-in {
+  animation: dock-slide-in 300ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .dock-slide-in {
+    animation: none;
+  }
+
   .dashboard-grid .react-grid-item,
   .dashboard-grid .react-grid-placeholder {
     transition: none !important;
+  }
+
+  .widget-enter {
+    animation: none;
   }
 }

@@ -70,6 +70,85 @@ function Illustration() {
 }
 
 /**
+ * F23: the list page's "Create with AI" hero (users who already have dashboards): one prompt
+ * line, Build, and example prompts that fill it.
+ */
+export function CreateWithAiHero({
+  busy,
+  disabled,
+  onBuild,
+}: {
+  busy: boolean;
+  /** e.g. at the dashboard limit. */
+  disabled?: boolean;
+  onBuild(prompt: string): void;
+}) {
+  const [text, setText] = useState('');
+  const prompt = text.trim();
+  const off = busy || !!disabled;
+  return (
+    <section
+      data-testid="ai-hero"
+      aria-labelledby="ai-hero-title"
+      className="relative overflow-hidden rounded-[var(--radius-panel)] border border-accent/25 bg-accent-soft/60 p-4 shadow-panel sm:p-5"
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-2 sm:w-56 sm:shrink-0">
+          <span className="grid size-9 shrink-0 place-items-center rounded-tile bg-accent text-accent-ink">
+            <Sparkles aria-hidden className="size-4" />
+          </span>
+          <div>
+            <h2 id="ai-hero-title" className="text-sm font-semibold">
+              Create with AI
+            </h2>
+            <p className="text-xs text-text-muted">Describe it, FMS builds it</p>
+          </div>
+        </div>
+        <form
+          className="flex min-w-0 flex-1 gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (prompt && prompt.length <= PROMPT_MAX && !off) onBuild(prompt);
+          }}
+        >
+          <label htmlFor="ai-hero-input" className="sr-only">
+            Describe a new dashboard
+          </label>
+          <input
+            id="ai-hero-input"
+            data-testid="ai-hero-input"
+            value={text}
+            maxLength={PROMPT_MAX}
+            disabled={!!disabled}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="e.g. Idle vehicles by fleet and today's open requests"
+            className="h-9 min-w-0 flex-1 rounded-tile border border-tile-border bg-surface-solid px-3 text-sm outline-none placeholder:text-text-faint focus-visible:border-accent focus-visible:ring-[3px] focus-visible:ring-accent/30 disabled:opacity-50"
+          />
+          <Button type="submit" disabled={!prompt || off} data-testid="ai-hero-build">
+            <Sparkles aria-hidden />
+            Build
+          </Button>
+        </form>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2" aria-label="Example prompts">
+        {EXAMPLE_PROMPTS.map((p) => (
+          <button
+            key={p}
+            type="button"
+            disabled={!!disabled}
+            onClick={() => setText(p)}
+            data-testid="ai-hero-example"
+            className="min-h-7 rounded-full border border-tile-border bg-surface-solid px-3 py-1 text-left text-xs text-text-muted outline-none hover:text-accent focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
  * §3 empty state: "Ask FMS to build your first dashboard" with a prompt box and examples that
  * fill it; Start blank creates an empty dashboard. Without `chat.use` only Start blank.
  */

@@ -288,7 +288,8 @@ describe('F17-T3 /api/chat against the fake model', () => {
       fallbacks: 'default',
       cache_control: { type: 'ephemeral' },
       tool_choice: { type: 'auto' },
-      system: SYSTEM_PROMPT,
+      // F24 (D-141): an explicit breakpoint on the system block.
+      system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       stream: true,
     });
     const first = (last.body.messages as { content: { text: string }[] }[])[0]!;
@@ -417,7 +418,7 @@ describe('F17-T4 prompt caching hygiene', () => {
     expect(prefix).not.toMatch(/Ops User|Super Admin|u-ops|North/);
   });
 
-  it('per-user context goes in the first user turn only', () => {
+  it('per-user context goes in the latest user turn only (F24, D-141)', () => {
     const ctx = { name: 'Ops User', role: 'Operator', fleets: ['North'], today: '2026-10-14' };
     const msgs = toApiMessages(
       [
@@ -429,7 +430,8 @@ describe('F17-T4 prompt caching hygiene', () => {
       ctx,
     );
     expect(msgs).toHaveLength(3);
-    expect(JSON.stringify(msgs[0])).toContain('Today (IST): 2026-10-14');
-    expect(msgs[2]).toEqual({ role: 'user', content: 'q2' });
+    expect(msgs[0]).toEqual({ role: 'user', content: 'q1' });
+    expect(JSON.stringify(msgs[2])).toContain('Today (IST): 2026-10-14');
+    expect((msgs[2]!.content as { text: string }[]).at(-1)!.text).toBe('q2');
   });
 });

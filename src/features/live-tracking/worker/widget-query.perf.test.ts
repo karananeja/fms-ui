@@ -84,5 +84,32 @@ describe('F20-T4 perf: queryWidgets at 1 lakh vehicles', () => {
     console.info(`[F20-T4 perf] p95 ${p95.toFixed(2)} ms, unchanged ${unchanged.toFixed(4)} ms`);
     expect(p95).toBeLessThanOrEqual(10);
     expect(unchanged).toBeLessThanOrEqual(0.1);
+
+    // F26-T4: three custom queries (map points, grouped aggregate, top-10 rows) ≤ 15 ms p95.
+    const CUSTOM: LiveWidgetQuery[] = [
+      {
+        kind: 'custom',
+        filter: { all: [{ field: 'soc', op: 'lt', value: 20 }] },
+        points: { color: 'status', max: 2000 },
+      },
+      { kind: 'custom', shape: { groupBy: 'fleet', aggregate: { op: 'avg', field: 'soc' } } },
+      {
+        kind: 'custom',
+        filter: { all: [{ field: 'status', op: 'eq', value: 'running' }] },
+        shape: { sort: { by: 'speed', dir: 'desc' }, limit: 10 },
+        columns: ['regno', 'fleet', 'speed', 'soc'],
+      },
+    ];
+    const custom: number[] = [];
+    for (let k = 0; k < 20; k++) {
+      version++;
+      const t0 = performance.now();
+      engine.query(CUSTOM);
+      custom.push(performance.now() - t0);
+    }
+    custom.sort((a, b) => a - b);
+    const cp95 = custom[Math.ceil(custom.length * 0.95) - 1]!;
+    console.info(`[F26-T4 perf] custom p95 ${cp95.toFixed(2)} ms`);
+    expect(cp95).toBeLessThanOrEqual(15);
   });
 });

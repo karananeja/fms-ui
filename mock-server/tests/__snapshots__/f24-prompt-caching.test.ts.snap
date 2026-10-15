@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`F24-T1 the cached prefix is byte-identical (snapshot) > Anthropic, OpenAI and xAI prefixes: same for every user and chat, and match the snapshot 1`] = `
+{
+  "anthropic": "f5b10f018c3e2caef4701ac4d86b184ac49443d40967aff14e85c761a35444fa",
+  "openai": "e9ff4464e12077875765ce824180e6a3b4e3d615929a95ab801b403db4e61cd6",
+  "xai": "9ff1e8b810753abf038b718beff7e10e98c6d29cb2d920cd12279c7046d6d1f8",
+}
+`;

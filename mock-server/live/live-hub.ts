@@ -6,6 +6,7 @@ import {
   HEARTBEAT_MS,
   LAFPARSED_BASE_FIELDS,
   WS_CLOSE,
+  type DashboardLiveEvent,
   type EventKind,
   type EventMessage,
   type ServerMessage,
@@ -15,6 +16,7 @@ import {
 import type { WebSocket } from 'ws';
 import type { MockContext } from '../context.ts';
 import { PID_SET } from '../generator/vehicle-sim.ts';
+import type { DashboardStoreEvent } from '../store/dashboards.ts';
 import { driverSees, staffSees, type Audience } from '../store/notifications.ts';
 import type { ShareLinkRecord } from '../store/share-links.ts';
 import { redactCombinfo, redactLafparsed } from './redact.ts';
@@ -43,7 +45,19 @@ interface Sub {
   vehicle?: number;
   /** Topic `events` with `{ kind: 'self' }`. */
   self?: boolean;
+  /** F27: topic `dashboard`. */
+  dashboardId?: string;
 }
+
+/** F27 (D-153/D-154): store events plus the assistant lock of a dashboard. */
+export type DashboardHubEvent =
+  | DashboardStoreEvent
+  | {
+      type: 'assistant';
+      dashboardId: string;
+      running: boolean;
+      by: { userId: string; name: string } | null;
+    };
 
 const OPEN = 1;
 const EVENT_STAFF = ['live.view', 'requests.manage', 'drivers.manage'] as const;
@@ -52,6 +66,8 @@ const EVENT_STAFF = ['live.view', 'requests.manage', 'drivers.manage'] as const;
 export class LiveHub {
   private readonly conns = new Set<Conn>();
   private readonly moved = new Map<number, number>();
+  /** F27: who is asking the assistant on a dashboard (sent to late subscribers). */
+  private readonly asking = new Map<string, { userId: string; name: string }>();
   private lastFlush: number;
   private readonly timers: NodeJS.Timeout[] = [];
 
@@ -113,6 +129,16 @@ export class LiveHub {
     }
   }
 
+  /** Closes every socket (dev reset: all sessions are gone). */
+  closeAll(code: number, reason: string): void {
+    for (const c of [...this.conns]) this.close(c, code, reason);
+  }
+
+  /** Forgets pending fleet moves (dev reset restores the seeded placement). */
+  clearMoved(): void {
+    this.moved.clear();
+  }
+
   vehicleMoved(i: number, fromFleet: number): void {
     if (!this.moved.has(i)) this.moved.set(i, fromFleet);
   }
@@ -168,6 +194,11 @@ export class LiveHub {
       seq: 0,
     };
 
+    if (msg.topic === 'dashboard' || msg.scope.kind === 'dashboard') {
+      if (conn.principal.kind === 'share')
+        return forbidden('share links may not subscribe to dashboards');
+      return this.subscribeDashboard(sub, msg);
+    }
     if (conn.principal.kind === 'user' && msg.topic === 'events')
       return this.subscribeEvents(sub, msg);
     if (msg.scope.kind === 'self')
@@ -243,6 +274,89 @@ export class LiveHub {
     sub.ready = true;
     conn.subs.set(sub.id, sub);
     void this.send(conn, { type: 'subscribed', id: sub.id });
+  }
+
+  /**
+   * F27 (D-153): topic `dashboard` — an active `dashboards.use` user who can open the dashboard
+   * (owner or shared). Errors keep the socket open (it also carries other topics).
+   */
+  private subscribeDashboard(sub: Sub, msg: SubscribeMessage): void {
+    const { accounts, dashboards } = this.ctx;
+    const { conn } = sub;
+    if (msg.topic !== 'dashboard' || msg.scope.kind !== 'dashboard')
+      return this.error(
+        conn,
+        'validation_failed',
+        'topic dashboard needs a dashboard scope',
+        msg.id,
+      );
+    const user = accounts.users.get((conn.principal as { userId: string }).userId);
+    if (!user || user.status !== 'active')
+      return this.close(conn, WS_CLOSE.unauthenticated, 'session ended');
+    if (!accounts.permissions(user).includes('dashboards.use'))
+      return this.error(conn, 'forbidden', 'requires dashboards.use', msg.id);
+    const id = msg.scope.dashboardId;
+    if (!dashboards.accessOf(user.id, id))
+      return this.error(conn, 'not_found', 'Dashboard not found', msg.id);
+    sub.dashboardId = id;
+    sub.ready = true;
+    conn.subs.set(sub.id, sub);
+    void this.send(conn, { type: 'subscribed', id: sub.id });
+    const by = this.asking.get(id);
+    if (by)
+      void this.send(conn, {
+        type: 'dashboard',
+        id: sub.id,
+        event: { kind: 'assistant', dashboardId: id, running: true, by },
+      });
+  }
+
+  /**
+   * F27: pushes a dashboard event to its open subscriptions. `access` goes only to the affected
+   * user; `access: null` and `deleted` end the subscriptions; others go to whoever still has access.
+   */
+  dashboardEvent(e: DashboardHubEvent): void {
+    const { dashboards } = this.ctx;
+    if (e.type === 'assistant') {
+      if (e.running && e.by) this.asking.set(e.dashboardId, e.by);
+      else this.asking.delete(e.dashboardId);
+    }
+    const event: DashboardLiveEvent =
+      e.type === 'changed'
+        ? {
+            kind: 'changed',
+            dashboardId: e.dashboardId,
+            version: e.version,
+            by: e.by,
+            at: e.at,
+            summary: e.summary,
+          }
+        : e.type === 'assistant'
+          ? { kind: 'assistant', dashboardId: e.dashboardId, running: e.running, by: e.by }
+          : e.type === 'access'
+            ? { kind: 'access', dashboardId: e.dashboardId, access: e.access }
+            : { kind: 'deleted', dashboardId: e.dashboardId };
+    for (const conn of this.conns) {
+      if (conn.principal.kind !== 'user') continue;
+      const { userId } = conn.principal;
+      for (const sub of conn.subs.values()) {
+        if (sub.topic !== 'dashboard' || sub.closed || sub.dashboardId !== e.dashboardId) continue;
+        const end = () => {
+          sub.closed = true;
+          conn.subs.delete(sub.id);
+        };
+        if (e.type === 'access' && e.userId !== userId) continue;
+        if (
+          (e.type === 'changed' || e.type === 'assistant') &&
+          !dashboards.accessOf(userId, e.dashboardId)
+        ) {
+          end();
+          continue;
+        }
+        void this.send(conn, { type: 'dashboard', id: sub.id, event });
+        if (e.type === 'deleted' || (e.type === 'access' && e.access === null)) end();
+      }
+    }
   }
 
   /** Fans an `events` message out to every subscription allowed to see it (same rules as REST). */
@@ -361,7 +475,7 @@ export class LiveHub {
         continue;
       }
       for (const sub of conn.subs.values()) {
-        if (!sub.ready || sub.topic === 'events') continue;
+        if (!sub.ready || sub.topic === 'events' || sub.topic === 'dashboard') continue;
         if (sub.since > now) sub.since = prev;
         if (sub.vehicle === undefined) fleetSubs.push(sub);
         else if (sim.reportAt(sub.vehicle, now) > sub.since) {

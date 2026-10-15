@@ -11,7 +11,9 @@ import {
   type RequestType,
   type BreakdownReason,
 } from '@shared/contract/index.ts';
+import type { StatementSync } from 'node:sqlite';
 import type { MockContext } from '../context.ts';
+import { atomic } from '../db/database.ts';
 import { MODELS } from '../generator/catalogue.ts';
 import { HttpError } from '../http-error.ts';
 import type { Audience } from './notifications.ts';
@@ -73,16 +75,140 @@ export function haversineKm(a: GeoPoint, b: GeoPoint): number {
   return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-/** Driver requests, their timelines, fleet settings and the replacement engine (memory only). */
+const SQL = {
+  upsert: `INSERT INTO requests (seq, id, type, vehicle_id, driver_id, fleet_id, status, reason, note,
+      location, rsa, replacement, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT (id) DO UPDATE SET status = excluded.status, rsa = excluded.rsa,
+      replacement = excluded.replacement, updated_at = excluded.updated_at`,
+  event: `INSERT OR IGNORE INTO request_events (request_id, n, at, status, by, note)
+    VALUES (?, ?, ?, ?, ?, ?)`,
+  setAuto: `INSERT INTO fleet_settings (fleet_idx, auto_assign) VALUES (?, ?)
+    ON CONFLICT (fleet_idx) DO UPDATE SET auto_assign = excluded.auto_assign`,
+  clearAuto: 'DELETE FROM fleet_settings WHERE fleet_idx = ?',
+} as const;
+
+interface RequestRow {
+  seq: number;
+  id: string;
+  type: RequestType;
+  vehicle_id: string;
+  driver_id: string;
+  fleet_id: string;
+  status: RequestStatus;
+  reason: BreakdownReason | null;
+  note: string;
+  location: string | null;
+  rsa: string | null;
+  replacement: string | null;
+  created_at: number;
+  updated_at: number;
+}
+interface EventRow {
+  request_id: string;
+  at: number;
+  status: RequestStatus;
+  by: string;
+  note: string | null;
+}
+
+/**
+ * Driver requests, their timelines, fleet settings and the replacement engine: a write-through
+ * cache over `fms.db` (F22). `save` runs after every change to a request.
+ */
 export class Requests {
   private readonly items: DriverRequest[] = [];
   private readonly byId = new Map<string, DriverRequest>();
   /** `autoAssignReplacement` overrides by fleet index (inherited down the tree). */
   private readonly autoAssign = new Map<number, boolean>();
+  /** Timeline entries already written, per request id. */
+  private readonly savedEvents = new Map<string, number>();
   private seq = 0;
   private reevaluating = false;
+  private readonly stmt: Record<keyof typeof SQL, StatementSync>;
 
-  constructor(private readonly ctx: MockContext) {}
+  constructor(private readonly ctx: MockContext) {
+    this.stmt = Object.fromEntries(
+      Object.entries(SQL).map(([k, sql]) => [k, ctx.db.prepare(sql)]),
+    ) as Record<keyof typeof SQL, StatementSync>;
+  }
+
+  /** (Re)loads requests, timelines and fleet settings from the database. */
+  hydrate(): void {
+    const { db } = this.ctx;
+    this.items.length = 0;
+    this.byId.clear();
+    this.autoAssign.clear();
+    this.savedEvents.clear();
+    this.seq = 0;
+    const events = new Map<string, DriverRequest['timeline']>();
+    for (const e of db
+      .prepare('SELECT request_id, at, status, by, note FROM request_events ORDER BY request_id, n')
+      .all() as unknown as EventRow[]) {
+      let list = events.get(e.request_id);
+      if (!list) events.set(e.request_id, (list = []));
+      list.push({ at: e.at, status: e.status, by: e.by, ...(e.note === null ? {} : { note: e.note }) });
+    }
+    for (const row of db
+      .prepare('SELECT * FROM requests ORDER BY seq')
+      .all() as unknown as RequestRow[]) {
+      const timeline = events.get(row.id) ?? [];
+      const r: DriverRequest = {
+        id: row.id,
+        type: row.type,
+        vehicleId: row.vehicle_id,
+        driverId: row.driver_id,
+        fleetId: row.fleet_id,
+        status: row.status,
+        ...(row.reason === null ? {} : { reason: row.reason }),
+        note: row.note,
+        location: row.location === null ? null : (JSON.parse(row.location) as GeoPoint),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        timeline,
+        ...(row.replacement === null
+          ? {}
+          : { replacement: JSON.parse(row.replacement) as DriverRequest['replacement'] }),
+        ...(row.rsa === null ? {} : { rsa: JSON.parse(row.rsa) as DriverRequest['rsa'] }),
+      };
+      this.items.push(r);
+      this.byId.set(r.id, r);
+      this.savedEvents.set(r.id, timeline.length);
+      this.seq = Math.max(this.seq, row.seq);
+    }
+    for (const s of db.prepare('SELECT * FROM fleet_settings').all() as unknown as {
+      fleet_idx: number;
+      auto_assign: number;
+    }[])
+      this.autoAssign.set(s.fleet_idx, s.auto_assign === 1);
+  }
+
+  /** Upserts the request row and appends timeline entries not yet written. */
+  private save(r: DriverRequest): void {
+    const seq = Number(r.id.slice(4));
+    this.stmt.upsert.run(
+      seq,
+      r.id,
+      r.type,
+      r.vehicleId,
+      r.driverId,
+      r.fleetId,
+      r.status,
+      r.reason ?? null,
+      r.note,
+      r.location === null ? null : JSON.stringify(r.location),
+      r.rsa ? JSON.stringify(r.rsa) : null,
+      r.replacement ? JSON.stringify(r.replacement) : null,
+      r.createdAt,
+      r.updatedAt,
+    );
+    const from = this.savedEvents.get(r.id) ?? 0;
+    for (let n = from; n < r.timeline.length; n++) {
+      const e = r.timeline[n]!;
+      this.stmt.event.run(r.id, n, e.at, e.status, e.by, e.note ?? null);
+    }
+    this.savedEvents.set(r.id, r.timeline.length);
+  }
 
   get all(): readonly DriverRequest[] {
     return this.items;
@@ -145,10 +271,17 @@ export class Requests {
   }
 
   setAutoAssign(fleetIdx: number, value: boolean | null): FleetSettings {
-    if (value === null) this.autoAssign.delete(fleetIdx);
-    else this.autoAssign.set(fleetIdx, value);
-    this.reevaluate();
-    return this.settings(fleetIdx);
+    return atomic(this.ctx.db, () => {
+      if (value === null) {
+        this.autoAssign.delete(fleetIdx);
+        this.stmt.clearAuto.run(fleetIdx);
+      } else {
+        this.autoAssign.set(fleetIdx, value);
+        this.stmt.setAuto.run(fleetIdx, value ? 1 : 0);
+      }
+      this.reevaluate();
+      return this.settings(fleetIdx);
+    });
   }
 
   // ---- lifecycle ----
@@ -159,12 +292,23 @@ export class Requests {
     input: { type: RequestType; reason?: BreakdownReason; note: string; location?: GeoPoint },
     by: string,
   ): DriverRequest {
-    const { drivers, sim, clock } = this.ctx;
+    const { drivers } = this.ctx;
     const i = drivers.vehicleOf(d);
     if (i < 0) throw new HttpError(409, 'conflict', 'You have no vehicle assigned');
     const driverId = drivers.gen.id(d);
     if (this.items.some((r) => r.driverId === driverId && r.type === input.type && this.isOpen(r)))
       throw new HttpError(409, 'conflict', `You already have an open ${input.type} request`);
+    return atomic(this.ctx.db, () => this.insert(d, i, driverId, input, by));
+  }
+
+  private insert(
+    d: number,
+    i: number,
+    driverId: string,
+    input: { type: RequestType; reason?: BreakdownReason; note: string; location?: GeoPoint },
+    by: string,
+  ): DriverRequest {
+    const { drivers, sim, clock } = this.ctx;
     const now = clock.now();
     const s = sim.state(i, now);
     const location =
@@ -186,6 +330,7 @@ export class Requests {
     };
     this.items.push(r);
     this.byId.set(r.id, r);
+    this.save(r);
     const what = input.reason ? REASON_LABEL[input.reason] : input.note || TYPE_LABEL[r.type];
     this.notify(r, 'request-created', input.type === 'replacement' ? 'warning' : 'critical', {
       title: `${TYPE_LABEL[r.type]} request from ${drivers.name(d)}`,
@@ -217,25 +362,30 @@ export class Requests {
         `Cannot ${body.action} a ${r.type} request that is ${r.status}`,
       );
     }
-    if (body.action === 'dispatch') {
-      if (!body.assignee || !body.etaMinutes)
-        throw new HttpError(422, 'validation_failed', 'dispatch needs assignee and etaMinutes');
-      r.rsa = { assignee: body.assignee, etaMinutes: body.etaMinutes };
-    }
+    if (body.action === 'dispatch' && (!body.assignee || !body.etaMinutes))
+      throw new HttpError(422, 'validation_failed', 'dispatch needs assignee and etaMinutes');
+    let replacement = -1;
     if (body.action === 'approve' || body.action === 'override') {
       const vehicleId =
         body.vehicleId ??
         (body.action === 'approve' ? r.replacement?.suggestedVehicleId : undefined);
       if (!vehicleId)
         throw new HttpError(422, 'validation_failed', `${body.action} needs vehicleId`);
-      const i = this.requireAvailable(r, vehicleId, scope, body.action === 'approve');
-      this.step(r, 'approved', by, body.note);
-      this.assignReplacement(r, i, by);
-    } else this.step(r, flow.to, by, body.note);
-    this.notifyUpdate(r);
-    this.publish(r);
-    if (!this.isOpen(r)) this.reevaluate();
-    return r;
+      replacement = this.requireAvailable(r, vehicleId, scope, body.action === 'approve');
+    }
+    return atomic(this.ctx.db, () => {
+      if (body.action === 'dispatch')
+        r.rsa = { assignee: body.assignee!, etaMinutes: body.etaMinutes! };
+      if (replacement >= 0) {
+        this.step(r, 'approved', by, body.note);
+        this.assignReplacement(r, replacement, by);
+      } else this.step(r, flow.to, by, body.note);
+      this.save(r);
+      this.notifyUpdate(r);
+      this.publish(r);
+      if (!this.isOpen(r)) this.reevaluate();
+      return r;
+    });
   }
 
   /** Vehicle index for approve/override: in scope, free, and (approve) still eligible. */
@@ -269,6 +419,7 @@ export class Requests {
     const vehicleId = sim.vehicleId(i);
     r.replacement = { ...r.replacement, assignedVehicleId: vehicleId };
     this.step(r, 'assigned', by);
+    this.save(r);
     drivers.assign(drivers.indexOf(r.driverId), i, by);
   }
 
@@ -292,6 +443,7 @@ export class Requests {
       this.step(r, 'suggested', 'system', `Suggested ${best.regno}`);
       this.notifyUpdate(r);
     }
+    this.save(r);
     this.publish(r);
   }
 
@@ -300,8 +452,8 @@ export class Requests {
     if (this.reevaluating) return;
     this.reevaluating = true;
     try {
-      for (const r of this.items)
-        if (r.type === 'replacement' && r.status === 'waiting') this.advance(r);
+      const waiting = this.items.filter((r) => r.type === 'replacement' && r.status === 'waiting');
+      if (waiting.length) atomic(this.ctx.db, () => waiting.forEach((r) => this.advance(r)));
     } finally {
       this.reevaluating = false;
     }

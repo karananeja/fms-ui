@@ -33,6 +33,11 @@ export function AskFmsButton() {
       <SheetContent
         side="right"
         aria-label="Ask FMS"
+        // F23: Esc first closes an open suggestion list, not the sheet.
+        onEscapeKeyDown={(e) => {
+          if (document.activeElement?.closest('[role="combobox"][aria-expanded="true"]'))
+            e.preventDefault();
+        }}
         className="w-full gap-0 border-glass-border bg-surface-solid sm:w-[420px] sm:max-w-[420px]"
       >
         <SheetTitle className="sr-only">Ask FMS</SheetTitle>

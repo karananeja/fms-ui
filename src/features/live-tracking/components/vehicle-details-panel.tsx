@@ -34,6 +34,8 @@ import { RingGauge } from './ring-gauge';
 
 export const DESKTOP_QUERY = '(min-width: 1024px)';
 const SNAP_POINTS = [0.35, 0.92];
+/** Part of the full-height drawer below the screen at the top snap point. */
+const HIDDEN_AT_TOP = `${Math.round((1 - SNAP_POINTS[1]!) * 100)}dvh`;
 const NOW_TICK_MS = 5000;
 
 type TabId = 'overview' | 'parameters' | 'device' | 'events';
@@ -304,11 +306,15 @@ function MobileSheet({ store, vehicleId, onCellRender }: PanelProps & { vehicleI
         <DrawerDescription className="sr-only">
           Live details of the selected vehicle
         </DrawerDescription>
+        {/* Vaul keeps the drawer 100 % tall and slides it down by (1 − snap) of the viewport, so at
+            the 92 % snap the last 8 % of this box sits below the screen. Pad the scroll end by that
+            much so the bottom of the content (driver, events, share) can be scrolled into view. */}
         <div
           className={cn(
             'flex min-h-0 flex-1 flex-col',
             top ? 'overflow-y-auto' : 'overflow-hidden',
           )}
+          style={top ? { paddingBottom: HIDDEN_AT_TOP } : undefined}
         >
           <DetailsBody
             store={store!}

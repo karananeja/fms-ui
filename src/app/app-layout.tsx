@@ -47,7 +47,8 @@ export function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [actionsSlot, setActionsSlot] = useState<HTMLDivElement | null>(null);
   // The leaf route's static options (a stable reference).
-  const { title, permission } = useMatches({ select: (ms) => ms.at(-1)?.staticData }) ?? {};
+  const { title, permission, hideAskFms } =
+    useMatches({ select: (ms) => ms.at(-1)?.staticData }) ?? {};
   const me = useSession(selectMe);
   // F03-R2: only the pages you can open.
   const navItems = useMemo(() => visibleNavItems(me), [me]);
@@ -55,7 +56,8 @@ export function AppLayout() {
   if (signedOut) return null;
 
   return (
-    <div className="flex h-full">
+    // `data-app-shell`: index.css locks window scrolling while the shell is mounted.
+    <div className="flex h-full" data-app-shell>
       <aside className="hidden w-16 shrink-0 flex-col items-center gap-2 border-r border-glass-border bg-surface-solid py-4 lg:flex">
         <BrandMark />
         <nav aria-label="Main navigation" className="mt-3.5 flex flex-col gap-2">
@@ -118,10 +120,11 @@ export function AppLayout() {
           >
             {title}
           </span>
-          {/* DS3-R5 theme, F17-R1 "Ask FMS", then the F15 bell, before the page's own actions. */}
+          {/* DS3-R5 theme, F17-R1 "Ask FMS" (F23: not where the page docks its own chat), then
+              the F15 bell, before the page's own actions. */}
           <div className="ml-auto flex items-center gap-1">
             <ThemeToggle />
-            <AskFmsButton />
+            {!hideAskFms && <AskFmsButton />}
             <NotificationBell />
           </div>
           <div ref={setActionsSlot} data-slot="page-actions" className="flex items-center gap-2" />

@@ -14,6 +14,10 @@ import {
   widgetPermission,
   widgetSchema,
   widgetToolInputSchema,
+  customSpecSchema,
+  followTarget,
+  type CustomCondition,
+  type CustomSpec,
   type Dashboard,
   type DashboardLayout,
   type LayoutItem,
@@ -42,8 +46,10 @@ import {
 
 /**
  * F19 §3: the seven dashboard tools. Same definitions in both chats (cache-stable); behaviour
- * depends on `host.mode`. Owner-only: another user's dashboard and dashboards shared with the
- * caller both read as "not found among your dashboards". Every write goes through the F18 store
+ * depends on `host.mode`. Owner-only, except that an editor (F27) works on the shared dashboard
+ * of their own dashboard chat; other people's dashboards (and view-only or other shared ones) read
+ * as "not found among your dashboards". Writes run as the acting user (`applyTurn(host.user.id)`:
+ * change-set actor, activity, `widget_not_permitted`). Every write goes through the F18 store
  * (`create` / `applyTurn`), so only catalogue widgets can be saved (D-116).
  */
 
@@ -54,6 +60,8 @@ export function permittedWidgetTypes(permissions: readonly Permission[]): Widget
   return WIDGET_TYPES.filter((t) => {
     if (t === 'kpi')
       return permissions.includes('analytics.view') || permissions.includes('live.view');
+    // F26: custom is usable when any dataset is (notifications need no permission).
+    if (t === 'custom') return true;
     const p = widgetPermission({ type: t });
     return p === null || permissions.includes(p);
   });
@@ -75,7 +83,10 @@ function requireUse(host: ToolHost) {
     );
 }
 
-/** The current dashboard of a dashboard chat (owner only); the global chat can't mutate. */
+/**
+ * The current dashboard of a dashboard chat (owner or, F27, an editor in their own chat); the
+ * global chat can't mutate.
+ */
 function current(host: ToolHost): Dashboard {
   requireUse(host);
   const mode = host.mode ?? { kind: 'global' };
@@ -83,6 +94,10 @@ function current(host: ToolHost): Dashboard {
   return owned(host, mode.dashboardId);
 }
 
+/**
+ * The caller's dashboard `id`: owned, or (F27, D-150) shared with edit access when `id` is the
+ * dashboard of this dashboard chat. Anything else reads as "not found among your dashboards".
+ */
 function owned(host: ToolHost, id: string): Dashboard {
   let d: Dashboard;
   try {
@@ -91,8 +106,10 @@ function owned(host: ToolHost, id: string): Dashboard {
     if (err instanceof HttpError) throw notOwned(id);
     throw err;
   }
-  if (d.access !== 'owner') throw notOwned(id);
-  return d;
+  const mode = host.mode ?? { kind: 'global' };
+  const ownChat = mode.kind === 'dashboard' && mode.dashboardId === id;
+  if (d.access === 'owner' || (d.access === 'editor' && ownChat)) return d;
+  throw notOwned(id);
 }
 
 /** Store errors → model-visible failures. */
@@ -163,7 +180,42 @@ function toWidgetInput(host: ToolHost, w: WidgetToolInput): WidgetInput {
   if (typeof out.driverId === 'string') out.driverId = resolveDriverRef(host, out.driverId);
   if (w.type === 'vehicle-list' && w.filter.fleetIds)
     out.filter = { ...w.filter, fleetIds: w.filter.fleetIds.map((f) => resolveFleet(host, f)!) };
+  if (w.type === 'custom') out.spec = resolveCustomSpec(host, w.spec);
   return out as WidgetInput;
+}
+
+/**
+ * F26: a custom spec checked (fixable messages for the model) and its references resolved in the
+ * user's scope: `data.vehicle` → vehicle id, `fleetId` / `fleet` condition values → fleet ids,
+ * `driverId` → driver id, and a follow map's regno must be a vehicle the user can see.
+ */
+function resolveCustomSpec(host: ToolHost, spec: CustomSpec): CustomSpec {
+  const parsed = customSpecSchema.safeParse(spec);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const where = issue?.path.length ? ` (widget.spec.${issue.path.join('.')})` : '';
+    throw new ToolFailure(`Invalid custom widget: ${issue?.message ?? 'invalid'}${where}`);
+  }
+  const data = { ...spec.data };
+  if (data.vehicle) data.vehicle = resolveVehicleRef(host, data.vehicle);
+  if (data.fleetId) data.fleetId = resolveFleet(host, data.fleetId);
+  if (data.driverId) data.driverId = resolveDriverRef(host, data.driverId);
+  const cond = (c: CustomCondition): CustomCondition => {
+    if (c.field === 'fleet') {
+      const one = (v: string | number) => resolveFleet(host, String(v))!;
+      return { ...c, value: Array.isArray(c.value) ? c.value.map(one) : one(c.value) };
+    }
+    return c;
+  };
+  if (data.filter)
+    data.filter = {
+      ...(data.filter.all && { all: data.filter.all.map(cond) }),
+      ...(data.filter.any && { any: data.filter.any.map(cond) }),
+    };
+  const target = spec.mark.follow ? followTarget({ ...spec, data }) : null;
+  // The follow target must be a vehicle the user can see (throws "Vehicle … not found").
+  if (target) resolveVehicleRef(host, target.value);
+  return { ...spec, data };
 }
 
 // ---- layout helpers ----
@@ -634,6 +686,27 @@ const renameDashboard = spec({
     return { result: { title: dashboard.title, version: dashboard.version }, summary: chip, chip };
   },
 });
+
+/**
+ * F19 auto-title fallback: renames the current dashboard as a normal change of the turn (it
+ * extends the turn's change set, so Undo reverts it), emits `dashboard_changed` and records the
+ * chip. Throws a `ToolFailure` / store error like the tools do.
+ */
+export function autoRenameDashboard(host: ToolHost, title: string): Dashboard {
+  const chip = `Renamed dashboard: ${title}`;
+  const { dashboard } = mutate(
+    host,
+    chip,
+    () => chip,
+    (draft) => void (draft.title = title),
+  );
+  (host.turn ??= newTurnState()).chips.push({
+    tool: 'rename_dashboard',
+    label: chip.slice(0, 120),
+    status: 'ok',
+  });
+  return dashboard;
+}
 
 /** Not sorted here; `assistant-tools.ts` sorts the whole list. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

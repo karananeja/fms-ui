@@ -2,10 +2,13 @@ import {
   runRunnableTool,
   type BetaRunnableTool,
 } from '@anthropic-ai/sdk/lib/tools/BetaRunnableTool';
+import { XAI_CONV_ID_HEADER } from './assistant-config.ts';
 import { buildTools, strictSafeSchema, toolDefinitions } from './assistant-tools.ts';
 import {
   emptyUsage,
+  isOutOfCredits,
   messageText,
+  ProviderCutError,
   ProviderHttpError,
   type ChatMessage,
   type ChatProvider,
@@ -107,6 +110,22 @@ export interface OpenAiProviderOptions {
   /** Retries of a 429 / 5xx / network error before any byte streamed (0 in fake mode). */
   maxRetries?: number;
   fetch?: typeof fetch;
+  /** F24: send `stream_options.include_usage` (default true; xAI: `FMS_XAI_STREAM_USAGE`). */
+  streamUsage?: boolean;
+}
+
+/**
+ * F24 (D-141): the cache-routing fields of one request. OpenAI: `prompt_cache_key` in the body.
+ * xAI: the `x-grok-conv-id` header (its docs name `prompt_cache_key` only for the Responses API).
+ */
+export function cacheRouting(
+  name: 'openai' | 'xai',
+  cacheKey: string | undefined,
+): { body: { prompt_cache_key?: string }; headers: Record<string, string> } {
+  if (!cacheKey) return { body: {}, headers: {} };
+  return name === 'openai'
+    ? { body: { prompt_cache_key: cacheKey }, headers: {} }
+    : { body: {}, headers: { [XAI_CONV_ID_HEADER]: cacheKey } };
 }
 
 interface Chunk {
@@ -185,12 +204,14 @@ export class OpenAiCompatibleProvider implements ChatProvider {
 
   classify(err: unknown): ErrorClass {
     if (err instanceof ProviderHttpError) {
+      if (err.status < 500 && isOutOfCredits(err.message))
+        return { kind: 'credits', status: err.status };
       if (err.status === 429 || err.status >= 500) return { kind: 'busy', status: err.status };
       if (err.status === 401 || err.status === 403) return { kind: 'auth', status: err.status };
       return { kind: 'failed', status: err.status };
     }
-    // fetch rejects with a TypeError on network failures.
-    if (err instanceof TypeError) return { kind: 'busy' };
+    // fetch rejects with a TypeError on network failures; a cut stream is worth a retry too.
+    if (err instanceof TypeError || err instanceof ProviderCutError) return { kind: 'busy' };
     return { kind: 'failed' };
   }
 
@@ -217,7 +238,11 @@ export class OpenAiCompatibleProvider implements ChatProvider {
   }
 
   /** POST with retries on 429 / 5xx / network errors (before streaming starts). */
-  private async request(body: unknown, signal: AbortSignal): Promise<Response> {
+  private async request(
+    body: unknown,
+    signal: AbortSignal,
+    extraHeaders: Record<string, string> = {},
+  ): Promise<Response> {
     const doFetch = this.opts.fetch ?? fetch;
     const url = `${this.opts.baseURL.replace(/\/+$/, '')}/chat/completions`;
     const retries = this.opts.maxRetries ?? 2;
@@ -231,6 +256,7 @@ export class OpenAiCompatibleProvider implements ChatProvider {
             'content-type': 'application/json',
             accept: 'text/event-stream',
             authorization: `Bearer ${this.opts.apiKey}`,
+            ...extraHeaders,
           },
           body: JSON.stringify(body),
           signal,
@@ -270,6 +296,7 @@ export class OpenAiCompatibleProvider implements ChatProvider {
     usage: ReturnType<typeof emptyUsage>,
     iteration: number,
   ) {
+    const routing = cacheRouting(this.name, turn.cacheKey);
     const res = await this.request(
       {
         model: this.model,
@@ -277,9 +304,11 @@ export class OpenAiCompatibleProvider implements ChatProvider {
         tools,
         tool_choice: 'auto',
         stream: true,
-        ...(this.name === 'openai' ? { stream_options: { include_usage: true } } : {}),
+        ...((this.opts.streamUsage ?? true) ? { stream_options: { include_usage: true } } : {}),
+        ...routing.body,
       },
       turn.signal,
+      routing.headers,
     );
     let text = '';
     let refused = false;
@@ -344,6 +373,8 @@ export class OpenAiCompatibleProvider implements ChatProvider {
     }
     if (!done) flush();
     await reader.cancel().catch(() => {});
+    // F24: no `[DONE]` and no finish_reason → the provider cut the stream.
+    if (!done && !finish) throw new ProviderCutError();
 
     const toolCalls = calls
       .filter((c) => c.function.name)

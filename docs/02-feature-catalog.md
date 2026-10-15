@@ -35,9 +35,16 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 | F19 | AI dashboard builder (dashboard tools, per-dashboard chat resume, undo; + voice input in both chats, D-110) | F17, F18 | Signed off | Signed off | Done | Passed (+ widget previews D-135) | Accepted 2026-10-15 |
 | F20 | Dashboards route & UI (`/dashboards`, empty states, react-grid-layout, share dialog) | F18, F19, DS3 | Signed off | Signed off | Done (core; T5–T7, T13–T16 deferred) | Passed | Accepted 2026-10-15 |
 | F21 | AI provider choice (xAI Grok / OpenAI via fetch adapter, Anthropic unchanged) | F17, F19 | Approved in chat | Approved in chat | Done | Passed (targeted; Grok smoke pending) | Accepted 2026-10-15 |
-| F22 | Persist accounts & admin data in SQLite (users, roles, invites, sessions, fleets, drivers, requests, notifications, share links) | F18 | Signed off | Signed off | — | — | — |
+| F22 | Persist accounts & admin data in SQLite (users, roles, invites, sessions, fleets, drivers, requests, notifications, share links) | F18 | Signed off | Signed off | Done | Passed (full check + e2e 2026-10-16) | Accepted 2026-10-16 |
+| F23 | Chat & dashboard UX (richer cards, chat progress, build skeletons, empty-dashboard starter + dock transition, type-ahead suggestions, back button, list search/sort, Interrupted + Retry) + auto-title of new dashboards | F19, F20 | Signed off | Draft (written with the intent) | Done (+ D-155 Retry after return, v12 backfill) | Passed (full check + e2e 2026-10-16) | Accepted 2026-10-16 |
+| F24 | Prompt caching across providers (stable prefix, Anthropic breakpoints, OpenAI cache key, xAI conv id, stats; SSE heartbeat) | F21 | Signed off | Draft (written with the intent) | Done | Passed (full check + e2e; Grok smoke pending) | Accepted 2026-10-16 |
+| F25 | User-provided AI keys (per user, encrypted, Settings → AI assistant, default-assistant switch) | F22, F21 | Signed off | Draft (written with the intent) | Done (wired) | Passed (full check + e2e 2026-10-16) | Accepted 2026-10-16 |
+| F26 | Dynamic widgets (widget grammar: 7 datasets, charts, tables, live map with follow/trail) | F23, F20 | Signed off | Draft (written with the intent) | Done | Passed (full check + e2e 2026-10-16) | Accepted 2026-10-16 |
+| F27 | Dashboard sharing with edit / view access (private chats per editor, live updates, activity) | F20, D-142 | Signed off | Draft (written with the intent) | Done | Passed (full check + e2e 2026-10-16) | Accepted 2026-10-16 |
+| D-142 | Dashboard snapshots on list cards (per viewer, theme-aware) | F23 | Approved in chat | Addendum to F20 | Done | Passed (full check + e2e 2026-10-16) | Accepted 2026-10-16 |
+| Fix | Vehicle details sheet scrolls to its end at the top snap point (F07) | F07 | User bug report | — | Done | Passed | Accepted 2026-10-16 |
 
 Suggested order: F00 → F01 → F04 → F05 → F06 → (DS1 ∥ F07)  → F08 → F09 → F02 → F03 → F10.
 Part 2 (`requirement-part-2.md`): F11 → (F12 ∥ F15) → (F13 ∥ F14) → F16 → F17.
 This puts the live-tracking core, the main risk, first. Until F02 lands, auth uses a mock dev session.
-Part 3 (`requirement-part-3.md`): (DS3 ∥ F18) → (F19 ∥ F20) → F21.
+Part 3 (`requirement-part-3.md`): (DS3 ∥ F18) → (F19 ∥ F20) → F21 → (F22 ∥ F23 ∥ F24) → (F25 ∥ snapshots ∥ F26) → F27 → Retry fix → full check + e2e → UAT accepted 2026-10-16.

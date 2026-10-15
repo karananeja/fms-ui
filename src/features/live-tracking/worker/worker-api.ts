@@ -9,13 +9,24 @@ import type { SessionHistory } from './selected-history.ts';
 import type { TableQuery, TableResult } from './table-query.ts';
 import type { TrayCard } from './tray-query.ts';
 import type {
+  LiveCustomQuery,
+  LiveCustomResult,
   LiveListFilter,
+  LivePoints,
   LiveWidgetBatch,
   LiveWidgetQuery,
   LiveWidgetResult,
 } from './widget-query.ts';
 
-export type { LiveListFilter, LiveWidgetBatch, LiveWidgetQuery, LiveWidgetResult };
+export type {
+  LiveCustomQuery,
+  LiveCustomResult,
+  LiveListFilter,
+  LivePoints,
+  LiveWidgetBatch,
+  LiveWidgetQuery,
+  LiveWidgetResult,
+};
 
 export type { CsvRequest, CsvResult, TableQuery, TableResult, TableRow, TableSort, TrayCard };
 

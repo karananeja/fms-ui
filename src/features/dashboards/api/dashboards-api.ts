@@ -1,12 +1,15 @@
 import {
+  dashboardActivitySchema,
   dashboardListSchema,
   dashboardSchema,
   dashboardShareListSchema,
   shareCandidateListSchema,
   WIDGETS_PER_DASHBOARD,
   type Dashboard,
+  type DashboardActivity,
   type DashboardList,
   type DashboardShare,
+  type ShareAccess,
   type ShareCandidate,
   type UpdateDashboardBody,
   type Widget,
@@ -22,9 +25,13 @@ export interface DashboardsApi {
   duplicate(id: string): Promise<Dashboard>;
   remove(id: string): Promise<void>;
   shares(id: string, signal?: AbortSignal): Promise<DashboardShare[]>;
-  addShares(id: string, userIds: string[]): Promise<DashboardShare[]>;
+  addShares(id: string, userIds: string[], access?: ShareAccess): Promise<DashboardShare[]>;
+  /** F27: owner changes one person's level. */
+  setShareAccess(id: string, userId: string, access: ShareAccess): Promise<DashboardShare[]>;
   revokeShare(id: string, userId: string): Promise<void>;
   candidates(q: string, signal?: AbortSignal): Promise<ShareCandidate[]>;
+  /** F27: who changed what (no chat content). */
+  activity(id: string, signal?: AbortSignal): Promise<DashboardActivity>;
 }
 
 const base = (id: string) => `/api/dashboards/${encodeURIComponent(id)}`;
@@ -42,8 +49,19 @@ export const dashboardsApi: DashboardsApi = {
   },
   shares: async (id, signal) =>
     dashboardShareListSchema.parse(await apiFetch(`${base(id)}/shares`, { signal })),
-  addShares: async (id, userIds) =>
-    dashboardShareListSchema.parse(await apiFetch(`${base(id)}/shares`, { body: { userIds } })),
+  addShares: async (id, userIds, access) =>
+    dashboardShareListSchema.parse(
+      await apiFetch(`${base(id)}/shares`, { body: access ? { userIds, access } : { userIds } }),
+    ),
+  setShareAccess: async (id, userId, access) =>
+    dashboardShareListSchema.parse(
+      await apiFetch(`${base(id)}/shares/${encodeURIComponent(userId)}`, {
+        method: 'PATCH',
+        body: { access },
+      }),
+    ),
+  activity: async (id, signal) =>
+    dashboardActivitySchema.parse(await apiFetch(`${base(id)}/activity`, { signal })),
   revokeShare: async (id, userId) => {
     await apiFetch(`${base(id)}/shares/${encodeURIComponent(userId)}`, { method: 'DELETE' });
   },

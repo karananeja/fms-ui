@@ -283,6 +283,32 @@ export class DashboardSession {
     this.emit();
   }
 
+  /**
+   * F27 (D-153): someone else changed the dashboard (or our access changed): re-read it. A newer
+   * version or a different access level is taken; queued edits stay and rebase when sent.
+   */
+  async refresh(): Promise<void> {
+    const seq = ++this.loadSeq;
+    try {
+      const d = await this.api.get(this.id);
+      if (seq !== this.loadSeq) return;
+      if (!this.server || d.version > this.server.version || d.access !== this.server.access) {
+        this.server = d;
+        this.status = 'ready';
+        this.emit();
+      }
+    } catch (err) {
+      if (seq !== this.loadSeq) return;
+      const e = err instanceof ApiError ? err : null;
+      if (e && (e.status === 404 || e.status === 403)) {
+        this.status = 'not-found';
+        this.server = null;
+        this.lastError = err;
+        this.emit();
+      }
+    }
+  }
+
   dispose(): void {
     this.flush();
   }

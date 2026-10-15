@@ -5,6 +5,12 @@ import { epochMsSchema } from './common.ts';
 import { DRIVER_STATUSES } from './drivers.ts';
 import type { Permission } from './permissions.ts';
 import { REQUEST_TYPES } from './requests.ts';
+import {
+  customSpecSchema,
+  datasetPermission,
+  isMapSpec,
+  MAP_MARKS_PER_DASHBOARD,
+} from './widget-grammar.ts';
 
 // ---- limits (F18 §3.1, D-120) ----
 
@@ -156,6 +162,11 @@ function catalogue<I extends z.ZodType>(id: I) {
     ...base(id, 'text'),
     body: z.string().min(1).max(TEXT_NOTE_MAX),
   });
+  /** F26 (D-144): a declarative dataset → shape → mark spec (`widget-grammar.ts`). */
+  const custom = z.strictObject({
+    ...base(id, 'custom'),
+    spec: customSpecSchema,
+  });
   return z.discriminatedUnion('type', [
     kpi,
     dailyChart,
@@ -165,6 +176,7 @@ function catalogue<I extends z.ZodType>(id: I) {
     driverList,
     requestsSummary,
     text,
+    custom,
   ]);
 }
 
@@ -184,6 +196,7 @@ export const WIDGET_TYPES = [
   'driver-list',
   'requests-summary',
   'text',
+  'custom',
 ] as const satisfies readonly Widget['type'][];
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
@@ -197,10 +210,18 @@ export const WIDGET_PERMISSIONS: Record<WidgetType, Permission | null> = {
   'driver-list': 'drivers.manage',
   'requests-summary': 'requests.manage',
   text: null,
+  /** Per dataset (`DATASETS[…].permission`), see `widgetPermission`. */
+  custom: null,
 };
 
-export const widgetPermission = (w: Pick<WidgetInput, 'type'> & { source?: string }) =>
-  w.type === 'kpi' && w.source === 'live' ? 'live.view' : WIDGET_PERMISSIONS[w.type];
+export const widgetPermission = (
+  w: Pick<WidgetInput, 'type'> & { source?: string; spec?: { data?: { dataset?: string } } },
+): Permission | null =>
+  w.type === 'custom'
+    ? datasetPermission(w.spec?.data?.dataset)
+    : w.type === 'kpi' && w.source === 'live'
+      ? 'live.view'
+      : WIDGET_PERMISSIONS[w.type];
 
 /** Default size and minimum on the lg grid. */
 export const WIDGET_SIZES: Record<
@@ -215,6 +236,7 @@ export const WIDGET_SIZES: Record<
   'driver-list': { w: 6, h: 5, minW: 4, minH: 4 },
   'requests-summary': { w: 6, h: 5, minW: 4, minH: 4 },
   text: { w: 4, h: 2, minW: 2, minH: 1 },
+  custom: { w: 6, h: 5, minW: 2, minH: 2 },
 };
 
 // ---- layout (§3.4, react-grid-layout) ----
@@ -280,9 +302,17 @@ const titleSchema = z.string().trim().min(1).max(DASHBOARD_TITLE_MAX);
 const descriptionSchema = z.string().max(DASHBOARD_DESCRIPTION_MAX);
 
 function refineContent(
-  value: { widgets?: { id?: string }[]; layout?: DashboardLayout },
+  value: { widgets?: { id?: string; type: string }[]; layout?: DashboardLayout },
   ctx: z.RefinementCtx,
 ) {
+  // F26: at most MAP_MARKS_PER_DASHBOARD map widgets.
+  const maps = (value.widgets ?? []).filter((w) => isMapSpec(w as Parameters<typeof isMapSpec>[0]));
+  if (maps.length > MAP_MARKS_PER_DASHBOARD)
+    ctx.addIssue({
+      code: 'custom',
+      path: ['widgets'],
+      message: `At most ${MAP_MARKS_PER_DASHBOARD} map widgets per dashboard (this has ${maps.length}); remove a map or use a table or chart`,
+    });
   const ids = (value.widgets ?? []).map((w) => w.id).filter((id): id is string => !!id);
   const seen = new Set<string>();
   ids.forEach((id) => {
@@ -307,8 +337,17 @@ export const dashboardContentSchema = z
   .superRefine(refineContent);
 export type DashboardContent = z.infer<typeof dashboardContentSchema>;
 
-export const dashboardAccessSchema = z.enum(['owner', 'viewer']);
+/** F27 (D-150): `editor` = shared with edit access, `viewer` = shared view-only. */
+export const dashboardAccessSchema = z.enum(['owner', 'editor', 'viewer']);
 export type DashboardAccess = z.infer<typeof dashboardAccessSchema>;
+
+/** F27 (D-152): who made the latest content change and when. */
+export const dashboardEditSchema = z.object({
+  userId: z.string(),
+  name: z.string(),
+  at: epochMsSchema,
+});
+export type DashboardEdit = z.infer<typeof dashboardEditSchema>;
 
 export const dashboardSchema = z.object({
   id: z.string(),
@@ -322,8 +361,40 @@ export const dashboardSchema = z.object({
   createdAt: epochMsSchema,
   updatedAt: epochMsSchema,
   access: dashboardAccessSchema,
+  /** F27: `null` for a dashboard never edited since F27. */
+  lastEdit: dashboardEditSchema.nullable().optional(),
 });
 export type Dashboard = z.infer<typeof dashboardSchema>;
+
+/** F27 (D-152): `GET /api/dashboards/:id/activity`, newest first (no chat content). */
+export const DASHBOARD_ACTIVITY_MAX = 20;
+export const dashboardActivityItemSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  name: z.string(),
+  summary: z.string(),
+  version: z.number().int().min(1),
+  at: epochMsSchema,
+});
+export type DashboardActivityItem = z.infer<typeof dashboardActivityItemSchema>;
+export const dashboardActivitySchema = z.object({
+  items: z.array(dashboardActivityItemSchema).max(DASHBOARD_ACTIVITY_MAX),
+});
+export type DashboardActivity = z.infer<typeof dashboardActivitySchema>;
+
+/** D-142: list-card snapshots, one per (dashboard, user). Server cap; the client aims for ≤ 40 KB. */
+export const SNAPSHOT_MAX_BYTES = 120 * 1024;
+export const SNAPSHOT_MIME_TYPES = ['image/webp', 'image/png'] as const;
+export const snapshotThemeSchema = z.enum(['light', 'dark']);
+export type SnapshotTheme = z.infer<typeof snapshotThemeSchema>;
+export const dashboardSnapshotSchema = z.object({
+  /** `/api/dashboards/:id/snapshot?v=<capturedAt>` (immutable per `v`). */
+  url: z.string(),
+  capturedAt: epochMsSchema,
+  theme: snapshotThemeSchema,
+});
+export type DashboardSnapshot = z.infer<typeof dashboardSnapshotSchema>;
+export const snapshotQuerySchema = z.object({ theme: snapshotThemeSchema });
 
 export const dashboardSummarySchema = z.object({
   id: z.string(),
@@ -335,8 +406,10 @@ export const dashboardSummarySchema = z.object({
   version: z.number().int().min(1),
   updatedAt: epochMsSchema,
   access: dashboardAccessSchema,
-  /** 0 for viewers. */
+  /** 0 for viewers and editors. */
   shareCount: z.number().int().nonnegative(),
+  /** D-142: the caller's own snapshot (owner or viewer); `null` until the first capture. */
+  snapshot: dashboardSnapshotSchema.nullable().optional(),
 });
 export type DashboardSummary = z.infer<typeof dashboardSummarySchema>;
 
@@ -377,11 +450,17 @@ export type UpdateDashboardBody = z.infer<typeof updateDashboardBodySchema>;
 export const duplicateDashboardBodySchema = z.strictObject({ title: titleSchema.optional() });
 export type DuplicateDashboardBody = z.infer<typeof duplicateDashboardBodySchema>;
 
+/** F27 (D-150): per-share access level; existing shares are `view`. */
+export const SHARE_ACCESS = ['view', 'edit'] as const;
+export const shareAccessSchema = z.enum(SHARE_ACCESS);
+export type ShareAccess = z.infer<typeof shareAccessSchema>;
+
 export const dashboardShareSchema = z.object({
   userId: z.string(),
   name: z.string(),
   email: z.string(),
   sharedAt: epochMsSchema,
+  access: shareAccessSchema,
 });
 export type DashboardShare = z.infer<typeof dashboardShareSchema>;
 export const dashboardShareListSchema = z.array(dashboardShareSchema);
@@ -397,8 +476,14 @@ export const shareCandidateQuerySchema = z.object({ q: z.string().max(40).option
 
 export const addSharesBodySchema = z.strictObject({
   userIds: z.array(z.string().min(1)).min(1).max(20),
+  /** F27: level for newly added people (default `view`); existing shares keep theirs. */
+  access: shareAccessSchema.optional(),
 });
 export type AddSharesBody = z.infer<typeof addSharesBodySchema>;
+
+/** F27: `PATCH /api/dashboards/:id/shares/:userId` (owner only). */
+export const updateShareBodySchema = z.strictObject({ access: shareAccessSchema });
+export type UpdateShareBody = z.infer<typeof updateShareBodySchema>;
 
 export const toolChipSchema = z.strictObject({
   tool: z.string().min(1).max(64),
@@ -444,6 +529,9 @@ export type UpdatePreviewBody = z.infer<typeof updatePreviewBodySchema>;
 export const PREVIEWS_PER_MESSAGE_MAX = 30;
 
 export const threadRoleSchema = z.enum(['user', 'assistant']);
+export const THREAD_OUTCOMES = ['done', 'error', 'interrupted', 'stopped'] as const;
+export const threadOutcomeSchema = z.enum(THREAD_OUTCOMES);
+export type ThreadOutcome = z.infer<typeof threadOutcomeSchema>;
 export const threadMessageSchema = z.object({
   id: z.string(),
   seq: z.number().int().min(1),
@@ -454,6 +542,13 @@ export const threadMessageSchema = z.object({
   /** D-135: widget previews made in this (assistant) message. */
   previews: z.array(widgetPreviewSchema).default([]),
   createdAt: epochMsSchema,
+  /**
+   * D-155: how the turn of this (assistant) message ended. `interrupted` = the client went away,
+   * the provider stream was cut or the turn timed out; `stopped` = the user pressed Stop.
+   */
+  outcome: threadOutcomeSchema.default('done'),
+  /** D-155: the chat error code of an `error` / `interrupted` turn (e.g. `refusal`, `timeout`). */
+  errorCode: z.string().max(40).optional(),
 });
 export type ThreadMessage = z.infer<typeof threadMessageSchema>;
 
@@ -470,6 +565,8 @@ export const appendMessageSchema = z.strictObject({
   chips: z.array(toolChipSchema).max(50).default([]),
   changeId: z.string().optional(),
   previews: z.array(widgetPreviewSchema).max(PREVIEWS_PER_MESSAGE_MAX).default([]),
+  outcome: threadOutcomeSchema.default('done'),
+  errorCode: z.string().max(40).optional(),
 });
 export type AppendMessage = z.input<typeof appendMessageSchema>;
 

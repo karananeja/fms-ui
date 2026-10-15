@@ -37,11 +37,19 @@ Vite proxies `/api` and `/ws` to the mock server, so cookies stay same-origin.
 | `MOCK_BATCH_MS` | `500` | WS delta flush interval |
 | `MOCK_SNAPSHOT_CHUNK` | `5000` | Rows per snapshot chunk / delta message |
 | `MOCK_LOG_LEVEL` | `info` | Mock log level (`info` prints reset/invite links) |
+| `MOCK_DB` | `mock-server/data/fms.db` | SQLite file for dashboards, accounts, sessions and admin data (`:memory:` in tests/e2e) |
+| `MOCK_DB_RESET` | — | `1` wipes the database (incl. dashboards) and re-seeds it from `MOCK_SEED` at start |
 
 ### Mock server (F01)
 
 The contract lives in `shared/contract/` (zod schemas + types); the full spec is
-[docs/features/f01-mock-server/spec.md](docs/features/f01-mock-server/spec.md). Data is in memory and resets on restart.
+[docs/features/f01-mock-server/spec.md](docs/features/f01-mock-server/spec.md). Vehicles and live
+telemetry are simulated in memory. Accounts, roles, invites, sessions, fleets (and vehicle moves),
+drivers and assignments, requests, notifications, share links and dashboards are stored in SQLite
+(`MOCK_DB`, F18/F22), so they and your sign-in survive a restart. The first start on an empty
+database seeds it from `MOCK_SEED`; a database seeded with another seed or vehicle count is refused
+(start with `MOCK_DB_RESET=1`). To start over, stop the server and delete `mock-server/data/fms.db`
+(plus `-wal`/`-shm`), or call `POST /api/dev/reset`.
 
 Seed logins:
 
@@ -56,6 +64,8 @@ Dev-only endpoints (not registered when `NODE_ENV=production`):
 - `GET /api/dev/mailbox?to=<email>`: the last reset / invite emails (with `url` and `token`).
 - `POST /api/dev/clock` `{ "offsetMs": 1860000 }`: shifts the mock clock (expiry, non-comm); `0` resets it.
 - `GET /api/dev/stats`: vehicles, sockets, subscriptions, CPU and memory of the mock.
+- `POST /api/dev/reset`: wipes the database (incl. dashboards), re-seeds it and reloads every
+  store; ends all sessions and sockets and sets the clock offset back to 0 (`204`).
 
 ### Live data pipeline (F04)
 
@@ -95,6 +105,21 @@ FMS_ASSISTANT_MODEL=grok-4
   tools, system prompt, step limits and the browser events are the same as with Claude.
 - Tests use the fake model on either wire format: `FMS_ASSISTANT_FAKE=1` plus `FMS_ASSISTANT_PROVIDER=openai`
   (or `xai`) drives `/__fake-openai/v1/chat/completions`; without a provider it drives `/__fake-anthropic`.
+
+### Users' own AI keys (F25)
+
+Users can add their own xAI / OpenAI / Anthropic key under **Settings → AI assistant** (`/settings/ai`):
+pick a provider, paste the key, **Load models**, **Test connection**, **Save**. The key is used for that
+user's chats only and is shown back masked (`xai-…9f3c`), never in full.
+
+- Set `FMS_SECRET_KEY` (16+ characters) in `.env`. Keys are encrypted with AES-256-GCM using a key derived
+  from it; without it the server refuses to store keys. Changing it makes saved keys unreadable.
+- Resolution per chat turn: the user's active key → the server key above, only if **Allow the server key
+  as a fallback** is on (Super Admin, `roles.manage`; on by default) → "not configured".
+- Keys starting `fake-` use the scripted fake model in dev / with `FMS_ASSISTANT_FAKE=1`
+  (`fake-…invalid…` is rejected), so the flow can be tried without a real key.
+- Load models / Test connection are limited to 5 checks per user per minute. Saving, removing and the
+  fallback switch are written to `audit_log` (no key material).
 
 ## Scripts
 

@@ -2,6 +2,8 @@
 import {
   chatEventSchema,
   dashboardChatRequestSchema,
+  DATASET_IDS,
+  MARK_TYPES,
   KPI_METRICS,
   TIME_RANGES,
   VEHICLE_LIST_COLUMNS,
@@ -16,7 +18,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SEED_USERS, startServer } from '../testing/harness.ts';
 import { requestPrefix } from './assistant-runner.ts';
 import { buildTools, toolDefinitions } from './assistant-tools.ts';
-import { CATALOGUE_EXAMPLES, CATALOGUE_PROMPT } from './catalogue-prompt.ts';
+import { CATALOGUE_EXAMPLES, CATALOGUE_PROMPT, CUSTOM_EXAMPLES } from './catalogue-prompt.ts';
 import { threadToMessages } from './dashboard-chat.ts';
 import { ReportStore } from './reports.ts';
 import { SYSTEM_PROMPT } from './system-prompt.ts';
@@ -155,7 +157,7 @@ describe('F19-T2 prompt and caching', () => {
     expect((a as { strict: boolean }[]).every((t) => t.strict)).toBe(true);
   });
 
-  it('<dashboard> goes in the latest user turn only, <context> in the first', () => {
+  it('<context> and <dashboard> go in the latest user turn only (F24, D-141)', () => {
     const m = (seq: number, role: 'user' | 'assistant', text: string) => ({
       id: `m${seq}`,
       seq,
@@ -175,25 +177,21 @@ describe('F19-T2 prompt and caching', () => {
           : null,
       previews: [],
       createdAt: 0,
+      outcome: 'done' as const,
     });
     const msgs = threadToMessages(
       [m(1, 'user', 'q1'), m(2, 'assistant', 'a1'), m(3, 'user', 'q2')],
       '<context>C</context>',
       '<dashboard>D</dashboard>',
     );
-    expect(msgs[0]).toEqual({
-      role: 'user',
-      content: [
-        { type: 'text', text: '<context>C</context>' },
-        { type: 'text', text: 'q1' },
-      ],
-    });
+    expect(msgs[0]).toEqual({ role: 'user', content: 'q1' });
     expect(msgs[1]!.content).toBe(
       'a1\n\n[Changes: Added widget "A" (w-1)]\n[The user undid these changes]',
     );
     expect(msgs[2]).toEqual({
       role: 'user',
       content: [
+        { type: 'text', text: '<context>C</context>' },
         { type: 'text', text: '<dashboard>D</dashboard>' },
         { type: 'text', text: 'q2' },
       ],
@@ -378,5 +376,68 @@ describe('F19-T4 scope test (intent)', () => {
     expect((await call(host('viewer'), 'create_dashboard', { title: 'x' })).error).toMatch(
       /Not permitted/,
     );
+  });
+});
+
+describe('F26-T5 custom widgets through the tools', () => {
+  it('the prompt carries the grammar; every example is a valid widget', () => {
+    for (const v of [...DATASET_IDS, ...MARK_TYPES, 'timeBucket', 'trailMinutes', 'ask which vehicle'])
+      expect(CATALOGUE_PROMPT, v).toContain(v);
+    for (const e of CUSTOM_EXAMPLES)
+      expect(widgetToolInputSchema.safeParse(e.widget).success, e.ask).toBe(true);
+  });
+
+  it('preview resolves fleet names and follow regnos; bad specs, scope and permission fail fixably', async () => {
+    const north = northFleet();
+    const h = host('superadmin');
+    const ok = await call(h, 'preview_widget', {
+      widget: {
+        type: 'custom',
+        title: 'North low battery',
+        spec: {
+          data: {
+            dataset: 'live-vehicles',
+            filter: { all: [{ field: 'fleet', op: 'eq', value: 'North' }, { field: 'soc', op: 'lt', value: 20 }] },
+          },
+          mark: { type: 'map', color: 'status' },
+        },
+      },
+    });
+    expect(ok.ok).toBe(true);
+    const w = ok.json.widget as { spec: { data: { filter: { all: { value: unknown }[] } } } };
+    expect(w.spec.data.filter.all[0]!.value).toBe(north.id);
+
+    const regno = server.ctx.sim.regno(0);
+    const follow = (value: string) => ({
+      widget: {
+        type: 'custom',
+        title: 'Follow',
+        spec: {
+          data: { dataset: 'live-vehicles', filter: { all: [{ field: 'regno', op: 'eq', value }] } },
+          mark: { type: 'map', follow: true, trailMinutes: 30 },
+        },
+      },
+    });
+    expect((await call(h, 'preview_widget', follow(regno))).ok).toBe(true);
+    expect((await call(h, 'preview_widget', follow('ZZ99ZZ9999'))).error).toMatch(/not found/i);
+
+    const bad = await call(h, 'preview_widget', {
+      widget: {
+        type: 'custom',
+        title: 'Bad',
+        spec: { data: { dataset: 'live-vehicles' }, shape: { groupBy: 'battery' }, mark: { type: 'bar' } },
+      },
+    });
+    expect(bad.error).toMatch(/Unknown field "battery" for live-vehicles/);
+
+    // ops (no drivers.manage) can't use the drivers dataset.
+    const denied = await call(host('ops'), 'preview_widget', {
+      widget: {
+        type: 'custom',
+        title: 'Drivers by status',
+        spec: { data: { dataset: 'drivers' }, shape: { groupBy: 'status' }, mark: { type: 'pie' } },
+      },
+    });
+    expect(denied.error).toMatch(/Not permitted/);
   });
 });

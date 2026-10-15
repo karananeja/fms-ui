@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { migrate, openDatabase } from './database.ts';
+import { atomic, migrate, openDatabase, transaction } from './database.ts';
 import { MIGRATIONS } from './migrations.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'fms-db-'));
@@ -16,19 +16,46 @@ const tables = (db: ReturnType<typeof openDatabase>) =>
     }[]
   ).map((r) => r.name);
 
+const ALL_TABLES = [
+  'assignments',
+  'audit_log',
+  'dashboard_activity',
+  'dashboard_changes',
+  'dashboard_messages',
+  'dashboard_shares',
+  'dashboard_snapshots',
+  'dashboards',
+  'driver_patches',
+  'drivers_created',
+  'fleet_settings',
+  'fleets',
+  'initial_assignment_ends',
+  'invites',
+  'notification_read_all',
+  'notification_reads',
+  'notifications',
+  'org_settings',
+  'request_events',
+  'requests',
+  'reset_tokens',
+  'roles',
+  'schema_migrations',
+  'seed_state',
+  'sessions',
+  'share_links',
+  'sqlite_sequence',
+  'user_ai_keys',
+  'users',
+  'vehicle_fleet',
+];
+
 describe('F18-T2: database and migrations', () => {
   it('creates every table on a fresh :memory: DB; re-running is a no-op', () => {
     const started = performance.now();
     const db = openDatabase(':memory:');
     const openMs = performance.now() - started;
     expect(openMs).toBeLessThan(200); // budget 50 ms, reported in the test report
-    expect(tables(db)).toEqual([
-      'dashboard_changes',
-      'dashboard_messages',
-      'dashboard_shares',
-      'dashboards',
-      'schema_migrations',
-    ]);
+    expect(tables(db)).toEqual(ALL_TABLES);
     const before = db.prepare('SELECT * FROM schema_migrations').all();
     migrate(db, MIGRATIONS, () => 1);
     migrate(db, MIGRATIONS, () => 2);
@@ -42,7 +69,9 @@ describe('F18-T2: database and migrations', () => {
     const db = openDatabase(path);
     db.prepare('INSERT INTO schema_migrations VALUES (99, ?, 0)').run('future');
     db.close();
-    expect(() => openDatabase(path)).toThrow(/schema v99 is newer than this server \(v2\)/);
+    expect(() => openDatabase(path)).toThrow(
+      `schema v99 is newer than this server (v${MIGRATIONS.at(-1)!.version})`,
+    );
   });
 
   it('foreign-key cascade removes shares, messages and change sets', () => {
@@ -50,15 +79,18 @@ describe('F18-T2: database and migrations', () => {
     db.exec(`
       INSERT INTO dashboards (id, owner_id, title, widgets, layout, created_at, updated_at)
         VALUES ('d1', 'u', 't', '[]', '{}', 0, 0);
-      INSERT INTO dashboard_shares VALUES ('d1', 'u2', 'u', 0);
+      INSERT INTO dashboard_shares (dashboard_id, user_id, shared_by, created_at)
+        VALUES ('d1', 'u2', 'u', 0);
       INSERT INTO dashboard_messages (id, dashboard_id, seq, role, text, created_at)
         VALUES ('m1', 'd1', 1, 'user', 'hi', 0);
       INSERT INTO dashboard_changes (id, dashboard_id, summary, before, before_version, after_version, created_at)
         VALUES ('c1', 'd1', 's', '{}', 1, 2, 0);
     `);
-    expect(() => db.exec("INSERT INTO dashboard_shares VALUES ('nope', 'u2', 'u', 0)")).toThrow(
-      /FOREIGN KEY/,
-    );
+    expect(() =>
+      db.exec(
+        "INSERT INTO dashboard_shares (dashboard_id, user_id, shared_by, created_at) VALUES ('nope', 'u2', 'u', 0)",
+      ),
+    ).toThrow(/FOREIGN KEY/);
     db.exec("DELETE FROM dashboards WHERE id = 'd1'");
     for (const t of ['dashboard_shares', 'dashboard_messages', 'dashboard_changes'])
       expect(db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get()).toEqual({ n: 0 });
@@ -67,6 +99,87 @@ describe('F18-T2: database and migrations', () => {
         "INSERT INTO dashboards (id, owner_id, title, widgets, layout, created_at, updated_at) VALUES ('d2', 'u', 't', 'not json', '{}', 0, 0)",
       ),
     ).toThrow(/CHECK/);
+    db.close();
+  });
+});
+
+describe('F22-T1: migrations v3–v7 and atomic()', () => {
+  it('upgrades an F18-era (v2) file: v3–v7 apply, dashboards kept; re-open is a no-op', () => {
+    const path = join(dir, 'f18-v2.db');
+    const v2 = openDatabase(path, MIGRATIONS.slice(0, 2));
+    v2.exec(`INSERT INTO dashboards (id, owner_id, title, widgets, layout, created_at, updated_at)
+      VALUES ('d1', 'u-superadmin', 'Mine', '[]', '{}', 1, 1)`);
+    v2.close();
+    const db = openDatabase(path);
+    expect(db.prepare('SELECT version, name FROM schema_migrations ORDER BY version').all()).toEqual(
+      MIGRATIONS.map((m) => ({ version: m.version, name: m.name })),
+    );
+    expect(tables(db)).toEqual(ALL_TABLES);
+    expect(db.prepare('SELECT id, owner_id FROM dashboards').all()).toEqual([
+      { id: 'd1', owner_id: 'u-superadmin' },
+    ]);
+    const before = db.prepare('SELECT * FROM schema_migrations').all();
+    db.close();
+    const again = openDatabase(path);
+    expect(again.prepare('SELECT * FROM schema_migrations').all()).toEqual(before);
+    expect(() =>
+      again.exec(
+        "INSERT INTO users (id, email, name, role_id, fleet_ids, status, salt, hash, ord) VALUES ('u', 'e', 'n', 'r', 'nope', 'active', 's', 'h', 1)",
+      ),
+    ).toThrow(/CHECK/);
+    again.close();
+  });
+
+  it('D-155 v12: pre-v11 failure notes get their outcome back; normal replies stay done', () => {
+    const path = join(dir, 'pre-v11.db');
+    const v10 = openDatabase(path, MIGRATIONS.filter((m) => m.version <= 10));
+    v10.exec(`INSERT INTO dashboards (id, owner_id, title, widgets, layout, created_at, updated_at)
+      VALUES ('d1', 'u', 't', '[]', '{}', 1, 1)`);
+    const put = v10.prepare(
+      "INSERT INTO dashboard_messages (id, dashboard_id, seq, role, text, created_at) VALUES (?, 'd1', ?, ?, ?, 0)",
+    );
+    put.run('m1', 1, 'user', '(error: typed by a user)');
+    put.run('m2', 2, 'assistant', '(error: The assistant is not set up correctly.)');
+    put.run('m3', 3, 'assistant', 'Half an answer\n\n(stopped)');
+    put.run('m4', 4, 'assistant', '(stopped)');
+    put.run('m5', 5, 'assistant', 'Added a chart (stopped) earlier.');
+    v10.close();
+    const db = openDatabase(path);
+    expect(db.prepare('SELECT id, outcome FROM dashboard_messages ORDER BY seq').all()).toEqual([
+      { id: 'm1', outcome: 'done' },
+      { id: 'm2', outcome: 'error' },
+      { id: 'm3', outcome: 'interrupted' },
+      { id: 'm4', outcome: 'interrupted' },
+      { id: 'm5', outcome: 'done' },
+    ]);
+    db.close();
+  });
+
+  it('atomic is re-entrant and rolls back the outermost transaction on throw', () => {
+    const db = openDatabase(':memory:');
+    const put = db.prepare('INSERT INTO fleet_settings (fleet_idx, auto_assign) VALUES (?, 1)');
+    const count = () => (db.prepare('SELECT COUNT(*) AS n FROM fleet_settings').get() as { n: number }).n;
+    atomic(db, () => {
+      put.run(1);
+      atomic(db, () => put.run(2));
+      expect(db.isTransaction).toBe(true);
+    });
+    expect(db.isTransaction).toBe(false);
+    expect(count()).toBe(2);
+    expect(() =>
+      atomic(db, () => {
+        put.run(3);
+        atomic(db, () => {
+          put.run(4);
+          throw new Error('boom');
+        });
+      }),
+    ).toThrow('boom');
+    expect(db.isTransaction).toBe(false);
+    expect(count()).toBe(2);
+    // Nests inside the F18 transaction() too.
+    transaction(db, () => atomic(db, () => put.run(5)));
+    expect(count()).toBe(3);
     db.close();
   });
 });

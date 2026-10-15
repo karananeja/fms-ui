@@ -3,6 +3,11 @@ import { Link } from '@tanstack/react-router';
 import { ArrowRight, MessageSquarePlus, Sparkles } from 'lucide-react';
 import type { WidgetPreview } from '@shared/contract/dashboards.ts';
 import { useCan } from '@/features/access/permissions/can';
+import {
+  AddKeyNote,
+  AssistantModelLabel,
+  useAssistantStatus,
+} from '@/features/settings/components/assistant-status';
 import { SUGGESTED_PROMPTS } from '../assistant-store.ts';
 import { useAssistant, useAssistantStore } from '../use-assistant.ts';
 import { AddToDashboardPicker } from './add-to-dashboard-picker.tsx';
@@ -20,6 +25,7 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
   const empty = state.messages.length === 0;
   const canDashboards = useCan('dashboards.use');
   const [draft, setDraft] = useState<{ text: string } | null>(null);
+  const assistantStatus = useAssistantStatus();
 
   // D-135: global previews live for the panel session only (no server thread).
   const renderPreview = (p: WidgetPreview) => (
@@ -59,6 +65,7 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
       <div className="flex items-center gap-2 border-b border-glass-border px-4 pt-3.5 pr-12 pb-2.5">
         <Sparkles className="size-4 text-accent" aria-hidden />
         <h2 className="text-xs font-semibold tracking-[0.06em] text-text uppercase">Ask FMS</h2>
+        <AssistantModelLabel status={assistantStatus} />
         {!empty && (
           <button
             type="button"
@@ -72,15 +79,12 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
       </div>
 
       {state.notConfigured ? (
-        <div
-          data-testid="assistant-not-configured"
-          className="m-4 mb-auto rounded-tile border border-tile-border bg-tile p-4 text-sm"
-        >
-          <p className="font-semibold text-text">Assistant isn't set up yet</p>
-          <p className="mt-1 text-text-muted">
-            The fleet assistant needs to be configured on the server before it can answer questions.
-            Ask your administrator to enable it.
-          </p>
+        <div className="mb-auto">
+          <AddKeyNote
+            status={assistantStatus}
+            onNavigate={onClose}
+            testId="assistant-not-configured"
+          />
         </div>
       ) : empty ? (
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
@@ -110,6 +114,7 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
         <MessageList
           messages={state.messages}
           onRetry={() => store.retry()}
+          onStop={() => store.stop()}
           onNavigate={onClose}
           renderPreview={renderPreview}
         />
@@ -121,6 +126,7 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
         onSend={(t) => store.send(t)}
         onStop={() => store.stop()}
         draft={draft}
+        suggestions="global"
       />
     </div>
   );

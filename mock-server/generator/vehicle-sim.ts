@@ -136,6 +136,8 @@ const combTemplate = combinfoSample as Combinfo;
  */
 export class VehicleSim {
   readonly fleet: Uint32Array;
+  /** Seeded fleet of each vehicle (a pure function of seed, count and the seeded tree). */
+  private readonly seededFleet: Uint32Array;
   readonly model: Uint8Array;
   readonly persona: Uint8Array;
   readonly centre: Uint8Array;
@@ -214,6 +216,12 @@ export class VehicleSim {
       this.socDrop[i] = 20 + Math.floor(r(S.soc, 1) * 31);
       this.odoBase[i] = 200 + r(S.odo) * 40_000;
     }
+    this.seededFleet = this.fleet.slice();
+  }
+
+  /** Puts every vehicle back on its seeded fleet (F22 hydrate/reset; the tree rebuilds counts). */
+  restoreSeedPlacement(): void {
+    this.fleet.set(this.seededFleet);
   }
 
   // ---- time ----
@@ -591,10 +599,11 @@ export class VehicleSim {
     return points.reverse();
   }
 
-  /** Moves a vehicle to another fleet (keeps per-fleet counts in sync). */
-  moveTo(i: number, fleetIdx: number): void {
+  /** Moves a vehicle to another fleet (keeps per-fleet counts in sync and persists the move). */
+  moveTo(i: number, fleetIdx: number, record = true): void {
     this.tree.direct[this.fleet[i]!]!--;
     this.fleet[i] = fleetIdx;
     this.tree.direct[fleetIdx]!++;
+    if (record) this.tree.recordMove(this.vehicleId(i), fleetIdx);
   }
 }

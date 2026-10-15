@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
 import { toast } from 'sonner';
-import type { DashboardShare, ShareCandidate } from '@shared/contract/dashboards.ts';
+import type { DashboardShare, ShareAccess, ShareCandidate } from '@shared/contract/dashboards.ts';
 import { Modal } from '@/features/access/components/admin-ui';
 import { inputClass } from '@/features/auth/components/text-field';
 import { ApiError } from '@/shared/api/api-client';
@@ -14,9 +14,19 @@ import { formatUpdated } from '../lib/format';
 export const SHARE_SEARCH_DEBOUNCE_MS = 250;
 const LIMIT_TEXT = 'A dashboard can be shared with up to 50 people';
 
-type Api = Pick<DashboardsApi, 'shares' | 'addShares' | 'revokeShare' | 'candidates'>;
+type Api = Pick<
+  DashboardsApi,
+  'shares' | 'addShares' | 'revokeShare' | 'candidates' | 'setShareAccess'
+>;
 
-/** §7: share a dashboard (view only) with people in your organisation; revoke access. */
+const ACCESS_LABEL: Record<ShareAccess, string> = { view: 'Can view', edit: 'Can edit' };
+const selectClass =
+  'h-8 rounded-md border border-tile-border bg-tile px-2 text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+/**
+ * §7: share a dashboard with people in your organisation; revoke access. F27 (D-150): each
+ * person can view or edit; only the owner sees this dialog.
+ */
 export function ShareDialog({
   open,
   onOpenChange,
@@ -37,7 +47,7 @@ export function ShareDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={`Share '${title}'`}
-      description="People you share with can view this dashboard with their own data access. They can't edit it."
+      description="People see widgets with their own data access. Editors can change widgets and use their own private chat; only you can share or delete."
     >
       {open && <ShareBody dashboardId={dashboardId} api={api} onSharesChanged={onSharesChanged} />}
     </Modal>
@@ -59,6 +69,7 @@ function ShareBody({
   const [candidates, setCandidates] = useState<ShareCandidate[] | null>(null);
   const [shares, setShares] = useState<DashboardShare[] | null>(null);
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const [access, setAccess] = useState<ShareAccess>('view');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -93,7 +104,7 @@ function ShareBody({
     setPending(true);
     setError(null);
     try {
-      updateShares(await api.addShares(dashboardId, [...picked]));
+      updateShares(await api.addShares(dashboardId, [...picked], access));
       setPicked(new Set());
     } catch (err) {
       setError(
@@ -104,6 +115,16 @@ function ShareBody({
       );
     } finally {
       setPending(false);
+    }
+  };
+
+  const changeAccess = async (s: DashboardShare, next: ShareAccess) => {
+    if (next === s.access) return;
+    try {
+      updateShares(await api.setShareAccess(dashboardId, s.userId, next));
+      toast(next === 'edit' ? `${s.name} can now edit` : `${s.name} can now only view`);
+    } catch {
+      toast.error("Couldn't change access. Try again.");
     }
   };
 
@@ -179,7 +200,17 @@ function ShareBody({
             {error}
           </p>
         )}
-        <div className="mt-3 flex justify-end">
+        <div className="mt-3 flex items-center justify-end gap-2">
+          <select
+            aria-label="Access for new people"
+            data-testid="share-access"
+            value={access}
+            onChange={(e) => setAccess(e.target.value as ShareAccess)}
+            className={selectClass}
+          >
+            <option value="view">{ACCESS_LABEL.view}</option>
+            <option value="edit">{ACCESS_LABEL.edit}</option>
+          </select>
           <Button onClick={share} disabled={!picked.size || pending || picked.size > 20}>
             Share{picked.size ? ` (${picked.size})` : ''}
           </Button>
@@ -201,6 +232,16 @@ function ShareBody({
                   {s.email} · Shared {formatUpdated(s.sharedAt, now)}
                 </span>
               </span>
+              <select
+                aria-label={`Access for ${s.name}`}
+                data-testid="share-person-access"
+                value={s.access}
+                onChange={(e) => void changeAccess(s, e.target.value as ShareAccess)}
+                className={selectClass}
+              >
+                <option value="view">View</option>
+                <option value="edit">Edit</option>
+              </select>
               <Button variant="outline" size="sm" onClick={() => void revoke(s)}>
                 Revoke
               </Button>

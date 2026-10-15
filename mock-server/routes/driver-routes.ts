@@ -40,12 +40,6 @@ export function requireSelfDriver(ctx: MockContext, user: User) {
 export async function driverRoutes(app: FastifyInstance) {
   const ctx = app.mock;
   const { drivers, tree, sim, accounts, requests, clock } = ctx;
-  /** Invites sent by `POST /drivers`, by invite id → driver index. */
-  const invited = new Map<string, number>();
-  accounts.onInviteAccepted.push((inviteId, userId) => {
-    const d = invited.get(inviteId);
-    if (d !== undefined) drivers.linkUser(d, userId);
-  });
 
   app.get('/drivers', async (req) => {
     const { user } = authorize(ctx, req, 'drivers.manage');
@@ -84,13 +78,13 @@ export async function driverRoutes(app: FastifyInstance) {
       fleetIdx: fleet.idx,
       status: body.status,
     });
-    if (body.invite) {
-      const invite = accounts.invite(
+    // The invite links the driver when accepted (`invites.driver_idx`, F22).
+    if (body.invite)
+      accounts.invite(
         { email: body.email!, roleId: DRIVER_ROLE, fleetIds: [fleet.id] },
         user.id,
+        { driverIdx: d },
       );
-      invited.set(invite.id, d);
-    }
     return reply.code(201).send(drivers.get(d));
   });
 

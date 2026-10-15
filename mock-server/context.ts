@@ -10,6 +10,7 @@ import type { VehicleSim } from './generator/vehicle-sim.ts';
 import { HttpError } from './http-error.ts';
 import type { LiveHub } from './live/live-hub.ts';
 import { SESSION_TTL_MS, type Accounts } from './store/accounts.ts';
+import type { AiKeys } from './store/ai-keys.ts';
 import type { Dashboards } from './store/dashboards.ts';
 import type { Drivers } from './store/drivers.ts';
 import type { Notifications } from './store/notifications.ts';
@@ -30,6 +31,8 @@ export interface MockContext {
   notifications: Notifications;
   db: DatabaseSync;
   dashboards: Dashboards;
+  /** F25 user AI keys, org settings, audit log. */
+  aiKeys: AiKeys;
 }
 
 declare module 'fastify' {

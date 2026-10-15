@@ -67,6 +67,12 @@ const SAMPLE_WIDGETS: Widget[] = [
     limit: 50,
   },
   { id: 'w-text', type: 'text', title: 'Notes', body: '**Hello**' },
+  {
+    id: 'w-custom',
+    type: 'custom',
+    title: 'Requests by type',
+    spec: { data: { dataset: 'requests' }, shape: { groupBy: 'type' }, mark: { type: 'donut' } },
+  },
 ];
 
 const pathsOf = (r: { success: boolean; error?: { issues: { path: PropertyKey[] }[] } }) =>

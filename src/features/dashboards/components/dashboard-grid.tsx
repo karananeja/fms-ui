@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useRef, type ReactNode, type RefObject } from 'react';
 import { Responsive, useContainerWidth, type Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import './dashboard-grid.css';
@@ -11,6 +11,8 @@ import {
   type Widget,
   type WidgetPreview,
 } from '@shared/contract/dashboards.ts';
+import { useWidgetData } from '../data/use-widget-data';
+import { widgetRequest } from '../data/widget-queries';
 import {
   breakpointFor,
   GRID_BREAKPOINTS,
@@ -23,6 +25,7 @@ import {
 } from '../lib/layout';
 import { draggedPreview, droppedPreview } from '../lib/preview-drag';
 import type { AddAt } from '../store/dashboard-session';
+import { useWidgetAllowed } from '../widgets/widget-data';
 import { isLiveWidget, WidgetRenderer } from '../widgets/widget-renderer';
 import { useKeyboardArrange } from './keyboard-arrange';
 import { WidgetFrame } from './widget-frame';
@@ -79,7 +82,11 @@ export function DashboardGrid({
     return out;
   }, [dashboard.layout, byId, bp, arrange.working, owner]);
 
-  const stop = (layout: Layout) => commit(layout as readonly LooseItem[]);
+  const auto = useEdgeAutoScroll(containerRef);
+  const stop = (layout: Layout) => {
+    auto.end();
+    commit(layout as readonly LooseItem[]);
+  };
 
   // D-135: the placeholder takes the preview's default size (clamped to the breakpoint).
   const sizeOn = (p: WidgetPreview) => ({
@@ -135,6 +142,8 @@ export function DashboardGrid({
             cancel: '.widget-no-drag',
           }}
           resizeConfig={{ enabled: editable, handles: ['se'] }}
+          onDrag={auto.move}
+          onResize={auto.move}
           onDragStop={stop}
           onResizeStop={stop}
           dropConfig={dropConfig}
@@ -160,9 +169,50 @@ export function DashboardGrid({
   );
 }
 
-function GridCell(props: Omit<Parameters<typeof WidgetFrame>[0], 'children' | 'live'>): ReactNode {
+const EDGE_PX = 56;
+const EDGE_SPEED = 18;
+
+/**
+ * F23 scroll fix: while a widget is dragged or resized near the top/bottom edge of the grid's
+ * scroll area, scroll it (pointer drags don't auto-scroll a nested scroller on their own).
+ */
+function useEdgeAutoScroll(containerRef: RefObject<HTMLElement | null>) {
+  const s = useRef<{ y: number; raf: number | null }>({ y: -1, raf: null });
+  const scroller = () => {
+    let el = containerRef.current?.parentElement ?? null;
+    while (el && !/(auto|scroll)/.test(getComputedStyle(el).overflowY)) el = el.parentElement;
+    return el;
+  };
+  const end = () => {
+    if (s.current.raf !== null) cancelAnimationFrame(s.current.raf);
+    s.current = { y: -1, raf: null };
+  };
+  const tick = () => {
+    const el = scroller();
+    if (!el || s.current.y < 0) return end();
+    const r = el.getBoundingClientRect();
+    const y = s.current.y;
+    const dy = y > r.bottom - EDGE_PX ? EDGE_SPEED : y < r.top + EDGE_PX ? -EDGE_SPEED : 0;
+    if (dy) el.scrollBy(0, dy);
+    s.current.raf = requestAnimationFrame(tick);
+  };
+  const move = (...args: unknown[]) => {
+    const e = args[4] as MouseEvent | TouchEvent | undefined;
+    const y = e && 'touches' in e ? (e.touches[0]?.clientY ?? -1) : ((e as MouseEvent)?.clientY ?? -1);
+    s.current.y = y;
+    if (s.current.raf === null && y >= 0) s.current.raf = requestAnimationFrame(tick);
+  };
+  return { move, end };
+}
+
+function GridCell(
+  props: Omit<Parameters<typeof WidgetFrame>[0], 'children' | 'live' | 'refreshedAt'>,
+): ReactNode {
+  // F23: the same cache entry the renderer reads (no extra request); null for live widgets.
+  const allowed = useWidgetAllowed(props.widget);
+  const { fetchedAt } = useWidgetData(allowed ? widgetRequest(props.widget) : null);
   return (
-    <WidgetFrame {...props} live={isLiveWidget(props.widget)}>
+    <WidgetFrame {...props} live={isLiveWidget(props.widget)} refreshedAt={fetchedAt || null}>
       <WidgetRenderer widget={props.widget} />
     </WidgetFrame>
   );

@@ -3,6 +3,14 @@ import { EllipsisVertical, GripVertical, PencilLine, RotateCw, Trash2 } from 'lu
 import { DropdownMenu } from 'radix-ui';
 import { WIDGET_TITLE_MAX, type Widget } from '@shared/contract/dashboards.ts';
 import { cn } from '@/shared/lib/utils';
+import { formatUpdated } from '../lib/format';
+import {
+  RANGE_SHORT,
+  RANGE_TEXT,
+  widgetRange,
+  widgetSource,
+  widgetTypeInfo,
+} from '../lib/widget-meta';
 import { WidgetErrorBoundary } from './widget-states';
 
 const menuItem =
@@ -22,12 +30,15 @@ export function WidgetFrame({
   onRefresh,
   onRename,
   onRemove,
+  refreshedAt = null,
   children,
 }: {
   widget: Widget;
   owner: boolean;
   draggable: boolean;
   live: boolean;
+  /** F23: when the REST data last arrived (`null`: live, a note, or not loaded yet). */
+  refreshedAt?: number | null;
   grabbed: boolean;
   onHandleKeyDown(e: KeyboardEvent<HTMLButtonElement>): void;
   onRefresh(): void;
@@ -36,6 +47,9 @@ export function WidgetFrame({
   children: ReactNode;
 }) {
   const titleId = useId();
+  const source = widgetSource(widget);
+  const range = widgetRange(widget);
+  const TypeIcon = widgetTypeInfo(widget.type).icon;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(widget.title);
 
@@ -53,7 +67,7 @@ export function WidgetFrame({
       data-widget-id={widget.id}
       data-widget-type={widget.type}
       className={cn(
-        'flex h-full flex-col overflow-hidden rounded-[var(--radius-tile)] shadow-panel glass',
+        'widget-enter @container flex h-full flex-col overflow-hidden rounded-[var(--radius-tile)] shadow-panel glass',
         grabbed && 'ring-2 ring-ring',
       )}
     >
@@ -113,7 +127,26 @@ export function WidgetFrame({
               <span className="sr-only">Live</span>
             </span>
           )}
+          {/* F23: source chip and last refresh (hidden when the tile is narrow). */}
+          <span
+            data-testid="widget-source"
+            title={`Source: ${source}${range ? ` · ${RANGE_TEXT[range]}` : ''}`}
+            className="hidden shrink-0 items-center gap-1 rounded-full bg-tile px-1.5 py-0.5 text-[10px] font-semibold text-text-muted @[16rem]:inline-flex"
+          >
+            <TypeIcon aria-hidden className="size-3" />
+            {source}
+            {range && <span className="text-text-faint">· {RANGE_SHORT[range]}</span>}
+          </span>
         </div>
+        {refreshedAt !== null && refreshedAt > 0 && (
+          <span
+            data-testid="widget-refreshed"
+            title={`Last refreshed ${formatUpdated(refreshedAt, refreshedAt)}`}
+            className="hidden shrink-0 text-[10px] text-text-faint tabular-nums @[20rem]:inline"
+          >
+            {formatUpdated(refreshedAt, refreshedAt).replace(' IST', '')}
+          </span>
+        )}
         <DropdownMenu.Root>
           <DropdownMenu.Trigger
             aria-label={`Actions for ${widget.title}`}

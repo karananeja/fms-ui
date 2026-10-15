@@ -3,6 +3,14 @@ import type { TableRow, TableSort } from '../config/table-columns.ts';
 import type { FleetNode } from './filter-engine.ts';
 import type { FleetState } from './fleet-state.ts';
 import { isValidPosition } from './position.ts';
+import {
+  runLiveCustom,
+  type LiveCustomQuery,
+  type LiveCustomResult,
+  type LivePoints,
+} from './widget-custom-query.ts';
+
+export type { LiveCustomQuery, LiveCustomResult, LivePoints };
 
 /** F20 §9: a `vehicle-list` widget filter (F18), no search/models. Same semantics as F08. */
 export interface LiveListFilter {
@@ -17,11 +25,13 @@ export interface LiveListFilter {
 
 export type LiveWidgetQuery =
   | { kind: 'counts'; fleetId?: string }
-  | { kind: 'list'; filter: LiveListFilter; sort: TableSort; limit: number };
+  | { kind: 'list'; filter: LiveListFilter; sort: TableSort; limit: number }
+  | LiveCustomQuery;
 
 export type LiveWidgetResult =
   | { kind: 'counts'; counts: Record<VehicleStatus, number>; total: number }
-  | { kind: 'list'; total: number; rows: TableRow[] };
+  | { kind: 'list'; total: number; rows: TableRow[] }
+  | LiveCustomResult;
 
 export interface LiveWidgetBatch {
   /** Fleet data version (rows + status sweep), not the filter version. */
@@ -86,7 +96,10 @@ export class WidgetQueryEngine {
       const key = JSON.stringify(q);
       let r = this.cache.get(key);
       if (!r) {
-        r = q.kind === 'counts' ? this.counts(q.fleetId) : this.list(q);
+        if (q.kind === 'custom') {
+          this.scans++;
+          r = runLiveCustom(this.src.state, q, (ids) => this.subtree(ids));
+        } else r = q.kind === 'counts' ? this.counts(q.fleetId) : this.list(q);
         this.cache.set(key, r);
       }
       return r;

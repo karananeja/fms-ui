@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { widgetPermission, type Widget } from '@shared/contract/dashboards.ts';
 import { useCan } from '@/features/access/permissions/can';
 import { useLiveTracking } from '@/features/live-tracking/store/use-live-tracking';
@@ -54,22 +55,28 @@ export function useLiveWidgetData(
   w: Widget,
   query: LiveWidgetQuery,
   fleetIds: readonly string[],
+  /** F26: off-screen — unregister the query and keep showing the last result. */
+  paused = false,
 ): WidgetData<LiveWidgetResult> {
   const allowed = useWidgetAllowed(w);
   const fleets = useLiveTracking(selectFleets);
   const outside = fleets.length > 0 && fleetIds.some((id) => !fleets.some((f) => f.id === id));
-  const state = useLiveWidget(allowed && !outside ? query : null);
+  const state = useLiveWidget(allowed && !outside && !paused ? query : null);
+  // The last result, kept while paused (state adjusted during render, React's documented pattern).
+  const [last, setLast] = useState<LiveWidgetResult | null>(null);
+  if (state.result && state.result !== last) setLast(state.result);
   const issue: WidgetIssue | null = !allowed
     ? 'no-access'
     : outside
       ? 'outside'
-      : state.status === 'unavailable'
+      : state.status === 'unavailable' && !paused
         ? 'no-access'
         : null;
+  const result = paused ? last : state.result;
   return {
     issue,
-    data: state.result ?? undefined,
-    loading: !issue && state.status === 'loading',
+    data: result ?? undefined,
+    loading: !issue && !result,
     refreshing: false,
     refresh: () => {},
   };
