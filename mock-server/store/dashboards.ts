@@ -36,6 +36,8 @@ import {
   type User,
   type Widget,
   type WidgetInput,
+  type WidgetPreview,
+  type WidgetPreviewStatus,
 } from '@shared/contract/index.ts';
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
@@ -86,6 +88,7 @@ interface MessageRow {
   text: string;
   chips: string;
   change_id: string | null;
+  previews_json: string;
   created_at: number;
 }
 
@@ -332,7 +335,7 @@ export class Dashboards {
     const changes = this.changeSets(row);
     const rows = this.db
       .prepare(
-        'SELECT id, seq, role, text, chips, change_id, created_at FROM dashboard_messages WHERE dashboard_id = ? ORDER BY seq',
+        'SELECT id, seq, role, text, chips, change_id, previews_json, created_at FROM dashboard_messages WHERE dashboard_id = ? ORDER BY seq',
       )
       .all(id) as unknown as MessageRow[];
     return { messages: rows.map((m) => this.toMessage(m, changes)) };
@@ -355,11 +358,12 @@ export class Dashboards {
         text: input.text,
         chips: JSON.stringify(input.chips satisfies ToolChip[]),
         change_id: input.changeId ?? null,
+        previews_json: JSON.stringify(input.previews satisfies WidgetPreview[]),
         created_at: this.clock.now(),
       };
       this.db
         .prepare(
-          'INSERT INTO dashboard_messages (id, dashboard_id, seq, role, text, chips, change_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO dashboard_messages (id, dashboard_id, seq, role, text, chips, change_id, previews_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run(
           message.id,
@@ -369,12 +373,45 @@ export class Dashboards {
           message.text,
           message.chips,
           message.change_id,
+          message.previews_json,
           message.created_at,
         );
       this.db
         .prepare('DELETE FROM dashboard_messages WHERE dashboard_id = ? AND seq <= ?')
         .run(id, message.seq - THREAD_MESSAGES_MAX);
       return this.toMessage(message, this.changeSets(row));
+    });
+  }
+
+  /**
+   * D-135: records a preview card's state (`added` / `discarded`) on its thread message. Owner
+   * only (shared → 403, else 404); 404 for an unknown preview. Adding the widget is a separate
+   * dashboard PATCH by the client.
+   */
+  setPreviewStatus(
+    ownerId: string,
+    id: string,
+    previewId: string,
+    status: WidgetPreviewStatus,
+  ): WidgetPreview {
+    return transaction(this.db, () => {
+      this.requireOwned(ownerId, id);
+      const rows = this.db
+        .prepare(
+          "SELECT id, previews_json FROM dashboard_messages WHERE dashboard_id = ? AND previews_json <> '[]'",
+        )
+        .all(id) as unknown as Pick<MessageRow, 'id' | 'previews_json'>[];
+      for (const r of rows) {
+        const previews = JSON.parse(r.previews_json) as WidgetPreview[];
+        const p = previews.find((x) => x.id === previewId);
+        if (!p) continue;
+        p.status = status;
+        this.db
+          .prepare('UPDATE dashboard_messages SET previews_json = ? WHERE id = ?')
+          .run(JSON.stringify(previews), r.id);
+        return p;
+      }
+      throw new HttpError(404, 'not_found', 'Preview not found');
     });
   }
 
@@ -727,6 +764,7 @@ export class Dashboards {
       text: m.text,
       chips: JSON.parse(m.chips) as ToolChip[],
       change: (m.change_id && changes.get(m.change_id)) || null,
+      previews: JSON.parse(m.previews_json || '[]') as WidgetPreview[],
       createdAt: m.created_at,
     };
   }

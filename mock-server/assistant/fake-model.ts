@@ -41,7 +41,16 @@ export type FakeStep = z.infer<typeof fakeStepSchema>;
 /** `POST /api/dev/assistant/script`: a built-in script by name, or explicit steps. */
 export const fakeScriptBodySchema = z.union([
   z.object({
-    name: z.enum(['refusal', 'busy', 'loop', 'slow', 'failed', 'dash-invalid', 'dash-many']),
+    name: z.enum([
+      'refusal',
+      'busy',
+      'loop',
+      'slow',
+      'failed',
+      'dash-invalid',
+      'dash-many',
+      'preview',
+    ]),
   }),
   /** Steps are played in order; the last step repeats if the conversation goes on. */
   z.object({ steps: z.array(fakeStepSchema).min(1).max(20) }),
@@ -66,6 +75,22 @@ const BUILTIN: Record<string, FakeStep[]> = {
     },
     {
       text: "Sorry, I can't add that: dashboards only support the built-in widget types. ({{result}})",
+    },
+  ],
+  /** D-135: one widget as a preview card (both chats), then a short answer. */
+  preview: [
+    {
+      tools: [
+        {
+          name: 'preview_widget',
+          input: {
+            widget: { type: 'kpi', title: 'Running vehicles', source: 'live', status: 'running' },
+          },
+        },
+      ],
+    },
+    {
+      text: 'Here is a preview of **Running vehicles**. Add it to the dashboard, drag it onto the grid, or ask me to change it.',
     },
   ],
   /** F19: always calls a tool: exercises the 12-step cap of the dashboard chat. */
@@ -193,8 +218,9 @@ const STOP_WORDS = new Set(['remove', 'delete', 'widget', 'the', 'and', 'from', 
 
 /**
  * Dashboard rules, checked before the F17 rules: in a dashboard chat (a `<dashboard>` block),
- * rename / remove / arrange / "30 days" / add a note / build; in the global chat,
- * build|create|make … dashboard → `create_dashboard`.
+ * rename / remove / arrange / "30 days" / single widget → `preview_widget` / add a note / build;
+ * in the global chat, build|create|make … dashboard → `create_dashboard`, else a single-widget
+ * phrase → `preview_widget` (D-135).
  */
 function dashboardRule(
   question: string,
@@ -210,6 +236,8 @@ function dashboardRule(
         name: 'create_dashboard',
         input: { title: 'Fleet overview', widgets: FAKE_DASHBOARD_WIDGETS },
       });
+    const single = singleWidget(q);
+    if (single) return step({ name: 'preview_widget', input: { widget: single } });
     return undefined;
   }
   const widgets = dash.widgets;
@@ -245,6 +273,9 @@ function dashboardRule(
         },
       });
   }
+  const single = singleWidget(q);
+  if (single)
+    return step({ name: 'preview_widget', input: { dashboardId: dash.id, widget: single } });
   if (/\badd\b/.test(q) && /\b(note|text)\b/.test(q))
     return step({
       name: 'add_widget',
@@ -261,6 +292,28 @@ function dashboardRule(
     });
   }
   return undefined;
+}
+
+const FAKE_STATUSES = ['running', 'stopped', 'charging', 'immobilized', 'non-comm', 'no-gps'];
+
+/**
+ * D-135: a single-widget phrase ("add a … widget", "small …", "a kpi …") → the widget to
+ * preview; `undefined` for anything else (multi-widget builds keep the mutating tools).
+ */
+function singleWidget(q: string): Record<string, unknown> | undefined {
+  if (/\bdashboards?\b/.test(q) && !/\bwidget\b/.test(q)) return undefined;
+  const single =
+    /\bsmall\b/.test(q) || /\ban?\s+kpi\b/.test(q) || /\badd\s+an?\s+[^.?!]*\bwidget\b/.test(q);
+  if (!single) return undefined;
+  if (/\b(breakdown|donut)\b/.test(q))
+    return { type: 'status-breakdown', title: 'Fleet status', display: 'donut' };
+  if (/\b(idle|top|ranking)\b/.test(q)) return FAKE_DASHBOARD_WIDGETS[2];
+  const status = FAKE_STATUSES.find((st) => q.includes(st));
+  if (status) {
+    const label = status[0]!.toUpperCase() + status.slice(1);
+    return { type: 'kpi', title: `${label} vehicles`, source: 'live', status };
+  }
+  return { type: 'kpi', title: 'All vehicles', source: 'live', status: 'total' };
 }
 
 // ---- answers written from tool results (built-in rules) ----
@@ -344,6 +397,8 @@ function answerOne(o: ToolOutcome): string {
         : `Done: ${o.content.slice(0, 200)}`;
     case 'add_widget':
       return `Added **${String((o.input.widget as Json | undefined)?.title)}**.`;
+    case 'preview_widget':
+      return `Here is a preview of **${String((r.widget as Json | undefined)?.title)}**. Add it to the dashboard, drag it onto the grid, or ask me to change it.`;
     case 'update_widget':
       return `Updated **${String((o.input.widget as Json | undefined)?.title)}**.`;
     case 'remove_widget': {

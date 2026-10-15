@@ -42,7 +42,7 @@ describe('F18-T2: database and migrations', () => {
     const db = openDatabase(path);
     db.prepare('INSERT INTO schema_migrations VALUES (99, ?, 0)').run('future');
     db.close();
-    expect(() => openDatabase(path)).toThrow(/schema v99 is newer than this server \(v1\)/);
+    expect(() => openDatabase(path)).toThrow(/schema v99 is newer than this server \(v2\)/);
   });
 
   it('foreign-key cascade removes shares, messages and change sets', () => {

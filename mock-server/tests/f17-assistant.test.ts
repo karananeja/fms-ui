@@ -145,6 +145,7 @@ describe('F17-T1 tools: schemas, scope and permissions', () => {
       'get_driver',
       'get_vehicle',
       'list_requests',
+      'preview_widget',
       'remove_widget',
       'rename_dashboard',
       'update_widget',

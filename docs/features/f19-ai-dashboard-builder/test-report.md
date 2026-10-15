@@ -25,3 +25,14 @@ Branch `feature/part3-f19-f20` (main checkout, shared with F20, disjoint files).
 | F19-T10 | **pending** | `e2e/dashboard-builder.spec.ts` written (global prompt → link → 3 grid items; "make the ranking 30 days"; remove; rename; Undo; reload). Needs F20's `/dashboards/$id` page with the dock; run with `VITE_PORT=5273 MOCK_PORT=4101 pnpm playwright test --project=setup --project=chromium e2e/dashboard-builder.spec.ts` |
 | F19-T11 | pending (manual) | real-key smoke: same flow with `ANTHROPIC_API_KEY`; check `assistant run` logs for `cacheReadInputTokens > 0` from the second request and that the API accepts the strict schemas of the 7 dashboard tools (Q4 fallback: drop `strict` on the widget-carrying tools) |
 | F19-T12 | partial | targeted vitest while iterating; full check/build/e2e left to the orchestrator's single end run |
+
+## Addendum: widget previews in chat (D-135), server side, 2026-10-15
+`pnpm vitest run mock-server shared`: **506/506** (33 files). `tsc -b` clean for `mock-server/` + `shared/`; eslint + prettier clean on the server files.
+
+| ID | Result | Where / notes |
+|---|---|---|
+| P-T1 | pass | `mock-server/tests/f19-previews.test.ts`: `preview_widget` returns `{ previewId, widget }` (fresh `w-…` id, fleet name resolved), emits `widget_preview` (size = `WIDGET_SIZES` default), records a chip and `turn.previews`; no `dashboard_changed`, version/widgets unchanged. `iframe` → `Invalid input: widget…`, missing field → path `widget.status`, Operator `driver-list` → not permitted. Global chat: `dashboardId` null or own dashboard; another user's → not found; viewer (no `dashboards.use`) → not permitted. System prompt has the single-widget → `preview_widget` guidance |
+| P-T2 | pass | the fake dashboard chat stores the preview on the assistant message (`thread_saved` + `GET …/thread`); `PATCH …/previews/:id` sets `added` / `discarded` (dashboard version unchanged); 422 bad body, 404 unknown preview / unknown dashboard / stranger, 403 viewer role and shared viewer (`forbidden`), 409 `chat_busy` during a turn; next transcript carries `[Previewed widget (not on the dashboard): …]`. Migration 2 on a v1 file: rows intact, `previews_json = '[]'`, CHECK `json_valid` enforced |
+| P-T3 | pass | rules: "add a small KPI of running vehicles" → `preview_widget` (both chats), "add a stopped vehicles widget" → `preview_widget`, `[fake:preview]` → `preview_widget`; "build me a fleet health dashboard" → 3× `add_widget` (dashboard chat) / `create_dashboard` (global); "add a note" still `add_widget`. Same events through the Anthropic and OpenAI (F21) paths |
+
+Intentional updates: tool count 15 → 16 (`dashboard-tools.test.ts`, `f17-assistant.test.ts`, `f21-providers.test.ts` + regenerated OpenAI tools snapshot, additive), `database.test.ts` schema version v1 → v2.

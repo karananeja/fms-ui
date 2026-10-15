@@ -5,11 +5,14 @@ import {
   DASHBOARD_TITLE_MAX,
   DASHBOARDS_PER_USER,
   LAYOUT_ROW_MAX,
+  PREVIEW_WIDGET_TOOL,
+  PREVIEWS_PER_MESSAGE_MAX,
   WIDGET_SIZES,
   WIDGET_TYPES,
   WIDGETS_PER_DASHBOARD,
   widgetIdSchema,
   widgetPermission,
+  widgetSchema,
   widgetToolInputSchema,
   type Dashboard,
   type DashboardLayout,
@@ -17,9 +20,11 @@ import {
   type Permission,
   type Widget,
   type WidgetInput,
+  type WidgetPreview,
   type WidgetToolInput,
   type WidgetType,
 } from '@shared/contract/index.ts';
+import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { HttpError } from '../http-error.ts';
 import { newWidgetId, type DashboardDraft } from '../store/dashboards.ts';
@@ -412,6 +417,65 @@ const addWidget = spec({
   },
 });
 
+/**
+ * D-135: one widget shown as a preview card in the chat; validated like `add_widget` (catalogue,
+ * name resolution, `widget_not_permitted`) but nothing is written to the dashboard.
+ */
+const previewWidget = spec({
+  name: PREVIEW_WIDGET_TOOL,
+  description: `Show ONE proposed widget as a live preview card in the chat, without changing any dashboard. The user then adds it (or drags it onto the grid), asks for changes, or discards it. Use this when the user asks for a single widget. \`dashboardId\` is the dashboard it is meant for: in a dashboard's chat that dashboard (it may be omitted); in the global chat optional.`,
+  schema: z.strictObject({
+    dashboardId: z.string().max(64).describe('Id of one of your dashboards.').optional(),
+    widget: widgetInput,
+  }),
+  validateInRun: true,
+  label: (i) => `Previewing widget: ${i.widget.title}…`,
+  async run(host, input) {
+    requireUse(host);
+    const mode = host.mode ?? { kind: 'global' };
+    const dashboardId =
+      mode.kind === 'dashboard'
+        ? mode.dashboardId
+        : input.dashboardId
+          ? owned(host, input.dashboardId).id
+          : null;
+    if (mode.kind === 'dashboard') owned(host, dashboardId!);
+    const turn = (host.turn ??= newTurnState());
+    if (turn.previews.length >= PREVIEWS_PER_MESSAGE_MAX)
+      throw new ToolFailure('Too many previews in one turn; continue in a new message.');
+    const parsed = widgetSchema.safeParse({
+      ...toWidgetInput(host, input.widget),
+      id: newWidgetId(),
+    });
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      const where = issue?.path.length ? ` (widget.${issue.path.join('.')})` : '';
+      throw new ToolFailure(`Invalid widget: ${issue?.message ?? 'invalid'}${where}`);
+    }
+    const widget = parsed.data;
+    const { w, h } = WIDGET_SIZES[widget.type];
+    const preview: WidgetPreview = {
+      id: `pv-${randomBytes(6).toString('hex')}`,
+      dashboardId,
+      widget,
+      size: { w, h },
+      status: 'pending',
+      createdAt: host.ctx.clock.now(),
+    };
+    turn.previews.push(preview);
+    host.emit({ type: 'widget_preview', preview });
+    return {
+      result: {
+        previewId: preview.id,
+        widget,
+        note: 'Shown to the user as a preview card; the dashboard is unchanged until they add it.',
+      },
+      summary: widget.title,
+      chip: `Previewed widget: ${widget.title}`,
+    };
+  },
+});
+
 const updateWidget = spec({
   name: 'update_widget',
   description:
@@ -578,6 +642,7 @@ export const DASHBOARD_SPECS: ToolSpec<any>[] = [
   arrangeWidgets,
   createDashboard,
   getDashboard,
+  previewWidget,
   removeWidget,
   renameDashboard,
   updateWidget,

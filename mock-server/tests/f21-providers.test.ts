@@ -137,10 +137,10 @@ describe('F21-T1 assistantEnv: provider and model resolution', () => {
 describe('F21-T2 zod tools → OpenAI tools', () => {
   const tools = () => buildTools({ entities: new Map(), emit: () => {} } as unknown as ToolHost);
 
-  it('all 15 tools convert (snapshot); strict only where the schema qualifies', () => {
+  it('all 16 tools (D-135 preview_widget) convert (snapshot); strict only where the schema qualifies', () => {
     const openai = toOpenAiTools(tools(), true);
     expect(openai.map((t) => t.function.name)).toEqual(TOOL_NAMES);
-    expect(openai).toHaveLength(15);
+    expect(openai).toHaveLength(16);
     for (const t of openai) {
       expect(t.type).toBe('function');
       expect(t.function.parameters.type).toBe('object');

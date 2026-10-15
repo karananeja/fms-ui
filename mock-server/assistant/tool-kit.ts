@@ -1,4 +1,11 @@
-import type { ChatEvent, EntityRef, Permission, ToolChip, User } from '@shared/contract/index.ts';
+import type {
+  ChatEvent,
+  EntityRef,
+  Permission,
+  ToolChip,
+  User,
+  WidgetPreview,
+} from '@shared/contract/index.ts';
 import type { z } from 'zod';
 import type { MockContext } from '../context.ts';
 import type { VehicleSim } from '../generator/vehicle-sim.ts';
@@ -43,9 +50,17 @@ export interface TurnState {
   mutations: number;
   /** Dashboards made by `create_dashboard`. */
   created: { id: string; chip: ToolChip }[];
+  /** D-135: previews made by `preview_widget` (stored on the assistant message). */
+  previews: WidgetPreview[];
 }
 
-export const newTurnState = (): TurnState => ({ chips: [], labels: [], mutations: 0, created: [] });
+export const newTurnState = (): TurnState => ({
+  chips: [],
+  labels: [],
+  mutations: 0,
+  created: [],
+  previews: [],
+});
 
 /** What a tool run may touch: the caller, in-process API access and the event stream. */
 export interface ToolHost {

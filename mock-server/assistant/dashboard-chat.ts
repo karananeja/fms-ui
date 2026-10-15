@@ -2,6 +2,7 @@ import {
   CHAT_CHIPS_MAX,
   CHAT_MAX_TURNS,
   MESSAGE_TEXT_MAX,
+  PREVIEWS_PER_MESSAGE_MAX,
   type ChatEvent,
   type ThreadMessage,
 } from '@shared/contract/index.ts';
@@ -52,10 +53,17 @@ export function takeChatLock(ctx: MockContext, dashboardId: string): () => void 
 
 /** The change notes appended to an assistant turn in the transcript (§2). */
 export function changeNote(m: ThreadMessage): string {
-  if (!m.change) return '';
-  const lines = [`[Changes: ${m.change.summary}]`];
-  if (m.change.undoneAt !== null) lines.push('[The user undid these changes]');
-  return `\n\n${lines.join('\n')}`;
+  const lines: string[] = [];
+  if (m.change) {
+    lines.push(`[Changes: ${m.change.summary}]`);
+    if (m.change.undoneAt !== null) lines.push('[The user undid these changes]');
+  }
+  // D-135: previews made (no status: card actions must not change earlier turns' bytes).
+  for (const p of m.previews ?? [])
+    lines.push(
+      `[Previewed widget (not on the dashboard): ${JSON.stringify({ ...p.widget, id: undefined })}]`,
+    );
+  return lines.length ? `\n\n${lines.join('\n')}` : '';
 }
 
 /**
@@ -159,6 +167,7 @@ function saveAssistant(
     text: storedText(outcome),
     chips: outcome.turn.chips.slice(0, CHAT_CHIPS_MAX),
     changeId: outcome.turn.changeId,
+    previews: outcome.turn.previews.slice(0, PREVIEWS_PER_MESSAGE_MAX),
   };
   try {
     let assistant: ThreadMessage;

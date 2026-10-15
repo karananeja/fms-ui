@@ -4,6 +4,7 @@ import {
   dashboardSchema,
   dashboardSummarySchema,
   threadMessageSchema,
+  widgetPreviewSchema,
   widgetSchema,
   type WidgetInput,
 } from './dashboards.ts';
@@ -118,6 +119,8 @@ export const chatEventSchema = z.discriminatedUnion('type', [
     dashboard: dashboardSummarySchema,
     url: z.string(),
   }),
+  /** D-135: `preview_widget` succeeded (both chats); the dashboard is unchanged. */
+  z.object({ type: z.literal('widget_preview'), preview: widgetPreviewSchema }),
   /** F19 dashboard chat only: the stored user + assistant messages of this turn. */
   z.object({ type: z.literal('thread_saved'), messages: z.array(threadMessageSchema) }),
   z.object({
@@ -147,6 +150,8 @@ export const DASHBOARD_MUTATING_TOOLS = [
   'rename_dashboard',
   'update_widget',
 ] as const;
+/** D-135: non-mutating tool that proposes one widget as a preview card. */
+export const PREVIEW_WIDGET_TOOL = 'preview_widget';
 export const isDashboardMutatingTool = (name: string) =>
   (DASHBOARD_MUTATING_TOOLS as readonly string[]).includes(name);
 

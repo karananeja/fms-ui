@@ -165,5 +165,11 @@ export const CATALOGUE_PROMPT = [
   `Request types: ${REQUEST_TYPES.join(', ')}.`,
   `List limits: 1–${LIST_LIMIT_MAX} rows. Text notes: ≤ ${TEXT_NOTE_MAX} chars of markdown.`,
   '',
+  'Previews or direct changes:',
+  '- When the user asks for ONE widget (e.g. "add a small KPI of running vehicles"), call preview_widget instead of add_widget: the app shows it as a live preview card and the user adds it, drags it onto the grid, asks for changes or discards it. Keep the answer to one short sentence; do not claim it was added.',
+  '- To change a preview ("Change the … preview: …"), call preview_widget again with the new definition.',
+  '- Multi-widget builds ("build me a fleet health dashboard"), create_dashboard, and edits, removals, rearranging or renaming of existing widgets use the mutating tools directly (add_widget, update_widget, remove_widget, arrange_widgets, rename_dashboard).',
+  '- Lines like "[Previewed widget (not on the dashboard): …]" in earlier answers note a preview you made; it is on the dashboard only if it appears in the <dashboard> block.',
+  '',
   ...WIDGET_TYPES.map(section).join('\n\n').split('\n'),
 ].join('\n');

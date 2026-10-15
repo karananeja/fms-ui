@@ -5,6 +5,7 @@ import {
   shareCandidateQuerySchema,
   undoBodySchema,
   updateDashboardBodySchema,
+  updatePreviewBodySchema,
 } from '@shared/contract/index.ts';
 import type { FastifyInstance } from 'fastify';
 import { chatBusy, isChatRunning } from '../assistant/dashboard-chat.ts';
@@ -12,7 +13,7 @@ import { authorize, parse } from '../context.ts';
 
 type IdParams = { Params: { id: string } };
 
-/** F18 §5: dashboards CRUD, sharing, thread read and undo. Every route needs `dashboards.use`. */
+/** F18 §5: dashboards CRUD, sharing, thread read, undo and preview states (D-135). Every route needs `dashboards.use`. */
 export async function dashboardRoutes(app: FastifyInstance) {
   const ctx = app.mock;
   const { dashboards } = ctx;
@@ -81,6 +82,17 @@ export async function dashboardRoutes(app: FastifyInstance) {
       // F19 D-124: no undo while an assistant turn runs on this dashboard.
       if (isChatRunning(ctx, req.params.id)) throw chatBusy();
       return dashboards.undo(user.id, req.params.id, req.params.changeId, version);
+    },
+  );
+
+  /** D-135: a chat preview card's state; the widget itself is added by the client's PATCH. */
+  app.patch<{ Params: { id: string; previewId: string } }>(
+    '/dashboards/:id/previews/:previewId',
+    async (req) => {
+      const user = auth(req);
+      const { status } = parse(updatePreviewBodySchema, req.body);
+      if (isChatRunning(ctx, req.params.id)) throw chatBusy();
+      return dashboards.setPreviewStatus(user.id, req.params.id, req.params.previewId, status);
     },
   );
 }
