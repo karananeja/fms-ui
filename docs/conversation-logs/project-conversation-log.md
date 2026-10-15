@@ -515,4 +515,4 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 
 **Full run:** `pnpm check` 1242/1244: F11-T3 (known time-of-day flake) and `widget-query.perf` under load (passes alone); typecheck and lint clean; build clean. e2e chromium 114 passed, 17 skipped (screenshot tests), 0 failed.
 
-**Status/Next:** F22–F27, D-142 snapshots, D-155 and the layout fixes are ready for UAT on `feature/f22-persist-admin-data`; proposed decisions D-136…D-155 await approval. Grok smoke test still to be done by the user. After "approved": merge `--no-ff` into `main` and delete the branch.
+**Status/Next:** F22–F27, D-142 snapshots, D-155 and the layout fixes are ready for UAT on `feature/f22-persist-admin-data`; proposed decisions D-141, D-143…D-146 and D-150…D-155 await approval. Grok smoke test still to be done by the user. After "approved": merge `--no-ff` into `main` and delete the branch.
