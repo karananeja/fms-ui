@@ -61,9 +61,21 @@ export interface ProviderResult {
 
 /** How a thrown provider error maps to the chat error codes. */
 export interface ErrorClass {
-  kind: 'timeout' | 'busy' | 'auth' | 'failed';
+  /** `credits`: the provider account is out of credits or over its spending limit. */
+  kind: 'timeout' | 'busy' | 'auth' | 'credits' | 'failed';
   status?: number;
 }
+
+/**
+ * The provider's own wording for an exhausted account: OpenAI 429 `insufficient_quota` ("You
+ * exceeded your current quota"), xAI 403 ("used all available credits or reached its monthly
+ * spending limit"), Anthropic 400 ("Your credit balance is too low").
+ */
+export const isOutOfCredits = (message: string) =>
+  /credits?\b|quota|spending limit|billing/i.test(message);
+
+export const OUT_OF_CREDITS_MESSAGE =
+  'The AI provider account is out of credits or over its spending limit. Ask an administrator.';
 
 export interface ChatProvider {
   readonly name: ProviderName;

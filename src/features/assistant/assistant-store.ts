@@ -241,7 +241,7 @@ export class AssistantStore {
         if (http?.status === 401) this.session?.expire?.();
         this.finish(id, 'error', {
           code: http?.code ?? 'failed',
-          message: http?.message ?? String(err),
+          message: http?.message ?? ERROR_TEXT.failed,
         });
       }
     } finally {

@@ -9,6 +9,7 @@ import {
 import { buildTools } from './assistant-tools.ts';
 import {
   emptyUsage,
+  isOutOfCredits,
   ProviderCutError,
   type ChatMessage,
   type ChatProvider,
@@ -104,6 +105,12 @@ export class AnthropicProvider implements ChatProvider {
   classify(err: unknown): ErrorClass {
     if (err instanceof Anthropic.APIConnectionTimeoutError) return { kind: 'timeout' };
     if (err instanceof ProviderCutError) return { kind: 'busy' };
+    if (
+      err instanceof Anthropic.APIError &&
+      (err.status ?? 500) < 500 &&
+      isOutOfCredits(err.message)
+    )
+      return { kind: 'credits', status: err.status };
     if (
       err instanceof Anthropic.RateLimitError ||
       err instanceof Anthropic.InternalServerError ||

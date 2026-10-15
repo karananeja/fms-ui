@@ -53,3 +53,11 @@ Cause: a failed / interrupted / stopped turn lived only in the client `Dashboard
 ## Screenshots (`FMS_SHOTS=1`)
 
 `screenshots/chat-progress.png`, `interrupted.png`, `starter.png`, `type-ahead.png`.
+
+## Bug fix 2026-10-16: "something went wrong" on a new dashboard (D-156)
+
+Cause: the xAI team behind `.env`'s key was out of credits (HTTP 403 "used all available credits or reached its monthly spending limit"); the server mapped every 401/403 to "not set up correctly" and the client replaced every `failed` message with "Something went wrong". Fix: a `credits` error class in all three providers and the F25 key check; the client shows the server's message for `failed`, and a reloaded thread uses the stored note (no raw `(error: …)` in the bubble).
+
+- `mock-server/tests/provider-credits.test.ts` (xAI 403 / OpenAI 429 → credits message; plain 401 stays "not set up"; Anthropic credit balance; key check wording, no provider text).
+- `dashboard-chat.test.tsx`: stored failed turn shows the server message once.
+- Verified on the dev mock: `/api/chat` now answers "The AI provider account is out of credits or over its spending limit. Ask an administrator."; e2e D-155 + F23 11/11.

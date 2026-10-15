@@ -6,6 +6,7 @@ import {
   isFakeUserKey,
   type ProviderName,
 } from './assistant-config.ts';
+import { isOutOfCredits } from './provider.ts';
 
 /**
  * F25: lists the models a key can use (Load models / Test connection). Plain `fetch`, 10 s
@@ -62,6 +63,16 @@ export async function listModels(
     });
   } catch {
     throw new KeyCheckError('unreachable', `Couldn't reach ${label}. Try again.`);
+  }
+  if (res.status === 401 || res.status === 403 || res.status === 429) {
+    // The body is only tested, never passed on (see above).
+    const body = await res.text().catch(() => '');
+    if (isOutOfCredits(body))
+      throw new KeyCheckError(
+        'rejected',
+        `${label} accepted this key, but the account is out of credits or over its spending limit.`,
+        res.status,
+      );
   }
   if (res.status === 401 || res.status === 403)
     throw new KeyCheckError('rejected', `${label} rejected this key.`, res.status);

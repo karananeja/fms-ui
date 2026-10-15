@@ -104,7 +104,7 @@ function ProgressRow({ label, onStop }: { label: string; onStop?: () => void }) 
       <span data-testid="chat-progress-label" className="min-w-0 flex-1 truncate">
         {label}
       </span>
-      <span data-testid="chat-progress-elapsed" className="shrink-0 tabular-nums text-text-faint">
+      <span data-testid="chat-progress-elapsed" className="shrink-0 text-text-faint tabular-nums">
         {formatElapsed(now - start)}
       </span>
       {onStop && (
@@ -235,22 +235,23 @@ function Answer({
               : 'border-danger/30 bg-danger/10 text-text',
           )}
         >
-          {ERROR_TEXT[error.code]}
+          {/* `failed` covers many causes; the server's message names this one (e.g. no credits). */}
+          {error.code === 'failed' && error.message ? error.message : ERROR_TEXT[error.code]}
         </div>
       )}
       {last &&
         (status === 'error' || status === 'stopped' || status === 'interrupted') &&
         error?.code !== 'refusal' && (
-        <button
-          type="button"
-          data-testid="assistant-retry"
-          onClick={onRetry}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-bold text-accent outline-none hover:bg-tile focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <RotateCcw className="size-3.5" aria-hidden />
-          Retry
-        </button>
-      )}
+          <button
+            type="button"
+            data-testid="assistant-retry"
+            onClick={onRetry}
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-bold text-accent outline-none hover:bg-tile focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <RotateCcw className="size-3.5" aria-hidden />
+            Retry
+          </button>
+        )}
     </div>
   );
 }

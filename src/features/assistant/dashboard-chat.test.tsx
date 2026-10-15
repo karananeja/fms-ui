@@ -382,6 +382,29 @@ describe('F19-T9 components', () => {
     },
   );
 
+  it('a stored failed turn shows the server message once (no credits), not "Something went wrong"', async () => {
+    const credits =
+      'The AI provider account is out of credits or over its spending limit. Ask an administrator.';
+    const rest = fakeRest([
+      [
+        msg(1, 'user'),
+        msg(2, 'assistant', {
+          outcome: 'error',
+          errorCode: 'failed',
+          text: `Half\n\n(error: ${credits})`,
+        }),
+      ],
+    ]);
+    await renderWith(
+      <DashboardChatDepsContext value={{ api: rest.api, stream: fakeStream().stream }}>
+        <Harness onUndo={() => {}} />
+      </DashboardChatDepsContext>,
+    );
+    expect(await screen.findByTestId('assistant-error')).toHaveTextContent(credits);
+    expect(screen.getByTestId('assistant-message')).toHaveTextContent('Half');
+    expect(screen.getByTestId('assistant-message').textContent).not.toContain('(error:');
+  });
+
   it('D-155: the global panel keeps Retry when closed and reopened', async () => {
     const transport: ChatTransport = () => Promise.reject(new ChatHttpError(500, 'busy', 'x'));
     const store = new AssistantStore({ transport });
@@ -440,7 +463,9 @@ describe('D-155 DashboardChatStore retry after a reload', () => {
     const store = new DashboardChatStore('dash-1', {}, { api: rest.api, stream: fake.stream });
     await store.load();
     store.retry();
-    await fake.fail(new ChatHttpError(409, 'failed', 'Only the latest failed reply can be retried'));
+    await fake.fail(
+      new ChatHttpError(409, 'failed', 'Only the latest failed reply can be retried'),
+    );
     await act(async () => {});
     expect(fake.calls).toHaveLength(1);
     expect(store.getSnapshot().messages.map((m) => [m.id, m.status])).toEqual([

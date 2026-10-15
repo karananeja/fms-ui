@@ -96,19 +96,22 @@ const initial: DashboardChatState = {
 };
 
 const errorCode = (code: string | undefined): ChatErrorCode =>
-  (CHAT_ERROR_CODES as readonly string[]).includes(code ?? '')
-    ? (code as ChatErrorCode)
-    : 'failed';
+  (CHAT_ERROR_CODES as readonly string[]).includes(code ?? '') ? (code as ChatErrorCode) : 'failed';
+
+const STORED_NOTE = /(?:^|\n\n)\((?:error: ([\s\S]*)|stopped|interrupted)\)$/;
 
 /** D-155: a stored message; its turn's outcome gives the status (Retry after a reload). */
 const fromThread = (m: ThreadMessage): DashboardChatMessage => {
   const outcome = m.role === 'assistant' ? (m.outcome ?? 'done') : 'done';
   const code = errorCode(m.errorCode);
+  // The server appends how the turn ended (`(error: …)`, `(stopped)`, `(interrupted)`); the
+  // status row shows that, so the note is cut from the text and an error note is its message.
+  const note = outcome === 'done' ? null : STORED_NOTE.exec(m.text);
   return {
     id: m.id,
     seq: m.seq,
     role: m.role,
-    text: m.text,
+    text: note ? m.text.slice(0, note.index).trimEnd() : m.text,
     chips: m.chips,
     change: m.change,
     createdAt: m.createdAt,
@@ -116,7 +119,7 @@ const fromThread = (m: ThreadMessage): DashboardChatMessage => {
     dashboards: [],
     previews: m.previews ?? [],
     status: outcome,
-    error: outcome === 'error' ? { code, message: ERROR_TEXT[code] } : null,
+    error: outcome === 'error' ? { code, message: note?.[1] ?? ERROR_TEXT[code] } : null,
   };
 };
 
@@ -432,7 +435,7 @@ export class DashboardChatStore {
         if (http?.status === 401) this.deps.onUnauthorized?.();
         this.finish(id, 'error', {
           code: http?.code ?? 'failed',
-          message: http?.message ?? String(err),
+          message: http?.message ?? ERROR_TEXT.failed,
         });
       }
     } finally {

@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { ASSISTANT_MAX_ITERATIONS } from './assistant-config.ts';
 import type { ToolHost } from './assistant-tools.ts';
 import {
+  OUT_OF_CREDITS_MESSAGE,
   ProviderCutError,
   totalInput,
   type ChatMessage,
@@ -193,7 +194,7 @@ export async function runChat(opts: RunOptions): Promise<RunOutcome> {
     // A stream without a finish, or a drop (no HTTP status) after output had started, is a cut.
     const cut =
       err instanceof ProviderCutError ||
-      (streamed && cls.kind !== 'auth' && cls.status === undefined);
+      (streamed && cls.kind !== 'auth' && cls.kind !== 'credits' && cls.status === undefined);
     if (cls.kind === 'busy' || cut) {
       log('assistant busy', {
         provider: provider.name,
@@ -211,9 +212,11 @@ export async function runChat(opts: RunOptions): Promise<RunOutcome> {
     });
     await fail(
       'failed',
-      cls.kind === 'auth'
-        ? 'The assistant is not set up correctly. Ask an administrator.'
-        : 'Something went wrong. Try again.',
+      cls.kind === 'credits'
+        ? OUT_OF_CREDITS_MESSAGE
+        : cls.kind === 'auth'
+          ? 'The assistant is not set up correctly. Ask an administrator.'
+          : 'Something went wrong. Try again.',
     );
   }
   return final;

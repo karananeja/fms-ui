@@ -6,6 +6,7 @@ import { XAI_CONV_ID_HEADER } from './assistant-config.ts';
 import { buildTools, strictSafeSchema, toolDefinitions } from './assistant-tools.ts';
 import {
   emptyUsage,
+  isOutOfCredits,
   messageText,
   ProviderCutError,
   ProviderHttpError,
@@ -203,6 +204,8 @@ export class OpenAiCompatibleProvider implements ChatProvider {
 
   classify(err: unknown): ErrorClass {
     if (err instanceof ProviderHttpError) {
+      if (err.status < 500 && isOutOfCredits(err.message))
+        return { kind: 'credits', status: err.status };
       if (err.status === 429 || err.status >= 500) return { kind: 'busy', status: err.status };
       if (err.status === 401 || err.status === 403) return { kind: 'auth', status: err.status };
       return { kind: 'failed', status: err.status };
