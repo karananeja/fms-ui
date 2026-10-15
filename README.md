@@ -106,6 +106,21 @@ FMS_ASSISTANT_MODEL=grok-4
 - Tests use the fake model on either wire format: `FMS_ASSISTANT_FAKE=1` plus `FMS_ASSISTANT_PROVIDER=openai`
   (or `xai`) drives `/__fake-openai/v1/chat/completions`; without a provider it drives `/__fake-anthropic`.
 
+### Users' own AI keys (F25)
+
+Users can add their own xAI / OpenAI / Anthropic key under **Settings → AI assistant** (`/settings/ai`):
+pick a provider, paste the key, **Load models**, **Test connection**, **Save**. The key is used for that
+user's chats only and is shown back masked (`xai-…9f3c`), never in full.
+
+- Set `FMS_SECRET_KEY` (16+ characters) in `.env`. Keys are encrypted with AES-256-GCM using a key derived
+  from it; without it the server refuses to store keys. Changing it makes saved keys unreadable.
+- Resolution per chat turn: the user's active key → the server key above, only if **Allow the server key
+  as a fallback** is on (Super Admin, `roles.manage`; on by default) → "not configured".
+- Keys starting `fake-` use the scripted fake model in dev / with `FMS_ASSISTANT_FAKE=1`
+  (`fake-…invalid…` is rejected), so the flow can be tried without a real key.
+- Load models / Test connection are limited to 5 checks per user per minute. Saving, removing and the
+  fallback switch are written to `audit_log` (no key material).
+
 ## Scripts
 
 | Script | What it does |

@@ -261,4 +261,83 @@ CREATE TABLE share_links (
 );
 `,
   },
+  {
+    version: 8,
+    name: 'ai_keys',
+    // F25 (D-143): per-user AI keys (AES-256-GCM `secret`, masked copy for display), org
+    // settings (server-key fallback) and an audit log without key material.
+    sql: `
+CREATE TABLE user_ai_keys (
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider   TEXT NOT NULL CHECK (provider IN ('xai','openai','anthropic')),
+  model      TEXT NOT NULL,
+  secret     TEXT NOT NULL,
+  masked     TEXT NOT NULL,
+  active     INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, provider)
+);
+CREATE TABLE org_settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL CHECK (json_valid(value)),
+  updated_by TEXT,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE audit_log (
+  seq      INTEGER PRIMARY KEY,
+  at       INTEGER NOT NULL,
+  actor_id TEXT NOT NULL,
+  action   TEXT NOT NULL,
+  target   TEXT NOT NULL,
+  details  TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(details))
+);
+`,
+  },
+  {
+    version: 9,
+    name: 'dashboard_snapshots',
+    // F20 addendum (D-142): one list-card snapshot per (dashboard, viewer), WebP/PNG ≤ 120 KB.
+    sql: `
+CREATE TABLE dashboard_snapshots (
+  dashboard_id TEXT NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
+  user_id      TEXT NOT NULL,
+  theme        TEXT NOT NULL CHECK (theme IN ('light','dark')),
+  mime         TEXT NOT NULL,
+  image        BLOB NOT NULL,
+  captured_at  INTEGER NOT NULL,
+  PRIMARY KEY (dashboard_id, user_id)
+);
+`,
+  },
+  {
+    version: 10,
+    name: 'dashboard_edit_sharing',
+    // F27 (D-150…D-152): per-share view/edit, threads per (dashboard, user) (existing rows are
+    // the owner's), change-set actor, last editor and a small activity list.
+    sql: `
+ALTER TABLE dashboard_shares
+  ADD COLUMN access TEXT NOT NULL DEFAULT 'view' CHECK (access IN ('view','edit'));
+ALTER TABLE dashboard_messages ADD COLUMN user_id TEXT;
+UPDATE dashboard_messages
+  SET user_id = (SELECT d.owner_id FROM dashboards d WHERE d.id = dashboard_messages.dashboard_id);
+CREATE INDEX dashboard_messages_user ON dashboard_messages (dashboard_id, user_id, seq);
+ALTER TABLE dashboard_changes ADD COLUMN actor_id TEXT;
+UPDATE dashboard_changes
+  SET actor_id = (SELECT d.owner_id FROM dashboards d WHERE d.id = dashboard_changes.dashboard_id);
+ALTER TABLE dashboards ADD COLUMN updated_by TEXT;
+UPDATE dashboards SET updated_by = owner_id;
+CREATE TABLE dashboard_activity (
+  id           TEXT PRIMARY KEY,
+  dashboard_id TEXT NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
+  user_id      TEXT NOT NULL,
+  summary      TEXT NOT NULL,
+  version      INTEGER NOT NULL,
+  change_id    TEXT,
+  manual       INTEGER NOT NULL DEFAULT 0,
+  at           INTEGER NOT NULL
+);
+CREATE INDEX dashboard_activity_dash ON dashboard_activity (dashboard_id, at DESC);
+`,
+  },
 ];

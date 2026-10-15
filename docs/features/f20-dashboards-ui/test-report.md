@@ -34,3 +34,21 @@ Screenshots (`FMS_SHOTS=1`): `f20-empty-state.png`, `f20-list.png`, `f20-dashboa
 **Runs:** vitest assistant + dashboards 36/36; `tsc -b` + eslint clean; e2e `dashboard-previews` 2/2, `dashboard-builder` 1/1, `dashboards` 4/4 (+ setup), one run.
 
 **Bundle:** `pnpm build` clean. The preview body (`preview-widget-body`, 0.6 kB) lazy-loads the shared `widget-renderer` chunk (23.1 kB); the panel side card + picker chunk is 24.5 kB (8.6 kB gz); `assistant-panel` 6.0 kB. A dist grep finds react-grid-layout code only in `dashboard-page-*.js` (102 kB, 30.2 kB gz).
+
+## Addendum — Dashboard snapshots on list cards (D-142, `addendum-snapshots.md`) · 2026-10-16
+
+| ID | Result | Evidence |
+|---|---|---|
+| S-T1 | Pass | `mock-server/tests/f20-snapshots.test.ts`: PUT → `DashboardSnapshot`; GET returns the same bytes, `content-type`, `x-snapshot-theme/captured-at`; HEAD headers only; a PNG replaces it |
+| S-T2 | Pass | same: 120 KB OK, +1 byte → 413 `payload_too_large`, 3× → 413; text/plain and image/jpeg → 415; PNG bytes as webp → 422; theme `sepia` → 422 |
+| S-T3 | Pass | same: stranger (not shared) 404; viewer role (no `dashboards.use`) 403; shared viewer PUT/GET their own, never the owner's |
+| S-T4 | Pass | same: list items carry the caller's own `snapshot` (`null` otherwise) |
+| S-T5 | Pass | same: revoke removes only the viewer's row; dashboard delete cascades |
+| S-T6 | Pass | same: migration v9 `dashboard_snapshots` (contiguous with F25's v8); `wipeDatabase` empties the table |
+| S-T7 | Pass | `src/features/dashboards/snapshot.test.tsx`: due rules (none/age/theme/changed), WebP quality loop 0.8→0.65→0.5 to ≤ 40 KB, PNG fallback, over-cap → null; age text; `gridReady`; registered map `toDataURL` freeze/restore |
+| S-T8 | Pass | same: layout drawing until first capture; image blur-up (opacity 0 → 100 on load), "Snapshot · 5 min ago (other theme)" at 55 %; img error → drawing; list row without caption |
+| S-T9 | Pass | `e2e/dashboard-snapshots.spec.ts`: open → PUT image/webp ≤ 40 KB → list card image 640×400 + "Snapshot · just now"; re-open within 10 min → no PUT |
+
+**Runs:** vitest snapshot + f20-snapshots + f18 + f22 + database + rest-contract 40/40; eslint clean on touched files; `tsc -b` clean for these files (remaining errors are in F25/F26 in-progress files: `no-access-page`, `widget-queries`, `widget-renderer`, `catalogue-prompt`); e2e `dashboard-snapshots` 1/1, `dashboards` 4/4, `f23-chat-dashboard-ux` 8/8 (+ setup), `--workers=1`, one run.
+
+**Bundle:** `vite build` clean. `modern-screenshot@4.7.0` lives only in `snapshot-capture-*.js` (23.6 kB, 9.1 kB gz), dynamically imported by `dashboard-page-*.js` (118.2 kB, 35.4 kB gz) only; `dashboards-page` 26.7 kB (8.8 kB gz); `app-entry` 345.5 kB (103.6 kB gz). Screenshot: `screenshots/f20-snapshot-card.png`.

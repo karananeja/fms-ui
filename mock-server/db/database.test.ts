@@ -18,9 +18,12 @@ const tables = (db: ReturnType<typeof openDatabase>) =>
 
 const ALL_TABLES = [
   'assignments',
+  'audit_log',
+  'dashboard_activity',
   'dashboard_changes',
   'dashboard_messages',
   'dashboard_shares',
+  'dashboard_snapshots',
   'dashboards',
   'driver_patches',
   'drivers_created',
@@ -31,6 +34,7 @@ const ALL_TABLES = [
   'notification_read_all',
   'notification_reads',
   'notifications',
+  'org_settings',
   'request_events',
   'requests',
   'reset_tokens',
@@ -40,6 +44,7 @@ const ALL_TABLES = [
   'sessions',
   'share_links',
   'sqlite_sequence',
+  'user_ai_keys',
   'users',
   'vehicle_fleet',
 ];
@@ -64,7 +69,9 @@ describe('F18-T2: database and migrations', () => {
     const db = openDatabase(path);
     db.prepare('INSERT INTO schema_migrations VALUES (99, ?, 0)').run('future');
     db.close();
-    expect(() => openDatabase(path)).toThrow(/schema v99 is newer than this server \(v7\)/);
+    expect(() => openDatabase(path)).toThrow(
+      `schema v99 is newer than this server (v${MIGRATIONS.at(-1)!.version})`,
+    );
   });
 
   it('foreign-key cascade removes shares, messages and change sets', () => {
@@ -72,15 +79,18 @@ describe('F18-T2: database and migrations', () => {
     db.exec(`
       INSERT INTO dashboards (id, owner_id, title, widgets, layout, created_at, updated_at)
         VALUES ('d1', 'u', 't', '[]', '{}', 0, 0);
-      INSERT INTO dashboard_shares VALUES ('d1', 'u2', 'u', 0);
+      INSERT INTO dashboard_shares (dashboard_id, user_id, shared_by, created_at)
+        VALUES ('d1', 'u2', 'u', 0);
       INSERT INTO dashboard_messages (id, dashboard_id, seq, role, text, created_at)
         VALUES ('m1', 'd1', 1, 'user', 'hi', 0);
       INSERT INTO dashboard_changes (id, dashboard_id, summary, before, before_version, after_version, created_at)
         VALUES ('c1', 'd1', 's', '{}', 1, 2, 0);
     `);
-    expect(() => db.exec("INSERT INTO dashboard_shares VALUES ('nope', 'u2', 'u', 0)")).toThrow(
-      /FOREIGN KEY/,
-    );
+    expect(() =>
+      db.exec(
+        "INSERT INTO dashboard_shares (dashboard_id, user_id, shared_by, created_at) VALUES ('nope', 'u2', 'u', 0)",
+      ),
+    ).toThrow(/FOREIGN KEY/);
     db.exec("DELETE FROM dashboards WHERE id = 'd1'");
     for (const t of ['dashboard_shares', 'dashboard_messages', 'dashboard_changes'])
       expect(db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get()).toEqual({ n: 0 });

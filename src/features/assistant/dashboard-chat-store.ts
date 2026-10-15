@@ -51,6 +51,8 @@ export interface DashboardChatState {
   notice: string | null;
   /** The change id whose Undo is in flight. */
   undoing: string | null;
+  /** F27: a prompt refused with `chat_busy`, handed back to the composer. */
+  restore: string | null;
 }
 
 export interface DashboardChatCallbacks {
@@ -85,6 +87,7 @@ const initial: DashboardChatState = {
   error: null,
   notice: null,
   undoing: null,
+  restore: null,
 };
 
 const fromThread = (m: ThreadMessage): DashboardChatMessage => ({
@@ -204,7 +207,7 @@ export class DashboardChatStore {
       text: message,
       status: 'done',
     };
-    this.set({ messages: [...this.state.messages, user], notice: null });
+    this.set({ messages: [...this.state.messages, user], notice: null, restore: null });
     void this.run(user.id, message);
   }
 
@@ -346,6 +349,13 @@ export class DashboardChatStore {
         this.finish(id, 'stopped', null);
       } else if (isInterruption(err)) {
         cut = true;
+      } else if (err instanceof ChatHttpError && err.code === 'chat_busy') {
+        // F27 (D-154): someone else's turn is running: a notice, not an error bubble.
+        this.set({
+          messages: this.state.messages.filter((m) => m.id !== userId && m.id !== id),
+          notice: err.message,
+          restore: message,
+        });
       } else {
         const http = err instanceof ChatHttpError ? err : null;
         if (http?.status === 401) this.deps.onUnauthorized?.();

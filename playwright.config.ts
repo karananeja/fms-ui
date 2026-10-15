@@ -91,6 +91,8 @@ export default defineConfig({
       // over `.env`; an empty provider counts as unset).
       FMS_ASSISTANT_FAKE: '1',
       FMS_ASSISTANT_PROVIDER: '',
+      // F25: lets e2e save (fake) user keys; never a real secret.
+      FMS_SECRET_KEY: 'e2e-secret-0123456789abcdef',
     },
   },
 });

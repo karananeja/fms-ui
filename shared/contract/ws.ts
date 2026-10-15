@@ -11,7 +11,7 @@ export * from './ws-protocol.ts';
  * `events` (F11, low volume, consumed on the main thread): notifications, requests and
  * assignments. Staff subscribe it with a fleet scope; drivers with `{ kind: 'self' }`.
  */
-export const topicSchema = z.enum(['combinfo', 'lafparsed', 'events']);
+export const topicSchema = z.enum(['combinfo', 'lafparsed', 'events', 'dashboard']);
 export type Topic = z.infer<typeof topicSchema>;
 
 export const scopeSchema = z.discriminatedUnion('kind', [
@@ -19,6 +19,8 @@ export const scopeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('vehicle'), vehicleId: z.string() }),
   /** Only with topic `events`: the signed-in driver's own events. */
   z.object({ kind: z.literal('self') }),
+  /** F27 (D-153): only with topic `dashboard`: one dashboard the user can open. */
+  z.object({ kind: z.literal('dashboard'), dashboardId: z.string().min(1).max(64) }),
 ]);
 export type Scope = z.infer<typeof scopeSchema>;
 
@@ -104,6 +106,33 @@ export const eventMessageSchema = z.discriminatedUnion('kind', [
 ]);
 export type EventMessage = z.infer<typeof eventMessageSchema>;
 
+/** F27 (D-153): `dashboard` topic events (low volume, main thread; no chat content). */
+const dashboardActorSchema = z.object({ userId: z.string(), name: z.string() });
+export const dashboardEventSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('changed'),
+    dashboardId: z.string(),
+    version: z.number().int().min(1),
+    by: dashboardActorSchema,
+    at: ts,
+    summary: z.string(),
+  }),
+  z.object({
+    kind: z.literal('assistant'),
+    dashboardId: z.string(),
+    running: z.boolean(),
+    by: dashboardActorSchema.nullable(),
+  }),
+  /** Only to the affected user; `null` = access removed (the subscription ends). */
+  z.object({
+    kind: z.literal('access'),
+    dashboardId: z.string(),
+    access: z.enum(['editor', 'viewer']).nullable(),
+  }),
+  z.object({ kind: z.literal('deleted'), dashboardId: z.string() }),
+]);
+export type DashboardLiveEvent = z.infer<typeof dashboardEventSchema>;
+
 export const serverMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('subscribed'), id: z.string() }),
   z.object({
@@ -129,6 +158,7 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
     data: z.union([redactedCombinfoSchema, redactedLafparsedSchema]),
   }),
   eventMessageSchema,
+  z.object({ type: z.literal('dashboard'), id: z.string(), event: dashboardEventSchema }),
   z.object({ type: z.literal('pong') }),
   z.object({ type: z.literal('heartbeat'), ts }),
   z.object({

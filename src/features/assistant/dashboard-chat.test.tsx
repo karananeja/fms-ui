@@ -244,18 +244,19 @@ describe('F19-T9 DashboardChatStore', () => {
     expect(store.getSnapshot().streaming).toBe(false);
     expect(rest.calls.filter(([p]) => p.endsWith('/thread')).length).toBe(2);
 
+    // F27 (D-154): chat_busy is a notice naming who is asking; the prompt goes back to the composer.
     store.send('again');
-    await fake.fail(
-      new ChatHttpError(409, 'chat_busy', 'Another reply is in progress on this dashboard'),
-    );
-    const last = store.getSnapshot().messages.at(-1)!;
-    expect(last.error).toEqual({
-      code: 'chat_busy',
-      message: 'Another reply is in progress on this dashboard',
-    });
+    await fake.fail(new ChatHttpError(409, 'chat_busy', 'Priya is asking the assistant…'));
+    const snap = store.getSnapshot();
+    expect(snap.messages.some((m) => m.text === 'again')).toBe(false);
+    expect(snap.messages.some((m) => m.error)).toBe(false);
+    expect(snap.notice).toBe('Priya is asking the assistant…');
+    expect(snap.restore).toBe('again');
 
-    store.retry();
-    expect((fake.calls.at(-1)!.body as { message: string }).message).toBe('again');
+    const sent = fake.calls.length;
+    store.send('again');
+    expect(fake.calls).toHaveLength(sent + 1);
+    expect(store.getSnapshot().restore).toBeNull();
     await fake.emit({ type: 'error', code: 'not_configured', message: 'x' });
     await fake.end();
     expect(store.getSnapshot().notConfigured).toBe(true);

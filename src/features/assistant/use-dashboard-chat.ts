@@ -27,6 +27,7 @@ const LOADING: DashboardChatState = {
   error: null,
   notice: null,
   undoing: null,
+  restore: null,
 };
 const noSubscribe = () => () => {};
 
@@ -38,6 +39,8 @@ export interface UseDashboardChat {
   /** `version` defaults to the change's `afterVersion` (pass the page's current version). */
   undo(changeId: string, version?: number): Promise<void>;
   dismissNotice(): void;
+  /** F27: re-reads the thread (someone else changed the dashboard; Undo states move). */
+  reload(): void;
   /** D-135: records a preview card's state on the server. */
   setPreviewStatus(previewId: string, status: 'added' | 'discarded'): Promise<void>;
 }
@@ -89,6 +92,7 @@ export function useDashboardChat(
       undo: (changeId: string, version?: number) =>
         store ? store.undo(changeId, version) : Promise.resolve(),
       dismissNotice: () => store?.dismissNotice(),
+      reload: () => void store?.load(),
       setPreviewStatus: (previewId: string, status: 'added' | 'discarded') =>
         store ? store.setPreviewStatus(previewId, status) : Promise.resolve(),
     }),

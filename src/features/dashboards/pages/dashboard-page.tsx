@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import type { Dashboard, Widget, WidgetPreview } from '@shared/contract/dashboards.ts';
 import { useCan } from '@/features/access/permissions/can';
 import { dashboardEvents } from '@/features/assistant/dashboard-events';
+import { selectMe, useSession } from '@/features/auth/session/use-session';
 import { liveTrackingStore } from '@/features/live-tracking/store/live-tracking-store';
 import { ApiError } from '@/shared/api/api-client';
 import { useMediaQuery } from '@/shared/hooks/use-media-query';
@@ -26,7 +27,9 @@ import { widgetRequest } from '../data/widget-queries';
 import { LiveWidgetSource } from '../live/live-widget-source';
 import { LiveWidgetSourceContext } from '../live/use-live-widget';
 import { droppedPreview, draggedPreview } from '../lib/preview-drag';
+import { useDashboardSnapshot } from '../lib/use-dashboard-snapshot';
 import { DashboardSession, type AddAt } from '../store/dashboard-session';
+import { dashboardSocket, type DashboardSocket } from '../store/dashboard-socket';
 
 const DOCK_KEY = 'fms.dashboards.chat';
 const CONFLICT_TEXT = 'This dashboard was changed elsewhere. Showing the latest version.';
@@ -83,12 +86,27 @@ function BuildingSkeletons({ count, className }: { count: number; className?: st
 }
 
 /** `/dashboards/$id` (§4): one keyed view per dashboard id. */
-export function DashboardPage({ api = dashboardsApi }: { api?: DashboardsApi }) {
+export function DashboardPage({
+  api = dashboardsApi,
+  socket = dashboardSocket,
+}: {
+  api?: DashboardsApi;
+  /** F27: live changes from other people (tests pass a fake or `null`). */
+  socket?: Pick<DashboardSocket, 'watch'> | null;
+}) {
   const { id } = useParams({ from: '/app/dashboards/$id' });
-  return <DashboardView key={id} id={id} api={api} />;
+  return <DashboardView key={id} id={id} api={api} socket={socket} />;
 }
 
-function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
+function DashboardView({
+  id,
+  api,
+  socket,
+}: {
+  id: string;
+  api: DashboardsApi;
+  socket: Pick<DashboardSocket, 'watch'> | null;
+}) {
   const [session] = useState(() => new DashboardSession(id, api));
   const [cache] = useState(() => new QueryCache());
   const [live] = useState(() => new LiveWidgetSource(liveTrackingStore));
@@ -109,7 +127,34 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
   const [docked, setDocked] = useState(false);
   const [slide, setSlide] = useState(false);
   const [announce, setAnnounce] = useState('');
+  const meId = useSession(selectMe)?.user.id ?? null;
+  // F27 (D-153/D-154): someone else asking the assistant; bumped on others' changes.
+  const [busyBy, setBusyBy] = useState<string | null>(null);
+  const [syncKey, setSyncKey] = useState(0);
   useAutoRefresh(cache);
+
+  // F27 (D-153): live pushes from other people who have this dashboard open.
+  useEffect(() => {
+    if (!socket) return;
+    return socket.watch(id, (e) => {
+      if (e.kind === 'changed') {
+        if (e.by.userId === meId && e.version <= session.version) return;
+        void session.refresh();
+        if (e.by.userId !== meId) setSyncKey((k) => k + 1);
+      } else if (e.kind === 'sync') {
+        void session.refresh();
+        setSyncKey((k) => k + 1);
+      } else if (e.kind === 'assistant') {
+        setBusyBy(e.running && e.by && e.by.userId !== meId ? e.by.name : null);
+      } else if (e.kind === 'access') {
+        if (e.access === 'viewer') toast('Your access changed: view only');
+        else if (e.access === 'editor') toast('You can now edit this dashboard');
+        void session.refresh();
+      } else if (e.kind === 'deleted') {
+        void session.refresh();
+      }
+    });
+  }, [socket, id, meId, session]);
 
   useEffect(() => {
     void session.load();
@@ -141,7 +186,9 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
 
   const d = state.dashboard;
   const owner = d?.access === 'owner';
-  const showChat = owner && canChat;
+  // F27: editors get the full editing UI (grid, rename, their own chat); owner-only = share/delete.
+  const canEdit = owner || d?.access === 'editor';
+  const showChat = canEdit && canChat;
   const empty = d?.widgets.length === 0;
   if (showChat && d && !docked && (!empty || activity.messages > 0 || activity.streaming)) {
     setDocked(true);
@@ -160,6 +207,16 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
   const starter = showChat && !!d && !docked;
   // F23: a turn that is changing the dashboard (or filling an empty one) shows the build state.
   const building = showChat && activity.streaming && (activity.changing || empty);
+
+  // D-142: this viewer's list-card snapshot of the grid (grid element only, when idle).
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useDashboardSnapshot({
+    id,
+    updatedAt: d?.updatedAt,
+    hasWidgets: !!d && d.widgets.length > 0,
+    busy: building || activity.streaming || state.saveState !== 'saved',
+    rootRef: scrollRef,
+  });
 
   useEffect(() => {
     if (!docked || !slide) return;
@@ -280,6 +337,8 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
       draggablePreviews={desktop}
       onActivity={setActivity}
       stopRef={stopRef}
+      busyBy={busyBy}
+      syncKey={syncKey}
     />
   );
 
@@ -292,6 +351,9 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
               <DashboardTitleBar
                 dashboard={d}
                 owner={owner}
+                canEdit={canEdit}
+                meId={meId}
+                loadActivity={() => api.activity(id)}
                 saveState={state.saveState}
                 now={now}
                 compact={compact}
@@ -312,6 +374,7 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
               <TitleBarSkeleton />
             )}
             <div
+              ref={scrollRef}
               className="min-h-0 flex-1 overflow-auto p-4 sm:p-5"
               data-testid="dashboard-scroll"
             >
@@ -336,12 +399,12 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
                   data-testid="dashboard-empty"
                   // D-135: a preview dropped on an empty dashboard lands top-left.
                   onDragOver={(e) => {
-                    if (!owner || !draggedPreview(e.dataTransfer)) return;
+                    if (!canEdit || !draggedPreview(e.dataTransfer)) return;
                     e.preventDefault();
                     e.dataTransfer.dropEffect = 'copy';
                   }}
                   onDrop={(e) => {
-                    const p = owner ? droppedPreview(e.dataTransfer) : null;
+                    const p = canEdit ? droppedPreview(e.dataTransfer) : null;
                     if (!p) return;
                     e.preventDefault();
                     void addPreview(p).catch(() => {});
@@ -383,7 +446,7 @@ function DashboardView({ id, api }: { id: string; api: DashboardsApi }) {
                 <>
                   <DashboardGrid
                     dashboard={d}
-                    owner={owner}
+                    owner={canEdit}
                     onLayout={(l) => session.scheduleLayout(l)}
                     onWidgetRefresh={refreshWidget}
                     onWidgetRename={(wid, t) => session.setWidgetTitle(wid, t)}

@@ -1,4 +1,5 @@
 import type { TimeRange, Widget } from '@shared/contract/dashboards.ts';
+import { customRequest } from './custom-requests';
 import { resolveRange } from './time-range';
 
 /**
@@ -66,6 +67,8 @@ export function widgetRequest(w: Widget): WidgetRequest | null {
           limit: REQUESTS_FETCH_LIMIT,
         })}`,
       );
+    case 'custom':
+      return customRequest(w.spec);
     case 'status-breakdown':
     case 'vehicle-list':
     case 'text':

@@ -129,3 +129,57 @@ export function assistantEnv(env: NodeJS.ProcessEnv = process.env): AssistantEnv
       : 'no API key is set (ANTHROPIC_API_KEY, OPENAI_API_KEY or XAI_API_KEY)',
   );
 }
+
+/** Whether the fake model endpoints are registered (dev, `FMS_ASSISTANT_FAKE=1`, provider `fake`). */
+export const fakeModelAvailable = (dev: boolean, env: NodeJS.ProcessEnv = process.env) =>
+  dev ||
+  env.FMS_ASSISTANT_FAKE?.trim() === '1' ||
+  env.FMS_ASSISTANT_PROVIDER?.trim().toLowerCase() === 'fake';
+
+/** F25: user keys starting with this run on the fake model (when it is available). */
+export const FAKE_USER_KEY_PREFIX = 'fake-';
+export const isFakeUserKey = (key: string) => key.startsWith(FAKE_USER_KEY_PREFIX);
+
+export type AssistantSource = 'user' | 'server' | 'none';
+export type NotConfiguredReason = 'fallback_disabled' | 'server_not_configured';
+
+export interface ResolvedAssistant extends AssistantEnv {
+  source: AssistantSource;
+  /** Set when `source` is `none`. */
+  notConfigured?: NotConfiguredReason;
+}
+
+/**
+ * F25 (D-143) resolution order: the user's active key → the server env (F21 `assistantEnv`) only
+ * when the org allows the fallback → not configured. A fake user key (`fake-…`) uses the fake
+ * model on that provider's wire format and never sends the user's key anywhere.
+ */
+export function resolveAssistant(opts: {
+  userKey?: { provider: ProviderName; apiKey: string; model: string };
+  allowFallback: boolean;
+  fakeAvailable: boolean;
+  env?: NodeJS.ProcessEnv;
+}): ResolvedAssistant {
+  const { userKey } = opts;
+  if (userKey) {
+    const fake = opts.fakeAvailable && isFakeUserKey(userKey.apiKey);
+    return {
+      source: 'user',
+      mode: fake ? 'fake' : 'real',
+      provider: userKey.provider,
+      apiKey: fake ? FAKE_API_KEY : userKey.apiKey,
+      model: userKey.model,
+    };
+  }
+  if (!opts.allowFallback)
+    return {
+      source: 'none',
+      mode: 'not-configured',
+      notConfigured: 'fallback_disabled',
+      reason: 'the user has no API key and the server key fallback is off',
+    };
+  const env = assistantEnv(opts.env);
+  if (env.mode === 'not-configured')
+    return { ...env, source: 'none', notConfigured: 'server_not_configured' };
+  return { ...env, source: 'server' };
+}

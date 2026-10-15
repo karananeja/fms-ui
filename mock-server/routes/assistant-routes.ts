@@ -16,10 +16,14 @@ import {
   DEFAULT_BASE_URL,
   FAKE_MODEL_PATH,
   FAKE_OPENAI_PATH,
+  fakeModelAvailable,
   sseHeartbeatMs,
   xaiStreamUsage,
   type ProviderName,
+  type ResolvedAssistant,
 } from '../assistant/assistant-config.ts';
+import { redactSecrets } from '../assistant/key-crypto.ts';
+import { resolveForUser } from '../assistant/user-assistant.ts';
 import { AnthropicProvider } from '../assistant/anthropic-provider.ts';
 import { OpenAiCompatibleProvider } from '../assistant/openai-provider.ts';
 import type { ChatProvider, Usage } from '../assistant/provider.ts';
@@ -41,7 +45,7 @@ import { HttpError } from '../http-error.ts';
 /**
  * F17 assistant (registered without a prefix):
  * - `POST /api/chat` (`chat.use`): SSE, one JSON `ChatEvent` per `data:` line.
- * - `POST /api/dashboards/:id/chat` (`chat.use` + `dashboards.use`, owner only; F19): SSE,
+ * - `POST /api/dashboards/:id/chat` (`chat.use` + `dashboards.use`, owner or editor; F19/F27): SSE,
  *   one turn of that dashboard's chat (409 `chat_busy` while another turn runs on it).
  * - `GET /api/chat/reports/:id`: a generated report, only for the user who created it.
  * - Fake mode / dev: `POST /__fake-anthropic/v1/messages` (fake Messages API),
@@ -52,19 +56,21 @@ export async function assistantRoutes(app: FastifyInstance) {
   const ctx = app.mock;
   const reports = new ReportStore(() => ctx.clock.now());
   let activeRuns = 0;
-  const fake =
-    ctx.config.dev ||
-    process.env.FMS_ASSISTANT_FAKE?.trim() === '1' ||
-    process.env.FMS_ASSISTANT_PROVIDER?.trim().toLowerCase() === 'fake'
-      ? registerFakeModel(app)
-      : undefined;
+  const fake = fakeModelAvailable(ctx.config.dev) ? registerFakeModel(app) : undefined;
+  /** F25 (D-143): the user's key → the server env if the org allows it → not configured. */
+  const envFor = (userId: string) => resolveForUser(ctx, userId, fake !== undefined);
 
   const ownBaseUrl = (path: string) => {
     const addr = app.server.address() as AddressInfo | null;
     return `http://127.0.0.1:${addr?.port ?? ctx.config.port}${path}`;
   };
 
-  type Env = ReturnType<typeof assistantEnv>;
+  type Env = ResolvedAssistant;
+  /** F25: provider error text in log data can echo key fragments; strip them. */
+  const redactLog = (data: object | undefined, env: Env) =>
+    data && 'error' in data
+      ? { ...data, error: redactSecrets(String(data.error), env.apiKey) }
+      : data;
   /** Not-configured reasons already logged (one clear line each, not one per request). */
   const logged = new Set<string>();
   const unconfigured = (env: Env) => {
@@ -133,7 +139,7 @@ export async function assistantRoutes(app: FastifyInstance) {
   const NOT_CONFIGURED: ChatEvent = {
     type: 'error',
     code: 'not_configured',
-    message: 'The assistant is not set up yet. Ask an administrator to add an API key.',
+    message: 'The assistant is not set up yet. Add your own API key in Settings → AI assistant.',
   };
 
   /** The provider of one run (F21, D-134): Anthropic SDK, or the OpenAI-compatible adapter. */
@@ -213,7 +219,7 @@ export async function assistantRoutes(app: FastifyInstance) {
     const { user, permissions } = authorize(ctx, req, 'chat.use');
     const body = parse(chatRequestSchema, req.body);
     const sid = req.cookies[SESSION_COOKIE]!;
-    const env = assistantEnv();
+    const env = envFor(user.id);
 
     const started = Date.now();
     const { res, emit } = openStream(reply);
@@ -239,7 +245,8 @@ export async function assistantRoutes(app: FastifyInstance) {
         abortReason: run.abortReason,
         cacheKey: chatCacheKey(user.id, 'global'),
         onUsage,
-        log: (msg, data) => app.log.info({ mode: env.mode, ...data }, msg),
+        log: (msg, data) =>
+          app.log.info({ mode: env.mode, source: env.source, ...redactLog(data, env) }, msg),
         // F19 Q2: a dashboard created here gets the creating turn as its thread.
         onFinish: (outcome) => {
           for (const created of outcome.turn.created) {
@@ -265,17 +272,20 @@ export async function assistantRoutes(app: FastifyInstance) {
     }
   });
 
-  /** F19: the chat of one dashboard (owner only); the stored thread is the source of truth. */
+  /**
+   * F19: the chat of one dashboard; the stored thread is the source of truth. F27 (D-151): the
+   * owner and editors each have their own private thread; viewers get 403.
+   */
   app.post<{ Params: { id: string } }>('/api/dashboards/:id/chat', async (req, reply) => {
     const { user, permissions } = authorize(ctx, req, 'chat.use');
     authorize(ctx, req, 'dashboards.use');
     const dashboardId = req.params.id;
     const dashboard = ctx.dashboards.get(user.id, dashboardId);
-    if (dashboard.access !== 'owner')
-      throw new HttpError(403, 'forbidden', 'Only the owner can chat with this dashboard');
+    if (dashboard.access === 'viewer')
+      throw new HttpError(403, 'forbidden', 'You can only view this dashboard');
     const { message } = parse(dashboardChatRequestSchema, req.body);
     const sid = req.cookies[SESSION_COOKIE]!;
-    const env = assistantEnv();
+    const env = envFor(user.id);
     const started = Date.now();
     if (unconfigured(env)) {
       const { res, emit } = openStream(reply);
@@ -284,7 +294,7 @@ export async function assistantRoutes(app: FastifyInstance) {
       streamEnded('dashboard', 'error', started);
       return;
     }
-    const release = takeChatLock(ctx, dashboardId);
+    const release = takeChatLock(ctx, dashboardId, { userId: user.id, name: user.name });
     let run: ReturnType<typeof runSetup> | undefined;
     let res: FastifyReply['raw'] | undefined;
     let endReason: EndReason = 'error';
@@ -304,7 +314,11 @@ export async function assistantRoutes(app: FastifyInstance) {
         signal: run.signal,
         abortReason: run.abortReason,
         onUsage,
-        log: (msg, data) => app.log.info({ mode: env.mode, dashboardId, ...data }, msg),
+        log: (msg, data) =>
+          app.log.info(
+            { mode: env.mode, source: env.source, dashboardId, ...redactLog(data, env) },
+            msg,
+          ),
       });
       endReason = outcome.endReason ?? 'error';
     } catch (err) {

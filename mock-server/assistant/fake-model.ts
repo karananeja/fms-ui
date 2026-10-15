@@ -272,6 +272,9 @@ function dashboardRuleSteps(
         name: 'create_dashboard',
         input: { title: 'Fleet overview', widgets: FAKE_DASHBOARD_WIDGETS },
       });
+    const custom = customRule(question);
+    if (custom && 'ask' in custom) return [{ text: custom.ask }];
+    if (custom) return step({ name: 'preview_widget', input: { widget: custom.widget } });
     const single = singleWidget(q);
     if (single) return step({ name: 'preview_widget', input: { widget: single } });
     return undefined;
@@ -309,6 +312,10 @@ function dashboardRuleSteps(
         },
       });
   }
+  const custom = customRule(question);
+  if (custom && 'ask' in custom) return [{ text: custom.ask }];
+  if (custom)
+    return step({ name: 'preview_widget', input: { dashboardId: dash.id, widget: custom.widget } });
   const single = singleWidget(q);
   if (single)
     return step({ name: 'preview_widget', input: { dashboardId: dash.id, widget: single } });
@@ -326,6 +333,103 @@ function dashboardRuleSteps(
       name: 'add_widget',
       input: { widget: { type: 'kpi', title: 'All vehicles', source: 'live', status: 'total' } },
     });
+  }
+  return undefined;
+}
+
+/** F26 fake: the breakdowns-per-fleet bar chart and its "line chart" edit. */
+const BREAKDOWNS_BAR = (range: string) => ({
+  type: 'custom',
+  title: `Breakdowns per fleet (${range === '30d' ? '30' : '7'} days)`,
+  spec: {
+    data: { dataset: 'analytics-ranking', range },
+    shape: {
+      groupBy: 'fleet',
+      aggregate: { op: 'sum', field: 'breakdowns' },
+      sort: { by: 'value', dir: 'desc' },
+      limit: 10,
+    },
+    mark: { type: 'bar' },
+  },
+});
+
+/**
+ * F26 rules (custom widgets, previewed per D-135): "battery … map" → low-battery map coloured
+ * by status; "track / follow … live|map" → a follow map with a 30-min trail when a regno is
+ * named, else a question; "breakdowns per fleet" → bar chart; "top N … table" → top-N fastest
+ * table; "change … line chart" → breakdowns per day as a line.
+ */
+function customRule(
+  question: string,
+): { widget: Record<string, unknown> } | { ask: string } | undefined {
+  const q = question.toLowerCase();
+  if (/\bline chart\b/.test(q) && /\b(change|make|switch|turn)\b/.test(q))
+    return {
+      widget: {
+        type: 'custom',
+        title: 'Breakdowns per day (7 days)',
+        spec: {
+          data: { dataset: 'analytics-series', range: '7d' },
+          shape: { timeBucket: 'day', aggregate: { op: 'sum', field: 'breakdowns' } },
+          mark: { type: 'line' },
+        },
+      },
+    };
+  if (/\b(track|tracking|follow|following)\b/.test(q) && /\b(map|live|location|movement)\b/.test(q)) {
+    const regno = REGNO.exec(question)?.[1]?.replace(/\s/g, '').toUpperCase();
+    if (!regno)
+      return {
+        ask: 'Which vehicle should I follow? Tell me its registration number (for example MH12AB1234) and I will make a live map that tracks it with its recent path.',
+      };
+    return {
+      widget: {
+        type: 'custom',
+        title: `Tracking ${regno}`,
+        spec: {
+          data: {
+            dataset: 'live-vehicles',
+            filter: { all: [{ field: 'regno', op: 'eq', value: regno }] },
+          },
+          mark: { type: 'map', follow: true, trailMinutes: 30, label: 'regno' },
+        },
+      },
+    };
+  }
+  if (/\b(battery|soc)\b/.test(q) && /\bmap\b/.test(q)) {
+    const below = Number(/(?:under|below|<)\s*(\d{1,3})/.exec(q)?.[1] ?? 20);
+    return {
+      widget: {
+        type: 'custom',
+        title: `Battery under ${below}%`,
+        spec: {
+          data: {
+            dataset: 'live-vehicles',
+            filter: { all: [{ field: 'soc', op: 'lt', value: below }] },
+          },
+          mark: { type: 'map', color: 'status', cluster: true },
+        },
+      },
+    };
+  }
+  if (/\bbreakdowns?\b/.test(q) && /\b(per|by|each)\s+fleet\b/.test(q))
+    return { widget: BREAKDOWNS_BAR(/\b(30|month)/.test(q) ? '30d' : '7d') };
+  const top = /\btop\s*(\d{1,2})\b/.exec(q);
+  if (top && /\btable\b/.test(q)) {
+    const n = Math.min(50, Math.max(1, Number(top[1])));
+    return {
+      widget: {
+        type: 'custom',
+        title: `Top ${n} fastest vehicles`,
+        spec: {
+          data: {
+            dataset: 'live-vehicles',
+            filter: { all: [{ field: 'status', op: 'eq', value: 'running' }] },
+          },
+          shape: { sort: { by: 'speed', dir: 'desc' }, limit: n },
+          mark: { type: 'table', columns: ['regno', 'fleet', 'speed', 'soc'] },
+        },
+      },
+    };
   }
   return undefined;
 }

@@ -5,6 +5,7 @@ import {
   LayoutGrid,
   ListOrdered,
   PieChart,
+  Sparkles,
   StickyNote,
   Truck,
   Users,
@@ -22,6 +23,7 @@ const TYPES: Record<string, { icon: LucideIcon; name: string }> = {
   'driver-list': { icon: Users, name: 'Driver list' },
   'requests-summary': { icon: ClipboardList, name: 'Requests' },
   text: { icon: StickyNote, name: 'Note' },
+  custom: { icon: Sparkles, name: 'Custom' },
 };
 
 /** Unknown (newer) types fall back to a generic tile. */
@@ -63,6 +65,16 @@ export function widgetSource(w: AnyWidget): string {
       return 'Requests';
     case 'text':
       return 'Note';
+    case 'custom': {
+      const ds = w.spec.data.dataset;
+      return ds === 'live-vehicles'
+        ? 'Live'
+        : ds.startsWith('analytics')
+          ? 'Analytics'
+          : ds === 'vehicle-history'
+            ? 'History'
+            : ds[0]!.toUpperCase() + ds.slice(1);
+    }
     default:
       return 'Data';
   }

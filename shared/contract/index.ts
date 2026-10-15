@@ -1,4 +1,5 @@
 export * from './access.ts';
+export * from './ai-keys.ts';
 export * from './analytics.ts';
 export * from './assistant.ts';
 export * from './auth.ts';
@@ -13,4 +14,5 @@ export * from './payloads.ts';
 export * from './permissions.ts';
 export * from './requests.ts';
 export * from './share-links.ts';
+export * from './widget-grammar.ts';
 export * from './ws.ts';

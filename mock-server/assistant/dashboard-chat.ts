@@ -24,29 +24,57 @@ import { newTurnState } from './tool-kit.ts';
 
 // ---- per-dashboard lock (in memory, D-124) ----
 
-const locks = new WeakMap<MockContext, Set<string>>();
+/** F27 (D-154): who holds a dashboard's lock. */
+export interface ChatHolder {
+  userId: string;
+  name: string;
+}
+
+const locks = new WeakMap<MockContext, Map<string, ChatHolder>>();
 const lockSet = (ctx: MockContext) => {
   let set = locks.get(ctx);
-  if (!set) locks.set(ctx, (set = new Set()));
+  if (!set) locks.set(ctx, (set = new Map()));
   return set;
 };
 
 export const isChatRunning = (ctx: MockContext, dashboardId: string) =>
   lockSet(ctx).has(dashboardId);
 
-export const chatBusy = () =>
-  new HttpError(409, 'chat_busy', 'Another reply is in progress on this dashboard');
+/** F27: the person whose turn is running on the dashboard, if any. */
+export const chatHolder = (ctx: MockContext, dashboardId: string): ChatHolder | undefined =>
+  lockSet(ctx).get(dashboardId);
 
-/** Takes the lock or throws 409 `chat_busy`; returns the release function. */
-export function takeChatLock(ctx: MockContext, dashboardId: string): () => void {
+/** 409 `chat_busy`; F27: names the person asking when known (`details.by`). */
+export const chatBusy = (by?: ChatHolder) =>
+  by
+    ? new HttpError(409, 'chat_busy', `${by.name} is asking the assistant…`, { by })
+    : new HttpError(409, 'chat_busy', 'Another reply is in progress on this dashboard');
+
+/** Throws `chat_busy` (with the holder) while a turn runs on the dashboard. */
+export function requireChatIdle(ctx: MockContext, dashboardId: string): void {
+  const by = chatHolder(ctx, dashboardId);
+  if (by) throw chatBusy(by);
+}
+
+/**
+ * Takes the lock or throws 409 `chat_busy`; returns the release function. F27: take and release
+ * push an `assistant` event to everyone who has the dashboard open.
+ */
+export function takeChatLock(
+  ctx: MockContext,
+  dashboardId: string,
+  by: ChatHolder = { userId: '', name: 'Someone' },
+): () => void {
   const set = lockSet(ctx);
-  if (set.has(dashboardId)) throw chatBusy();
-  set.add(dashboardId);
+  requireChatIdle(ctx, dashboardId);
+  set.set(dashboardId, by);
+  ctx.hub?.dashboardEvent({ type: 'assistant', dashboardId, running: true, by });
   let released = false;
   return () => {
     if (released) return;
     released = true;
     set.delete(dashboardId);
+    ctx.hub?.dashboardEvent({ type: 'assistant', dashboardId, running: false, by: null });
   };
 }
 

@@ -344,8 +344,309 @@ exports[`F21-T2 zod tools → OpenAI tools > all 16 tools (D-135 preview_widget)
             ],
             "type": "object",
           },
+          "__schema19": {
+            "additionalProperties": false,
+            "properties": {
+              "spec": {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "$ref": "#/$defs/__schema20",
+                  },
+                  "mark": {
+                    "$ref": "#/$defs/__schema26",
+                  },
+                  "shape": {
+                    "$ref": "#/$defs/__schema25",
+                  },
+                },
+                "required": [
+                  "data",
+                  "mark",
+                ],
+                "type": "object",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "custom",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "spec",
+            ],
+            "type": "object",
+          },
           "__schema2": {
             "type": "string",
+          },
+          "__schema20": {
+            "additionalProperties": false,
+            "properties": {
+              "dataset": {
+                "enum": [
+                  "live-vehicles",
+                  "vehicle-history",
+                  "analytics-series",
+                  "analytics-ranking",
+                  "drivers",
+                  "requests",
+                  "notifications",
+                ],
+                "type": "string",
+              },
+              "driverId": {
+                "$ref": "#/$defs/__schema24",
+              },
+              "entity": {
+                "enum": [
+                  "vehicles",
+                  "drivers",
+                ],
+                "type": "string",
+              },
+              "filter": {
+                "additionalProperties": false,
+                "properties": {
+                  "all": {
+                    "items": {
+                      "$ref": "#/$defs/__schema21",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                  "any": {
+                    "items": {
+                      "$ref": "#/$defs/__schema21",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                },
+                "type": "object",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema24",
+              },
+              "minutes": {
+                "type": "integer",
+              },
+              "range": {
+                "enum": [
+                  "today",
+                  "yesterday",
+                  "7d",
+                  "30d",
+                  "90d",
+                ],
+                "type": "string",
+              },
+              "vehicle": {
+                "$ref": "#/$defs/__schema24",
+              },
+            },
+            "required": [
+              "dataset",
+            ],
+            "type": "object",
+          },
+          "__schema21": {
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "op": {
+                "enum": [
+                  "eq",
+                  "ne",
+                  "in",
+                  "nin",
+                  "lt",
+                  "lte",
+                  "gt",
+                  "gte",
+                  "contains",
+                ],
+                "type": "string",
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/__schema23",
+                  },
+                  {
+                    "items": {
+                      "$ref": "#/$defs/__schema23",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                ],
+              },
+            },
+            "required": [
+              "field",
+              "op",
+              "value",
+            ],
+            "type": "object",
+          },
+          "__schema22": {
+            "type": "string",
+          },
+          "__schema23": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "number",
+              },
+            ],
+          },
+          "__schema24": {
+            "type": "string",
+          },
+          "__schema25": {
+            "additionalProperties": false,
+            "properties": {
+              "aggregate": {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/__schema22",
+                  },
+                  "op": {
+                    "enum": [
+                      "count",
+                      "sum",
+                      "avg",
+                      "min",
+                      "max",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "op",
+                ],
+                "type": "object",
+              },
+              "groupBy": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "limit": {
+                "type": "integer",
+              },
+              "sort": {
+                "additionalProperties": false,
+                "properties": {
+                  "by": {
+                    "$ref": "#/$defs/__schema22",
+                  },
+                  "dir": {
+                    "enum": [
+                      "asc",
+                      "desc",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "by",
+                  "dir",
+                ],
+                "type": "object",
+              },
+              "timeBucket": {
+                "enum": [
+                  "hour",
+                  "day",
+                  "week",
+                ],
+                "type": "string",
+              },
+            },
+            "type": "object",
+          },
+          "__schema26": {
+            "additionalProperties": false,
+            "properties": {
+              "cluster": {
+                "type": "boolean",
+              },
+              "color": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "columns": {
+                "items": {
+                  "$ref": "#/$defs/__schema22",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "fit": {
+                "type": "boolean",
+              },
+              "follow": {
+                "type": "boolean",
+              },
+              "format": {
+                "enum": [
+                  "number",
+                  "percent",
+                  "duration",
+                  "distance",
+                  "datetime",
+                ],
+                "type": "string",
+              },
+              "label": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "max": {
+                "type": "number",
+              },
+              "size": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "trailMinutes": {
+                "type": "integer",
+              },
+              "type": {
+                "enum": [
+                  "number",
+                  "gauge",
+                  "bar",
+                  "line",
+                  "area",
+                  "pie",
+                  "donut",
+                  "heatmap",
+                  "table",
+                  "map",
+                ],
+                "type": "string",
+              },
+              "unit": {
+                "type": "string",
+              },
+              "x": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "y": {
+                "$ref": "#/$defs/__schema22",
+              },
+            },
+            "required": [
+              "type",
+            ],
+            "type": "object",
           },
           "__schema3": {
             "enum": [
@@ -597,6 +898,9 @@ exports[`F21-T2 zod tools → OpenAI tools > all 16 tools (D-135 preview_widget)
               {
                 "$ref": "#/$defs/__schema18",
               },
+              {
+                "$ref": "#/$defs/__schema19",
+              },
             ],
             "description": "One catalogue widget (see "Dashboard widget catalogue" in the instructions). Fleet, vehicle and driver fields take a name/regno or an id.",
           },
@@ -694,6 +998,9 @@ exports[`F21-T2 zod tools → OpenAI tools > all 16 tools (D-135 preview_widget)
               },
               {
                 "$ref": "#/$defs/__schema19",
+              },
+              {
+                "$ref": "#/$defs/__schema20",
               },
             ],
             "description": "One catalogue widget (see "Dashboard widget catalogue" in the instructions). Fleet, vehicle and driver fields take a name/regno or an id.",
@@ -1036,6 +1343,307 @@ exports[`F21-T2 zod tools → OpenAI tools > all 16 tools (D-135 preview_widget)
               "90d",
             ],
             "type": "string",
+          },
+          "__schema20": {
+            "additionalProperties": false,
+            "properties": {
+              "spec": {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "$ref": "#/$defs/__schema21",
+                  },
+                  "mark": {
+                    "$ref": "#/$defs/__schema27",
+                  },
+                  "shape": {
+                    "$ref": "#/$defs/__schema26",
+                  },
+                },
+                "required": [
+                  "data",
+                  "mark",
+                ],
+                "type": "object",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "custom",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "spec",
+            ],
+            "type": "object",
+          },
+          "__schema21": {
+            "additionalProperties": false,
+            "properties": {
+              "dataset": {
+                "enum": [
+                  "live-vehicles",
+                  "vehicle-history",
+                  "analytics-series",
+                  "analytics-ranking",
+                  "drivers",
+                  "requests",
+                  "notifications",
+                ],
+                "type": "string",
+              },
+              "driverId": {
+                "$ref": "#/$defs/__schema25",
+              },
+              "entity": {
+                "enum": [
+                  "vehicles",
+                  "drivers",
+                ],
+                "type": "string",
+              },
+              "filter": {
+                "additionalProperties": false,
+                "properties": {
+                  "all": {
+                    "items": {
+                      "$ref": "#/$defs/__schema22",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                  "any": {
+                    "items": {
+                      "$ref": "#/$defs/__schema22",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                },
+                "type": "object",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema25",
+              },
+              "minutes": {
+                "type": "integer",
+              },
+              "range": {
+                "enum": [
+                  "today",
+                  "yesterday",
+                  "7d",
+                  "30d",
+                  "90d",
+                ],
+                "type": "string",
+              },
+              "vehicle": {
+                "$ref": "#/$defs/__schema25",
+              },
+            },
+            "required": [
+              "dataset",
+            ],
+            "type": "object",
+          },
+          "__schema22": {
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "$ref": "#/$defs/__schema23",
+              },
+              "op": {
+                "enum": [
+                  "eq",
+                  "ne",
+                  "in",
+                  "nin",
+                  "lt",
+                  "lte",
+                  "gt",
+                  "gte",
+                  "contains",
+                ],
+                "type": "string",
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/__schema24",
+                  },
+                  {
+                    "items": {
+                      "$ref": "#/$defs/__schema24",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                ],
+              },
+            },
+            "required": [
+              "field",
+              "op",
+              "value",
+            ],
+            "type": "object",
+          },
+          "__schema23": {
+            "type": "string",
+          },
+          "__schema24": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "number",
+              },
+            ],
+          },
+          "__schema25": {
+            "type": "string",
+          },
+          "__schema26": {
+            "additionalProperties": false,
+            "properties": {
+              "aggregate": {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/__schema23",
+                  },
+                  "op": {
+                    "enum": [
+                      "count",
+                      "sum",
+                      "avg",
+                      "min",
+                      "max",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "op",
+                ],
+                "type": "object",
+              },
+              "groupBy": {
+                "$ref": "#/$defs/__schema23",
+              },
+              "limit": {
+                "type": "integer",
+              },
+              "sort": {
+                "additionalProperties": false,
+                "properties": {
+                  "by": {
+                    "$ref": "#/$defs/__schema23",
+                  },
+                  "dir": {
+                    "enum": [
+                      "asc",
+                      "desc",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "by",
+                  "dir",
+                ],
+                "type": "object",
+              },
+              "timeBucket": {
+                "enum": [
+                  "hour",
+                  "day",
+                  "week",
+                ],
+                "type": "string",
+              },
+            },
+            "type": "object",
+          },
+          "__schema27": {
+            "additionalProperties": false,
+            "properties": {
+              "cluster": {
+                "type": "boolean",
+              },
+              "color": {
+                "$ref": "#/$defs/__schema23",
+              },
+              "columns": {
+                "items": {
+                  "$ref": "#/$defs/__schema23",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "fit": {
+                "type": "boolean",
+              },
+              "follow": {
+                "type": "boolean",
+              },
+              "format": {
+                "enum": [
+                  "number",
+                  "percent",
+                  "duration",
+                  "distance",
+                  "datetime",
+                ],
+                "type": "string",
+              },
+              "label": {
+                "$ref": "#/$defs/__schema23",
+              },
+              "max": {
+                "type": "number",
+              },
+              "size": {
+                "$ref": "#/$defs/__schema23",
+              },
+              "trailMinutes": {
+                "type": "integer",
+              },
+              "type": {
+                "enum": [
+                  "number",
+                  "gauge",
+                  "bar",
+                  "line",
+                  "area",
+                  "pie",
+                  "donut",
+                  "heatmap",
+                  "table",
+                  "map",
+                ],
+                "type": "string",
+              },
+              "unit": {
+                "type": "string",
+              },
+              "x": {
+                "$ref": "#/$defs/__schema23",
+              },
+              "y": {
+                "$ref": "#/$defs/__schema23",
+              },
+            },
+            "required": [
+              "type",
+            ],
+            "type": "object",
           },
           "__schema3": {
             "type": "string",
@@ -1872,8 +2480,309 @@ exports[`F21-T2 zod tools → OpenAI tools > all 16 tools (D-135 preview_widget)
             ],
             "type": "object",
           },
+          "__schema19": {
+            "additionalProperties": false,
+            "properties": {
+              "spec": {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "$ref": "#/$defs/__schema20",
+                  },
+                  "mark": {
+                    "$ref": "#/$defs/__schema26",
+                  },
+                  "shape": {
+                    "$ref": "#/$defs/__schema25",
+                  },
+                },
+                "required": [
+                  "data",
+                  "mark",
+                ],
+                "type": "object",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "custom",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "spec",
+            ],
+            "type": "object",
+          },
           "__schema2": {
             "type": "string",
+          },
+          "__schema20": {
+            "additionalProperties": false,
+            "properties": {
+              "dataset": {
+                "enum": [
+                  "live-vehicles",
+                  "vehicle-history",
+                  "analytics-series",
+                  "analytics-ranking",
+                  "drivers",
+                  "requests",
+                  "notifications",
+                ],
+                "type": "string",
+              },
+              "driverId": {
+                "$ref": "#/$defs/__schema24",
+              },
+              "entity": {
+                "enum": [
+                  "vehicles",
+                  "drivers",
+                ],
+                "type": "string",
+              },
+              "filter": {
+                "additionalProperties": false,
+                "properties": {
+                  "all": {
+                    "items": {
+                      "$ref": "#/$defs/__schema21",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                  "any": {
+                    "items": {
+                      "$ref": "#/$defs/__schema21",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                },
+                "type": "object",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema24",
+              },
+              "minutes": {
+                "type": "integer",
+              },
+              "range": {
+                "enum": [
+                  "today",
+                  "yesterday",
+                  "7d",
+                  "30d",
+                  "90d",
+                ],
+                "type": "string",
+              },
+              "vehicle": {
+                "$ref": "#/$defs/__schema24",
+              },
+            },
+            "required": [
+              "dataset",
+            ],
+            "type": "object",
+          },
+          "__schema21": {
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "op": {
+                "enum": [
+                  "eq",
+                  "ne",
+                  "in",
+                  "nin",
+                  "lt",
+                  "lte",
+                  "gt",
+                  "gte",
+                  "contains",
+                ],
+                "type": "string",
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/__schema23",
+                  },
+                  {
+                    "items": {
+                      "$ref": "#/$defs/__schema23",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                ],
+              },
+            },
+            "required": [
+              "field",
+              "op",
+              "value",
+            ],
+            "type": "object",
+          },
+          "__schema22": {
+            "type": "string",
+          },
+          "__schema23": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "number",
+              },
+            ],
+          },
+          "__schema24": {
+            "type": "string",
+          },
+          "__schema25": {
+            "additionalProperties": false,
+            "properties": {
+              "aggregate": {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/__schema22",
+                  },
+                  "op": {
+                    "enum": [
+                      "count",
+                      "sum",
+                      "avg",
+                      "min",
+                      "max",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "op",
+                ],
+                "type": "object",
+              },
+              "groupBy": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "limit": {
+                "type": "integer",
+              },
+              "sort": {
+                "additionalProperties": false,
+                "properties": {
+                  "by": {
+                    "$ref": "#/$defs/__schema22",
+                  },
+                  "dir": {
+                    "enum": [
+                      "asc",
+                      "desc",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "by",
+                  "dir",
+                ],
+                "type": "object",
+              },
+              "timeBucket": {
+                "enum": [
+                  "hour",
+                  "day",
+                  "week",
+                ],
+                "type": "string",
+              },
+            },
+            "type": "object",
+          },
+          "__schema26": {
+            "additionalProperties": false,
+            "properties": {
+              "cluster": {
+                "type": "boolean",
+              },
+              "color": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "columns": {
+                "items": {
+                  "$ref": "#/$defs/__schema22",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "fit": {
+                "type": "boolean",
+              },
+              "follow": {
+                "type": "boolean",
+              },
+              "format": {
+                "enum": [
+                  "number",
+                  "percent",
+                  "duration",
+                  "distance",
+                  "datetime",
+                ],
+                "type": "string",
+              },
+              "label": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "max": {
+                "type": "number",
+              },
+              "size": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "trailMinutes": {
+                "type": "integer",
+              },
+              "type": {
+                "enum": [
+                  "number",
+                  "gauge",
+                  "bar",
+                  "line",
+                  "area",
+                  "pie",
+                  "donut",
+                  "heatmap",
+                  "table",
+                  "map",
+                ],
+                "type": "string",
+              },
+              "unit": {
+                "type": "string",
+              },
+              "x": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "y": {
+                "$ref": "#/$defs/__schema22",
+              },
+            },
+            "required": [
+              "type",
+            ],
+            "type": "object",
           },
           "__schema3": {
             "enum": [
@@ -2128,6 +3037,9 @@ exports[`F21-T2 zod tools → OpenAI tools > all 16 tools (D-135 preview_widget)
               },
               {
                 "$ref": "#/$defs/__schema18",
+              },
+              {
+                "$ref": "#/$defs/__schema19",
               },
             ],
             "description": "One catalogue widget (see "Dashboard widget catalogue" in the instructions). Fleet, vehicle and driver fields take a name/regno or an id.",
@@ -2539,8 +3451,309 @@ exports[`F21-T2 zod tools → OpenAI tools > all 16 tools (D-135 preview_widget)
             ],
             "type": "object",
           },
+          "__schema19": {
+            "additionalProperties": false,
+            "properties": {
+              "spec": {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "$ref": "#/$defs/__schema20",
+                  },
+                  "mark": {
+                    "$ref": "#/$defs/__schema26",
+                  },
+                  "shape": {
+                    "$ref": "#/$defs/__schema25",
+                  },
+                },
+                "required": [
+                  "data",
+                  "mark",
+                ],
+                "type": "object",
+              },
+              "title": {
+                "type": "string",
+              },
+              "type": {
+                "const": "custom",
+                "type": "string",
+              },
+            },
+            "required": [
+              "type",
+              "title",
+              "spec",
+            ],
+            "type": "object",
+          },
           "__schema2": {
             "type": "string",
+          },
+          "__schema20": {
+            "additionalProperties": false,
+            "properties": {
+              "dataset": {
+                "enum": [
+                  "live-vehicles",
+                  "vehicle-history",
+                  "analytics-series",
+                  "analytics-ranking",
+                  "drivers",
+                  "requests",
+                  "notifications",
+                ],
+                "type": "string",
+              },
+              "driverId": {
+                "$ref": "#/$defs/__schema24",
+              },
+              "entity": {
+                "enum": [
+                  "vehicles",
+                  "drivers",
+                ],
+                "type": "string",
+              },
+              "filter": {
+                "additionalProperties": false,
+                "properties": {
+                  "all": {
+                    "items": {
+                      "$ref": "#/$defs/__schema21",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                  "any": {
+                    "items": {
+                      "$ref": "#/$defs/__schema21",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                },
+                "type": "object",
+              },
+              "fleetId": {
+                "$ref": "#/$defs/__schema24",
+              },
+              "minutes": {
+                "type": "integer",
+              },
+              "range": {
+                "enum": [
+                  "today",
+                  "yesterday",
+                  "7d",
+                  "30d",
+                  "90d",
+                ],
+                "type": "string",
+              },
+              "vehicle": {
+                "$ref": "#/$defs/__schema24",
+              },
+            },
+            "required": [
+              "dataset",
+            ],
+            "type": "object",
+          },
+          "__schema21": {
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "op": {
+                "enum": [
+                  "eq",
+                  "ne",
+                  "in",
+                  "nin",
+                  "lt",
+                  "lte",
+                  "gt",
+                  "gte",
+                  "contains",
+                ],
+                "type": "string",
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/__schema23",
+                  },
+                  {
+                    "items": {
+                      "$ref": "#/$defs/__schema23",
+                    },
+                    "minItems": 1,
+                    "type": "array",
+                  },
+                ],
+              },
+            },
+            "required": [
+              "field",
+              "op",
+              "value",
+            ],
+            "type": "object",
+          },
+          "__schema22": {
+            "type": "string",
+          },
+          "__schema23": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "number",
+              },
+            ],
+          },
+          "__schema24": {
+            "type": "string",
+          },
+          "__schema25": {
+            "additionalProperties": false,
+            "properties": {
+              "aggregate": {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/__schema22",
+                  },
+                  "op": {
+                    "enum": [
+                      "count",
+                      "sum",
+                      "avg",
+                      "min",
+                      "max",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "op",
+                ],
+                "type": "object",
+              },
+              "groupBy": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "limit": {
+                "type": "integer",
+              },
+              "sort": {
+                "additionalProperties": false,
+                "properties": {
+                  "by": {
+                    "$ref": "#/$defs/__schema22",
+                  },
+                  "dir": {
+                    "enum": [
+                      "asc",
+                      "desc",
+                    ],
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "by",
+                  "dir",
+                ],
+                "type": "object",
+              },
+              "timeBucket": {
+                "enum": [
+                  "hour",
+                  "day",
+                  "week",
+                ],
+                "type": "string",
+              },
+            },
+            "type": "object",
+          },
+          "__schema26": {
+            "additionalProperties": false,
+            "properties": {
+              "cluster": {
+                "type": "boolean",
+              },
+              "color": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "columns": {
+                "items": {
+                  "$ref": "#/$defs/__schema22",
+                },
+                "minItems": 1,
+                "type": "array",
+              },
+              "fit": {
+                "type": "boolean",
+              },
+              "follow": {
+                "type": "boolean",
+              },
+              "format": {
+                "enum": [
+                  "number",
+                  "percent",
+                  "duration",
+                  "distance",
+                  "datetime",
+                ],
+                "type": "string",
+              },
+              "label": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "max": {
+                "type": "number",
+              },
+              "size": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "trailMinutes": {
+                "type": "integer",
+              },
+              "type": {
+                "enum": [
+                  "number",
+                  "gauge",
+                  "bar",
+                  "line",
+                  "area",
+                  "pie",
+                  "donut",
+                  "heatmap",
+                  "table",
+                  "map",
+                ],
+                "type": "string",
+              },
+              "unit": {
+                "type": "string",
+              },
+              "x": {
+                "$ref": "#/$defs/__schema22",
+              },
+              "y": {
+                "$ref": "#/$defs/__schema22",
+              },
+            },
+            "required": [
+              "type",
+            ],
+            "type": "object",
           },
           "__schema3": {
             "enum": [
@@ -2791,6 +4004,9 @@ exports[`F21-T2 zod tools → OpenAI tools > all 16 tools (D-135 preview_widget)
               },
               {
                 "$ref": "#/$defs/__schema18",
+              },
+              {
+                "$ref": "#/$defs/__schema19",
               },
             ],
             "description": "One catalogue widget (see "Dashboard widget catalogue" in the instructions). Fleet, vehicle and driver fields take a name/regno or an id.",

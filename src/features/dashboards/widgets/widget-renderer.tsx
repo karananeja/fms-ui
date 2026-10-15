@@ -1,6 +1,8 @@
 import { memo } from 'react';
 import type { Widget } from '@shared/contract/dashboards.ts';
+import { DATASETS } from '@shared/contract/widget-grammar.ts';
 import { useNow } from '@/shared/hooks/use-now';
+import { CustomWidget } from './custom/custom-widget';
 import { DailyChartWidget } from './daily-chart-widget';
 import { DriverListWidget } from './driver-list-widget';
 import { KpiWidget } from './kpi-widget';
@@ -34,6 +36,8 @@ export const WidgetRenderer = memo(function WidgetRenderer({ widget: w }: { widg
       return <RequestsWithClock w={w} />;
     case 'text':
       return <TextWidget w={w} />;
+    case 'custom':
+      return <CustomWidget w={w} />;
     default: {
       const never: never = w;
       return never;
@@ -45,4 +49,5 @@ export const WidgetRenderer = memo(function WidgetRenderer({ widget: w }: { widg
 export const isLiveWidget = (w: Widget) =>
   (w.type === 'kpi' && w.source === 'live') ||
   w.type === 'status-breakdown' ||
-  w.type === 'vehicle-list';
+  w.type === 'vehicle-list' ||
+  (w.type === 'custom' && DATASETS[w.spec.data.dataset].live);

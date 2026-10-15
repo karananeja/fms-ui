@@ -218,6 +218,14 @@ const dashboardRoute = createRoute({
   ),
 });
 
+// F25: the user's own AI provider keys (and, with `roles.manage`, the server-key fallback switch).
+const aiSettingsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: 'settings/ai',
+  staticData: { title: 'AI assistant', permission: ROUTE_PERMISSIONS['/settings/ai'] },
+  component: lazyRouteComponent(() => import('@/features/settings/ai-keys-page'), 'AiKeysPage'),
+});
+
 // Admin pages are a separate chunk each (no map code); F03a / F03b own the page files.
 const adminRoute = createRoute({ getParentRoute: () => appLayoutRoute, path: 'admin' });
 const adminIndexRoute = createRoute({
@@ -288,6 +296,7 @@ const routeTree = rootRoute.addChildren([
     analyticsRoute,
     dashboardsRoute,
     dashboardRoute,
+    aiSettingsRoute,
     adminRoute.addChildren([
       adminIndexRoute,
       adminFleetsRoute,

@@ -21,6 +21,11 @@ export const SEED_VERSION = 1;
 
 /** Every F22 table plus the dashboard tables, children first (`schema_migrations` is kept). */
 const WIPED_TABLES = [
+  'user_ai_keys',
+  'org_settings',
+  'audit_log',
+  'dashboard_snapshots',
+  'dashboard_activity',
   'dashboard_changes',
   'dashboard_messages',
   'dashboard_shares',
@@ -177,6 +182,7 @@ export function hydrateStores(ctx: MockContext, warn: (msg: string) => void = ()
   ctx.requests.hydrate();
   ctx.notifications.hydrate();
   ctx.shares.hydrate();
+  ctx.aiKeys.hydrate();
 }
 
 /**

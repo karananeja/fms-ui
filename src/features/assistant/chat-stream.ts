@@ -125,7 +125,11 @@ export async function streamSse(
     throw new ChatHttpError(
       res.status,
       code,
-      STATUS_TEXT[code] ?? json?.error?.message ?? `HTTP ${res.status}`,
+      // F27 (D-154): `chat_busy` names who is asking ("Priya is asking the assistant…").
+      (code === 'chat_busy' ? json?.error?.message : undefined) ??
+        STATUS_TEXT[code] ??
+        json?.error?.message ??
+        `HTTP ${res.status}`,
     );
   }
   // F23: heartbeat comments (`: ping`) carry no `data:` line and are skipped by the parser.
