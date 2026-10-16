@@ -17,7 +17,7 @@ import { dashboardsApi, type DashboardsApi } from '../api/dashboards-api';
 import { IDLE_DOCK, type DockState } from '@/features/assistant/chat-progress';
 import { ChatDock } from '../components/chat-dock';
 import { DashboardGrid } from '../components/dashboard-grid';
-import { DashboardStarter } from '../components/dashboard-starter';
+import { DashboardStarter, TurnFailureCard } from '../components/dashboard-starter';
 import { DashboardTitleBar, TitleBarSkeleton } from '../components/dashboard-title-bar';
 import { DeleteDialog } from '../components/delete-dialog';
 import { ShareDialog } from '../components/share-dialog';
@@ -292,6 +292,7 @@ function DashboardView({
   };
   // F23 starter: the prompt goes through the dock (as a one-shot `?ask=`), opened if needed.
   const stopRef = useRef<(() => void) | null>(null);
+  const retryRef = useRef<(() => void) | null>(null);
   const startWith = (prompt: string) => {
     setDocked(true);
     setSlide(true);
@@ -345,6 +346,7 @@ function DashboardView({
       draggablePreviews={desktop}
       onActivity={setActivity}
       stopRef={stopRef}
+      retryRef={retryRef}
       busyBy={busyBy}
       syncKey={syncKey}
     />
@@ -402,7 +404,7 @@ function DashboardView({
                 <div
                   className={cn(
                     'flex flex-col items-center gap-3 rounded-tile text-center',
-                    starter ? 'py-2' : 'py-16',
+                    showChat ? 'py-2' : 'py-16',
                   )}
                   data-testid="dashboard-empty"
                   // D-135: a preview dropped on an empty dashboard lands top-left.
@@ -425,30 +427,37 @@ function DashboardView({
                       onStop={() => stopRef.current?.()}
                     />
                   ) : showChat ? (
-                    <>
-                      <p className="text-sm text-text-muted">Ask FMS to add widgets</p>
-                      {/* Desktop already has the dock (or its rail); this is the phone's way in. */}
-                      {!desktop && (
-                        <Button
-                          onClick={() => {
-                            if (!desktop) return setSheetOpen(true);
-                            if (!dockOpen) toggleDock();
-                            setTimeout(
-                              () =>
-                                document
-                                  .querySelector<HTMLTextAreaElement>(
-                                    '[data-testid="chat-dock"] textarea',
-                                  )
-                                  ?.focus(),
-                              0,
-                            );
-                          }}
-                        >
-                          <MessageSquare aria-hidden />
-                          Ask FMS
-                        </Button>
-                      )}
-                    </>
+                    // The dock is open: the last turn's failure (if any), then templates and chips.
+                    <DashboardStarter
+                      compact
+                      streaming={activity.streaming}
+                      onSend={startWith}
+                      onStop={() => stopRef.current?.()}
+                      notice={
+                        activity.failure ? (
+                          <TurnFailureCard
+                            failure={activity.failure}
+                            onRetry={() => {
+                              if (!desktop) setSheetOpen(true);
+                              retryRef.current?.();
+                            }}
+                          />
+                        ) : (
+                          // Desktop already has the dock (or its rail); the button is the phone's way in.
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <p className="text-sm text-text-muted">
+                              Ask FMS in the chat, or pick a template to fill this dashboard.
+                            </p>
+                            {!desktop && (
+                              <Button onClick={() => setSheetOpen(true)}>
+                                <MessageSquare aria-hidden />
+                                Ask FMS
+                              </Button>
+                            )}
+                          </div>
+                        )
+                      }
+                    />
                   ) : (
                     <p className="text-sm text-text-muted">This dashboard has no widgets yet</p>
                   )}

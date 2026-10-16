@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Loader2, RotateCcw, Unplug } from 'lucide-react';
+import { Check, Copy, Loader2, RotateCcw, Unplug } from 'lucide-react';
 import {
   isDashboardMutatingTool,
   type DashboardLink,
@@ -22,6 +22,32 @@ import { DashboardLinkCard } from './dashboard-link-card.tsx';
 import { Markdown, type RenderEntity } from './markdown.tsx';
 import { ReportCard } from './report-card.tsx';
 import { ToolChip } from './tool-chip.tsx';
+
+/** Copies a sent prompt (shown on hover / focus; always on touch screens). */
+function CopyPrompt({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(t);
+  }, [copied]);
+  return (
+    <button
+      type="button"
+      data-testid="copy-prompt"
+      aria-label={copied ? 'Copied' : 'Copy message'}
+      onClick={() =>
+        void navigator.clipboard.writeText(text).then(
+          () => setCopied(true),
+          () => {},
+        )
+      }
+      className="mt-1 grid size-7 shrink-0 place-items-center rounded-md text-text-faint opacity-0 outline-none group-hover:opacity-100 hover:bg-tile hover:text-text focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5 [@media(hover:none)]:opacity-100"
+    >
+      {copied ? <Check aria-hidden className="text-accent" /> : <Copy aria-hidden />}
+    </button>
+  );
+}
 
 const linkClass =
   'font-bold text-accent underline decoration-accent/40 underline-offset-2 outline-none hover:decoration-accent focus-visible:ring-2 focus-visible:ring-ring rounded-sm';
@@ -298,7 +324,8 @@ export function MessageList({
     >
       {messages.map((m, i) =>
         m.role === 'user' ? (
-          <div key={m.id} className="flex justify-end">
+          <div key={m.id} className="group flex items-start justify-end gap-1">
+            <CopyPrompt text={m.text} />
             <p
               data-testid="user-message"
               className="max-w-[85%] rounded-tile rounded-br-sm bg-accent-soft px-3 py-2 text-sm whitespace-pre-wrap text-text"
