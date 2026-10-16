@@ -602,3 +602,13 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Tests:** `pnpm check` 1293/1296 (F11-T3 ×2, perf under load), build clean; e2e for F28/F29/F30 + chat/dashboard specs 26/26. Decisions D-163…D-170 Proposed.
 
 **Status/Next:** UAT of F28–F30 on `feature/f28-f30-chat-usage`.
+
+## 2026-10-16: F28–F30 accepted; role editor fix; architecture artifact v6
+
+**User:** "approved but when creating role, the permissions overflow the screen and look bad" → F29's `audit.view` brought the role editor to 18 permissions in 7 tall boxes; the list ran past the side panel and pushed Cancel/Create out of view. Fix on the branch: one compact list with a granted count, a per-group count and All/Clear, two columns on wider panels, and a sticky action bar. Checked by screenshot at 1280, 1440 and 390 px.
+
+**User:** "also update the artifact and explain the token cost computation" → architecture artifact v6: new sections Assistant actions (F29) and AI usage & token cost (F30): the four token buckets summed over tool steps (OpenAI/xAI cached tokens subtracted from input), `estimateCost()` formula, price table (checked 2026-10-06), a worked Sonnet 5.5 example ($0.0446, cache hit rate 53.9%), what the tiles show. Also: routes, migrations v14–v16, stats, status.
+
+**Tests:** `pnpm check` 1295/1296 (`widget-query.perf` under load; passes alone), build clean; e2e access-people 7/7 (2 shot tests skipped).
+
+**Status/Next:** D-163…D-170 accepted; merged `feature/f28-f30-chat-usage` into `main` (--no-ff), deleted the branch; catalogue and CLAUDE.md updated (schema v16). Open: known flakes F11-T3, F09-T8, F06-T6; scripted assistant e2e specs race under parallel workers; OpenAI/xAI models have no prices (tokens only).
