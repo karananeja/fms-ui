@@ -550,3 +550,5 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Tests:** `pnpm check` 1249/1252: F11-T3 ×2 (known time-of-day flake) and `widget-query.perf` under load (passes alone); typecheck and lint clean; build clean. e2e D-158 + F20 + F23 + D-155: 16/16 twice in parallel. Found that specs sharing the fake model's global script queue race in parallel; the new spec stubs failures in the browser instead.
 
 **Status/Next:** UAT on `feature/dashboard-canvas-states` (real Anthropic key, Opus/Sonnet/Haiku). After approval: merge `--no-ff`, delete the branch, accept D-158 and D-159.
+
+**User:** "it is still failing" (log: 400 "Schemas contains too many optional parameters (31) … limit: 24") and "so give me the steps to update the env as fallback" → explained that the `.env` Anthropic fallback takes the same path, so only an OpenAI key or `FMS_ASSISTANT_FAKE=1` work as a fallback today. D-159 extended: Anthropic tools are no longer strict (zod validates every input). Assistant tests 102/102.
