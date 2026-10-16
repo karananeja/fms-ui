@@ -28,7 +28,6 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | DS3, F18 | Themes & fonts; dashboard store (node:sqlite) | Done, accepted 2026-10-15 |
 | F19, F20, F21 | AI dashboard builder (+ widget previews D-135, voice input); `/dashboards` route & UI; AI provider choice (xAI/OpenAI/Anthropic, D-134) | Done, accepted 2026-10-15. Real-key Anthropic smoke passed 2026-10-16; Grok smoke dropped (no xAI credits) |
 | F22–F27 | Persist admin data in SQLite; chat & dashboard UX (+ Retry after return D-155); prompt caching; user AI keys (needs `FMS_SECRET_KEY`); dynamic widgets; edit/view sharing; card snapshots (D-142); out-of-credits errors (D-156) | Done, accepted 2026-10-16. Real-key Anthropic smoke passed; Grok smoke dropped (no xAI credits) |
-
 | F28, F29, F30 | Saved Ask FMS threads (D-163…D-165); assistant actions with Confirm, Activity page (`audit.view`), Undo (D-166…D-168); AI usage monitor with estimated cost (D-169); date-range picker dep `react-day-picker` (D-170); compact role editor | Done, accepted 2026-10-16 |
 
 Last `main` baseline (2026-10-16, after D-170): `pnpm check` 1295/1296 (`widget-query.perf` under load, passes alone; F11-T3 time-of-day flake can also fail), build clean; e2e run targeted only for F28–F30, chat/dashboard specs and access-people (full chromium last run after D-162: 114 passed). Last decision: **D-170** (Part 4: D-163…D-170). DB schema v16.
