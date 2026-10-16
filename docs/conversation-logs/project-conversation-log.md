@@ -584,3 +584,9 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Status/Next:** UAT of D-160, D-161, D-162 on `feature/cluster-widget`. F28–F30 intents await sign-off.
 
 **User:** "approved" → D-160, D-161, D-162 accepted; merged `feature/cluster-widget` into `main` (--no-ff), deleted the branch; catalogue (F20, F26, F27) and CLAUDE.md updated (schema v13). F28–F30 intents: sign-off asked separately.
+
+## 2026-10-16: F28–F30 intents signed off; F28 spec
+
+**User:** "yes" → F28, F29, F30 intents signed off. Wrote `docs/features/f28-saved-chat-threads/spec.md` (storage v14, thread API replacing the `messages` body of `/api/chat`, panel history, limits, 8 acceptance tests); D-163…D-165 Proposed.
+
+**Status/Next:** F28 spec awaits sign-off; then F28 build, then F29 ∥ F30 specs.

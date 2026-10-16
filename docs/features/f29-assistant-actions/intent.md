@@ -1,6 +1,6 @@
 # F29 — Assistant actions, with confirmation, audit log and Undo · Intent
 
-**Status:** Draft, 2026-10-16. Waiting for sign-off. User: "lets expand the scope so that it can perform user level actions if the user has permissions" (chose: confirm every write; all four areas below; audit log + Undo).
+**Status:** Signed off: 2026-10-16 (user: "yes"). User: "lets expand the scope so that it can perform user level actions if the user has permissions" (chose: confirm every write; all four areas below; audit log + Undo).
 
 ## Why
 The assistant can find, explain and report, and it can build dashboards. But for anything else the user still has to leave the chat and click through the admin screens. The assistant should be able to do those tasks for the user, safely and only within that user's permissions.

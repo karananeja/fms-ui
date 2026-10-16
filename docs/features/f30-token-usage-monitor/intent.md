@@ -1,6 +1,6 @@
 # F30 — AI token usage monitor · Intent
 
-**Status:** Draft, 2026-10-16. Waiting for sign-off. User: "i need a monitor to track my token usage" (chose: my own usage, plus an admin view).
+**Status:** Signed off: 2026-10-16 (user: "yes"). User: "i need a monitor to track my token usage" (chose: my own usage, plus an admin view).
 
 ## Why
 Users now bring their own AI keys (F25), and every chat turn costs money on their account. Today usage is counted only in memory per provider. Output tokens are dropped, and nothing is per user or model, stored, or visible in the app.

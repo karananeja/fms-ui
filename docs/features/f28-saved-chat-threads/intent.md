@@ -1,6 +1,6 @@
 # F28 — Saved Ask FMS conversations · Intent
 
-**Status:** Draft, 2026-10-16. Waiting for sign-off. User: "keep track of those chats as well" (chose saved threads, an action audit log and Undo; the last two are in F29).
+**Status:** Signed off: 2026-10-16 (user: "yes"). User: "keep track of those chats as well" (chose saved threads, an action audit log and Undo; the last two are in F29).
 
 ## Why
 Today the global Ask FMS chat lives only in the browser's memory. A reload, a sign-out or another device loses it, and there is no way to go back to an earlier conversation. Once the assistant can act (F29), its chats are also the record of why something was changed.
