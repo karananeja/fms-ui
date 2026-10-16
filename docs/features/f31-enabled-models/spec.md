@@ -1,6 +1,6 @@
 # F31 — Enabled models & chat model picker · Spec
 
-**Status:** Signed off: 2026-10-16 (user: "yes, go ahead"). Decision: D-171 (Proposed). Amends D-143 (F25).
+**Status:** Signed off: 2026-10-16 (user: "yes, go ahead"). Decision: D-171 (Accepted 2026-10-17). Amends D-143 (F25).
 
 ## 1. Data (migration v17, append-only)
 - `user_ai_keys` gains `enabled_models TEXT NOT NULL DEFAULT '[]'` (JSON ids, in the order ticked), `available_models TEXT NOT NULL DEFAULT '[]'` (JSON ids from the provider) and `models_fetched_at INTEGER`.

@@ -628,3 +628,11 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Tests:** `pnpm check` 1312/1313 (`widget-query.perf` under load, passes alone), build clean; targeted e2e (f25/F31, f23, dashboard-builder, assistant, d158, f28) all passed. D-171 Proposed.
 
 **Status/Next:** UAT of F31 on `feature/f31-enabled-models`; then merge `--no-ff` into `main`.
+
+## 2026-10-17: F31 accepted; branches
+
+**User:** "delete stale branches" → none found. Local had only `main` and the unmerged `feature/f31-enabled-models` (UAT pending); the remote had only `main`. Nothing deleted.
+
+**User:** "approved" → F31 UAT accepted, D-171 accepted. Merged `feature/f31-enabled-models` into `main` (`--no-ff`) and deleted the branch. Catalogue, spec and CLAUDE.md updated (schema v17).
+
+**Status/Next:** `main` is ahead of `origin/main` (not pushed). Open: known flakes F11-T3, F09-T8, F06-T6, `widget-query.perf` under load.

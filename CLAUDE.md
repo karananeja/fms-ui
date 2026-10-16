@@ -4,7 +4,7 @@ Fleet management web app: live tracking of up to 1 lakh vehicles, admin screens 
 React 19 + Vite + TypeScript + TanStack Router/Table/Virtual + Tailwind v4/shadcn + MapLibre + Comlink worker, with a Fastify mock backend (`mock-server/`) and a zod contract in `shared/contract/`.
 Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-accounts.md`.
 
-## Project status (2026-10-16)
+## Project status (2026-10-17)
 
 | ID | Feature | State |
 |---|---|---|
@@ -29,8 +29,9 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F19, F20, F21 | AI dashboard builder (+ widget previews D-135, voice input); `/dashboards` route & UI; AI provider choice (xAI/OpenAI/Anthropic, D-134) | Done, accepted 2026-10-15. Real-key Anthropic smoke passed 2026-10-16; Grok smoke dropped (no xAI credits) |
 | F22–F27 | Persist admin data in SQLite; chat & dashboard UX (+ Retry after return D-155); prompt caching; user AI keys (needs `FMS_SECRET_KEY`); dynamic widgets; edit/view sharing; card snapshots (D-142); out-of-credits errors (D-156) | Done, accepted 2026-10-16. Real-key Anthropic smoke passed; Grok smoke dropped (no xAI credits) |
 | F28, F29, F30 | Saved Ask FMS threads (D-163…D-165); assistant actions with Confirm, Activity page (`audit.view`), Undo (D-166…D-168); AI usage monitor with estimated cost (D-169); date-range picker dep `react-day-picker` (D-170); compact role editor | Done, accepted 2026-10-16 |
+| F31 | Enabled models per key (checklist in Settings; Save takes only the key) and a chat model picker in Ask FMS + dashboard dock (D-171) | Done, accepted 2026-10-17 |
 
-Last `main` baseline (2026-10-16, after D-170): `pnpm check` 1295/1296 (`widget-query.perf` under load, passes alone; F11-T3 time-of-day flake can also fail), build clean; e2e run targeted only for F28–F30, chat/dashboard specs and access-people (full chromium last run after D-162: 114 passed). Last decision: **D-170** (Part 4: D-163…D-170). DB schema v16.
+Last `main` baseline (2026-10-17, after D-171): `pnpm check` 1312/1313 (`widget-query.perf` under load, passes alone; F11-T3 time-of-day flake can also fail), build clean; e2e run targeted only for F28–F31, chat/dashboard specs and access-people (full chromium last run after D-162: 114 passed). Last decision: **D-171** (Part 4: D-163…D-171). DB schema v17.
 
 ### Done: Part 3 (`requirement-part-3.md`), DS3 + F18–F27
 - Order: DS3, F18, F19, F20, F21, F22–F27 all done. Accepted decisions D-112…D-162 (F22: D-136…D-140 SQLite write-through stores, seed marker, hashed tokens, vehicle moves only, atomic(); node:sqlite, react-grid-layout, Inter via Google Fonts link + Doto display-only, light/dark/system themes, generative dashboards from a fixed widget catalogue with view-only sharing; DS3 basemap/tokens; F18 DB layout, contract, sharing/threads/undo).
