@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`F21-T2 zod tools → OpenAI tools > all 16 tools (D-135 preview_widget) convert (snapshot); strict only where the schema qualifies 1`] = `
+exports[`F21-T2 zod tools → OpenAI tools > all 37 tools (D-135 preview_widget, F29 actions) convert (snapshot); strict only where the schema qualifies 1`] = `
 [
   {
     "function": {
@@ -3051,6 +3051,642 @@ exports[`F21-T2 zod tools → OpenAI tools > all 16 tools (D-135 preview_widget)
         ],
         "type": "object",
       },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Assign a driver to a vehicle that has no driver (drivers.manage). Undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_driver_assign",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "driver": {
+            "description": "Driver id or exact full name.",
+            "type": "string",
+          },
+          "vehicle": {
+            "description": "Vehicle regno or vehicle id.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "driver",
+          "vehicle",
+        ],
+        "type": "object",
+      },
+      "strict": true,
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Add a new driver (drivers.manage). Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_driver_create",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "fleet": {
+            "description": "Fleet name or id.",
+            "type": "string",
+          },
+          "name": {
+            "description": "Full name.",
+            "type": "string",
+          },
+          "phone": {
+            "description": "Phone, formatted +91 9xxxx xxxxx.",
+            "type": "string",
+          },
+          "status": {
+            "enum": [
+              "active",
+              "off-duty",
+              "disabled",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "name",
+          "phone",
+          "fleet",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Take a driver off their current vehicle (drivers.manage). Undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_driver_unassign",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "driver": {
+            "description": "Driver id or exact full name.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "driver",
+        ],
+        "type": "object",
+      },
+      "strict": true,
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Edit a driver's name, phone, fleet or status (drivers.manage). Undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_driver_update",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "driver": {
+            "description": "Driver id or exact full name.",
+            "type": "string",
+          },
+          "fleet": {
+            "description": "New Fleet name or id.",
+            "type": "string",
+          },
+          "name": {
+            "description": "New name.",
+            "type": "string",
+          },
+          "phone": {
+            "description": "New phone, +91 9xxxx xxxxx.",
+            "type": "string",
+          },
+          "status": {
+            "enum": [
+              "active",
+              "off-duty",
+              "disabled",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "driver",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Create a sub-fleet (fleets.manage). Not undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_fleet_create",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "New fleet name.",
+            "type": "string",
+          },
+          "parent": {
+            "description": "Parent Fleet name or id.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "parent",
+          "name",
+        ],
+        "type": "object",
+      },
+      "strict": true,
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Delete an empty fleet with no sub-fleets (fleets.manage). Not undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_fleet_delete",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "fleet": {
+            "description": "Fleet name or id.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "fleet",
+        ],
+        "type": "object",
+      },
+      "strict": true,
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Rename a fleet (fleets.manage). Undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_fleet_rename",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "fleet": {
+            "description": "Fleet name or id.",
+            "type": "string",
+          },
+          "name": {
+            "description": "New name.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "fleet",
+          "name",
+        ],
+        "type": "object",
+      },
+      "strict": true,
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Set a fleet's auto-assign-replacement setting; null inherits from the parent (fleets.manage). Undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_fleet_settings",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "type": "boolean",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "autoAssignReplacement": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/__schema0",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "description": "true, false, or null to inherit.",
+          },
+          "fleet": {
+            "description": "Fleet name or id.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "fleet",
+          "autoAssignReplacement",
+        ],
+        "type": "object",
+      },
+      "strict": true,
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Invite a new user by email with a role and fleets (users.invite). Undo revokes the invite. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_invite_create",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "type": "string",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "description": "Email address.",
+            "type": "string",
+          },
+          "fleets": {
+            "description": "Fleet names or ids the user may see.",
+            "items": {
+              "$ref": "#/$defs/__schema0",
+            },
+            "type": "array",
+          },
+          "role": {
+            "description": "Role name or id.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "email",
+          "role",
+          "fleets",
+        ],
+        "type": "object",
+      },
+      "strict": true,
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Resend a pending invite (new link, 7 days) (users.invite). Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_invite_resend",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "invite": {
+            "description": "Invite id or the invited email.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "invite",
+        ],
+        "type": "object",
+      },
+      "strict": true,
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Revoke a pending invite (users.invite). Not undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_invite_revoke",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "invite": {
+            "description": "Invite id or the invited email.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "invite",
+        ],
+        "type": "object",
+      },
+      "strict": true,
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Mark the user's notifications as read: given ids, or all. Not undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_notifications_read",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "type": "string",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "all": {
+            "description": "true marks every notification read.",
+            "type": "boolean",
+          },
+          "ids": {
+            "description": "Notification ids.",
+            "items": {
+              "$ref": "#/$defs/__schema0",
+            },
+            "type": "array",
+          },
+        },
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Approve a replacement request with its suggested vehicle or another free one (requests.manage). Not undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_request_approve",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "description": "Optional note.",
+            "type": "string",
+          },
+          "request": {
+            "description": "Request id.",
+            "type": "string",
+          },
+          "vehicle": {
+            "description": "Replacement Vehicle regno or vehicle id. Default: the suggested one.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "request",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Reject a replacement request (requests.manage). Not undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_request_reject",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "description": "Optional reason.",
+            "type": "string",
+          },
+          "request": {
+            "description": "Request id.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "request",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Create a custom role with permission ids (roles.manage). Not undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_role_create",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "type": "string",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "Role name.",
+            "type": "string",
+          },
+          "permissions": {
+            "description": "Permission ids, e.g. live.view, table.export.",
+            "items": {
+              "$ref": "#/$defs/__schema0",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "name",
+          "permissions",
+        ],
+        "type": "object",
+      },
+      "strict": true,
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Delete a custom role nobody uses (roles.manage). Not undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_role_delete",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "description": "Role name or id.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "role",
+        ],
+        "type": "object",
+      },
+      "strict": true,
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Rename a custom role or replace its permission ids (roles.manage). Undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_role_update",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "type": "string",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "New name.",
+            "type": "string",
+          },
+          "permissions": {
+            "description": "The full new permission id list.",
+            "items": {
+              "$ref": "#/$defs/__schema0",
+            },
+            "type": "array",
+          },
+          "role": {
+            "description": "Role name or id.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "role",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Create a public live-location share link for a vehicle (share.create). Undo revokes it. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_share_link_create",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "type": "integer",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "expiresInHours": {
+            "description": "Hours until it expires (default 24, max 720).",
+            "type": "number",
+          },
+          "showDevice": {
+            "description": "Show device health.",
+            "type": "boolean",
+          },
+          "showDrivingEnergy": {
+            "description": "Show speed and battery / fuel.",
+            "type": "boolean",
+          },
+          "trailMinutes": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/__schema0",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "description": "Show the last N minutes of trail; null or absent for no trail.",
+          },
+          "vehicle": {
+            "description": "Vehicle regno or vehicle id.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "vehicle",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Revoke a share link (its creator, or share.revoke). Not undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_share_link_revoke",
+      "parameters": {
+        "additionalProperties": false,
+        "properties": {
+          "link": {
+            "description": "Share link id.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "link",
+        ],
+        "type": "object",
+      },
+      "strict": true,
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Edit a user's name, role, fleets, or enable / disable them (users.manage). Undoable. Users can't be deleted. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_user_update",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "type": "string",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "description": "false disables the user (ends their sessions).",
+            "type": "boolean",
+          },
+          "fleets": {
+            "description": "New fleet names or ids (replaces the list).",
+            "items": {
+              "$ref": "#/$defs/__schema0",
+            },
+            "type": "array",
+          },
+          "name": {
+            "description": "New name.",
+            "type": "string",
+          },
+          "role": {
+            "description": "New role name or id.",
+            "type": "string",
+          },
+          "user": {
+            "description": "User id or email.",
+            "type": "string",
+          },
+        },
+        "required": [
+          "user",
+        ],
+        "type": "object",
+      },
+    },
+    "type": "function",
+  },
+  {
+    "function": {
+      "description": "Move up to 50 vehicles to another fleet as one all-or-nothing batch (fleets.manage). Undoable. Proposes the change for the user to confirm; nothing changes until they press Confirm in the chat.",
+      "name": "propose_vehicles_move",
+      "parameters": {
+        "$defs": {
+          "__schema0": {
+            "type": "string",
+          },
+        },
+        "additionalProperties": false,
+        "properties": {
+          "fleet": {
+            "description": "Target Fleet name or id.",
+            "type": "string",
+          },
+          "vehicles": {
+            "description": "Vehicle regnos or ids (at most 50).",
+            "items": {
+              "$ref": "#/$defs/__schema0",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "vehicles",
+          "fleet",
+        ],
+        "type": "object",
+      },
+      "strict": true,
     },
     "type": "function",
   },

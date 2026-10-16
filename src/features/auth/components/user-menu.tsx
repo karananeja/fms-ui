@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { KeyRound, LogOut } from 'lucide-react';
+import { Gauge, KeyRound, LogOut } from 'lucide-react';
 import { Popover } from 'radix-ui';
 import type { Me } from '@shared/contract/index.ts';
 import { ROUTE_PERMISSIONS, useCan } from '@/features/access/permissions/can';
@@ -74,6 +74,22 @@ function AiSettingsLink({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+/** F30: the user's AI token usage; hidden without the assistant. */
+function AiUsageLink({ onNavigate }: { onNavigate?: () => void }) {
+  const allowed = useCan(ROUTE_PERMISSIONS['/settings/usage']);
+  if (!allowed) return null;
+  return (
+    <Link
+      to="/settings/usage"
+      onClick={onNavigate}
+      className="flex w-full items-center gap-2 rounded-tile px-3 py-2.5 text-sm text-text-muted outline-none hover:bg-tile hover:text-text focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <Gauge className="size-4" aria-hidden />
+      AI usage
+    </Link>
+  );
+}
+
 /**
  * F02-R11: the signed-in user (initials, name, email, role) and "Sign out" — a popover from the
  * rail's avatar on desktop, an inline block at the bottom of the mobile drawer.
@@ -93,6 +109,7 @@ export function UserMenu({ variant }: { variant: 'rail' | 'drawer' }) {
           <ThemeToggle variant="menu" />
         </div>
         <AiSettingsLink />
+        <AiUsageLink />
         <SignOutButton />
       </section>
     );
@@ -128,6 +145,7 @@ function RailMenu({ me }: { me: Me }) {
           </div>
           <div className="border-t border-glass-border pt-1">
             <AiSettingsLink onNavigate={() => setOpen(false)} />
+            <AiUsageLink onNavigate={() => setOpen(false)} />
             <SignOutButton />
           </div>
         </Popover.Content>

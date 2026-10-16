@@ -19,6 +19,7 @@ describe('F03-R2: nav filtered by permission', () => {
       'Invites',
       'Roles',
       'Share links',
+      'Activity',
     ]);
   });
 
@@ -34,6 +35,7 @@ describe('F03-R2: nav filtered by permission', () => {
     ['users.invite', 'Invites'],
     ['roles.manage', 'Roles'],
     ['share.revoke', 'Share links'],
+    ['audit.view', 'Activity'],
   ])('%s alone: Admin + %s only', (permission, label) => {
     expect(labels(permission)).toEqual(['Admin', label]);
   });

@@ -2,8 +2,8 @@
 
 exports[`F24-T1 the cached prefix is byte-identical (snapshot) > Anthropic, OpenAI and xAI prefixes: same for every user and chat, and match the snapshot 1`] = `
 {
-  "anthropic": "53c3cdd8b04ce1e64104ae3f1712e7cac6eb8b36f0dc08a4118124010c9f1486",
-  "openai": "7ac674065b3bc279ebfa0bbee3f4345c07fdc85fe9aa5a688be556faf90ff7a3",
-  "xai": "dc6cf3dbe6c19984f84bcfab44db0225b7bc50e18a138432f1e3a8eb5dca717f",
+  "anthropic": "b72eae72f3187f8f5b954476af2dcad32c81803d0d8520b99a33eadb98dcebca",
+  "openai": "080e739bb82f1025e869ede396f64b20702c3cf4c2f194cfd6bcda155a0e2393",
+  "xai": "3a7e87db30f32a14f8bb526e2674ec1fc3fc558f8572f0cc4b05b5e7c64f3ce4",
 }
 `;

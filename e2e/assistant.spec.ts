@@ -188,7 +188,7 @@ test.describe('F17-T7: permissions and scope', () => {
     expect(
       (
         await page.request.post('/api/chat', {
-          data: { messages: [{ role: 'user', content: 'hi' }] },
+          data: { message: 'hi' },
         })
       ).status(),
     ).toBe(403);

@@ -1,4 +1,9 @@
-import type { ChatEvent, ChatRequest, ReportDescriptor } from '@shared/contract/assistant.ts';
+import type {
+  ChatEvent,
+  ChatRequest,
+  ChatThreadMessage,
+  ReportDescriptor,
+} from '@shared/contract/assistant.ts';
 import {
   createMemoryHistory,
   createRootRoute,
@@ -52,10 +57,32 @@ const report = (over: Partial<ReportDescriptor> = {}): ReportDescriptor => ({
   ...over,
 });
 
+const stored = (
+  id: string,
+  seq: number,
+  role: 'user' | 'assistant',
+  text: string,
+  outcome: ChatThreadMessage['outcome'] = 'done',
+): ChatThreadMessage => ({
+  id,
+  seq,
+  role,
+  text,
+  extras: {},
+  outcome,
+  errorCode: outcome === 'error' ? 'failed' : null,
+  createdAt: 1,
+});
+
 async function renderPanel() {
   const fake = fakeTransport();
   const session = await sessionAs('authenticated');
-  const store = new AssistantStore({ transport: fake.transport, session });
+  const store = new AssistantStore({
+    transport: fake.transport,
+    session,
+    api: (async () => ({ items: [], nextCursor: null })) as never,
+    memory: { get: () => null, set: () => {} },
+  });
   const onClose = vi.fn();
   const root = createRootRoute({
     component: () => (
@@ -97,23 +124,91 @@ describe('F17: SSE parser', () => {
 });
 
 describe('F17: store', () => {
-  it('sends the text transcript, ≤ 30 turns, starting with a user turn; skips failed exchanges', async () => {
+  it('F28: sends only the new message; adopts thread_saved; Retry re-runs a stored failure', async () => {
     const fake = fakeTransport();
-    const store = new AssistantStore({ transport: fake.transport });
-    for (let i = 0; i < 16; i++) {
-      store.send(`q${i}`);
-      await fake.emit({ type: 'text', delta: `a${i}` }, { type: 'done', stopReason: 'end_turn' });
-      await fake.end();
-    }
-    store.send('fails');
-    await fake.emit({ type: 'error', code: 'busy', message: 'x' });
+    const store = new AssistantStore({
+      transport: fake.transport,
+      memory: { get: () => null, set: () => {} },
+    });
+    store.send('q1');
+    expect(fake.requests[0]).toEqual({ message: 'q1' });
+    await fake.emit({
+      type: 'thread_saved',
+      messages: [],
+      chat: { threadId: 'thr-1', title: 'Q1', messages: [stored('msg-u1', 1, 'user', 'q1')] },
+    });
+    await fake.emit(
+      { type: 'text', delta: 'a1' },
+      {
+        type: 'thread_saved',
+        messages: [],
+        chat: {
+          threadId: 'thr-1',
+          title: 'Q1',
+          messages: [
+            stored('msg-u1', 1, 'user', 'q1'),
+            stored('msg-a1', 2, 'assistant', 'a1\n\n(error: boom)', 'error'),
+          ],
+        },
+      },
+      { type: 'error', code: 'failed', message: 'boom' },
+    );
     await fake.end();
-    store.send('last');
-    const sent = fake.requests.at(-1)!.messages;
-    expect(sent).toHaveLength(29);
-    expect(sent[0]).toEqual({ role: 'user', content: 'q2' });
-    expect(sent.at(-1)).toEqual({ role: 'user', content: 'last' });
-    expect(sent.some((t) => t.content === 'fails')).toBe(false);
+    const s = store.getSnapshot();
+    expect(s.threadId).toBe('thr-1');
+    expect(s.title).toBe('Q1');
+    expect(s.messages.map((m) => m.id)).toEqual(['msg-u1', 'msg-a1']);
+    store.retry();
+    expect(fake.requests[1]).toEqual({ threadId: 'thr-1', message: 'q1', retryOf: 'msg-a1' });
+    expect(store.getSnapshot().messages).toHaveLength(2);
+    await fake.emit({ type: 'done', stopReason: 'end_turn' });
+    await fake.end();
+    store.send('q2');
+    expect(fake.requests[2]).toEqual({ threadId: 'thr-1', message: 'q2' });
+    store.clear();
+    expect(store.getSnapshot()).toMatchObject({ threadId: null, messages: [] });
+    store.send('q3');
+    expect(fake.requests[3]).toEqual({ message: 'q3' });
+  });
+
+  it('F28: opens the tab’s last thread, else a thread updated < 12 h ago, else a new chat', async () => {
+    const session = await sessionAs('authenticated');
+    const now = Date.now();
+    const thread = (id: string, updatedAt: number) => ({
+      id,
+      title: id,
+      titleAuto: true,
+      createdAt: updatedAt,
+      updatedAt,
+      preview: '',
+      trimmed: false,
+    });
+    const make = (remembered: string | null | undefined, latestAge: number) => {
+      const api = vi.fn(async (path: string) => {
+        if (path === '/api/chat/threads')
+          return { items: [thread('thr-latest', now - latestAge)], nextCursor: null };
+        const id = path.split('/').at(-1)!;
+        return { thread: thread(id, now), messages: [stored(`${id}-u`, 1, 'user', `hi ${id}`)] };
+      });
+      return new AssistantStore({
+        session,
+        api: api as never,
+        memory: { get: () => remembered, set: () => {} },
+      });
+    };
+    const a = make('thr-tab', 0);
+    await a.open();
+    expect(a.getSnapshot().threadId).toBe('thr-tab');
+    const b = make(undefined, 60_000);
+    await b.open();
+    expect(b.getSnapshot().threadId).toBe('thr-latest');
+    const c = make(undefined, 13 * 3_600_000);
+    await c.open();
+    expect(c.getSnapshot()).toMatchObject({ threadId: null, messages: [] });
+    // New chat was the last choice in this tab: no resume.
+    const d = make(null, 60_000);
+    await d.open();
+    expect(d.getSnapshot().threadId).toBeNull();
   });
 
   it('clears the conversation when the user changes (sign-out)', async () => {
@@ -155,7 +250,7 @@ describe('F17-T5: panel', () => {
     expect(t.requests).toHaveLength(0);
     await t.user.keyboard('{Enter}');
     expect(t.requests).toHaveLength(1);
-    expect(t.requests[0]!.messages).toEqual([{ role: 'user', content: 'first line\nsecond' }]);
+    expect(t.requests[0]).toEqual({ message: 'first line\nsecond' });
     expect(t.box).toHaveValue('');
     expect(screen.getByTestId('user-message')).toHaveTextContent('first line second');
     expect(screen.queryByTestId('suggested-prompt')).toBeNull();
@@ -227,7 +322,7 @@ describe('F17-T5: panel', () => {
 
     await t.user.click(screen.getByRole('button', { name: 'Retry' }));
     expect(t.requests).toHaveLength(2);
-    expect(t.requests[1]!.messages).toEqual([{ role: 'user', content: 'Where is MH12?' }]);
+    expect(t.requests[1]).toEqual({ message: 'Where is MH12?' });
     expect(screen.queryByText('Partial')).toBeNull();
   });
 
@@ -256,7 +351,7 @@ describe('F17-T5: panel', () => {
     const dl = within(csv!).getByRole('link', { name: 'Download' });
     expect(dl).toHaveAttribute('href', '/api/chat/reports/r1');
     expect(dl).toHaveAttribute('download', 'no-gps-vehicles.csv');
-    expect(pdf).toHaveTextContent('Link expired — ask again to regenerate');
+    expect(pdf).toHaveTextContent('This report has expired. Ask again to rebuild it.');
     expect(within(pdf!).queryByRole('link')).toBeNull();
   });
 
@@ -299,6 +394,6 @@ describe('F17-T5: panel', () => {
     expect(screen.getByTestId('assistant-interrupted')).toBeInTheDocument();
     expect(screen.queryByTestId('assistant-error')).toBeNull();
     await t.user.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(t.requests.at(-1)?.messages).toEqual([{ role: 'user', content: 'q' }]);
+    expect(t.requests.at(-1)).toEqual({ message: 'q' });
   });
 });

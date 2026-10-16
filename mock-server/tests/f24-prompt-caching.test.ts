@@ -64,7 +64,7 @@ async function post(path: string, body: unknown, cookie = cookies.ops, signal?: 
   return res.text();
 }
 const ask = async (question: string, cookie = cookies.ops) =>
-  parseSse(await post('/api/chat', { messages: [{ role: 'user', content: question }] }, cookie));
+  parseSse(await post('/api/chat', { message: question }, cookie));
 const dashChat = async (id: string, message: string) =>
   parseSse(await post(`/api/dashboards/${id}/chat`, { message }));
 const done = (events: ChatEvent[]) => {
@@ -215,14 +215,12 @@ describe('F24-T3 Anthropic breakpoints (both chats)', () => {
     expect(JSON.stringify(msgs.slice(0, latest - 1))).not.toContain('"cache_control"');
     expect(JSON.stringify(body).match(/"cache_control"/g)!.length).toBeLessThanOrEqual(4);
 
-    // Global chat: the same marker on the message before the latest user turn.
-    await post('/api/chat', {
-      messages: [
-        { role: 'user', content: 'q1' },
-        { role: 'assistant', content: 'a1' },
-        { role: 'user', content: 'q2' },
-      ],
-    });
+    // Global chat (F28: transcript from the stored thread): the same marker on the message
+    // before the latest user turn.
+    await script({ steps: [{ text: 'a1' }] });
+    const first = (await ask('q1')).find((e) => e.type === 'thread_saved');
+    const threadId = first?.type === 'thread_saved' ? first.chat!.threadId : '';
+    await post('/api/chat', { threadId, message: 'q2' });
     const global = (await lastRequest()).body.messages;
     expect(global[1]).toEqual({
       role: 'assistant',
@@ -298,7 +296,7 @@ describe('F24-T6 SSE heartbeat (F23)', () => {
     process.env.FMS_SSE_HEARTBEAT_MS = '25';
     try {
       await script({ steps: [{ text: 'one two three four five six seven eight', delayMs: 40 }] });
-      const raw = await post('/api/chat', { messages: [{ role: 'user', content: 'slowly' }] });
+      const raw = await post('/api/chat', { message: 'slowly' });
       expect(raw).toMatch(/(^|\n): ping\n\n/);
       const events = parseSse(raw);
       expect(done(events).stopReason).toBe('end_turn');
@@ -325,7 +323,7 @@ describe('F24-T7 stream end reasons (F23)', () => {
     const res = await fetch(`${server.base}/api/chat`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', cookie: cookies.ops },
-      body: JSON.stringify({ messages: [{ role: 'user', content: 'slow' }] }),
+      body: JSON.stringify({ message: 'slow' }),
       signal: controller.signal,
     });
     await res.body!.getReader().read();

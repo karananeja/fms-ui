@@ -15,7 +15,9 @@ const LABELS = {
   '/admin/invites': 'Go to invites',
   '/admin/roles': 'Go to roles',
   '/admin/share-links': 'Go to share links',
+  '/admin/activity': 'Go to activity',
   '/settings/ai': 'Go to AI assistant settings',
+  '/settings/usage': 'Go to AI usage',
 } as const;
 
 /** F03-R1: shown in place of a page you lack the permission for; links to one you can open. */

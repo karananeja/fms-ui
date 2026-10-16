@@ -13,24 +13,30 @@ import { VehicleSim } from './generator/vehicle-sim.ts';
 import { HttpError } from './http-error.ts';
 import { LiveHub } from './live/live-hub.ts';
 import { accessRoutes } from './routes/access-routes.ts';
+import { actionRoutes } from './routes/action-routes.ts';
 import { aiKeyRoutes } from './routes/ai-key-routes.ts';
 import { analyticsRoutes } from './routes/analytics-routes.ts';
 import { assistantRoutes } from './routes/assistant-routes.ts';
 import { authRoutes } from './routes/auth-routes.ts';
+import { chatThreadRoutes } from './routes/chat-thread-routes.ts';
 import { dashboardRoutes } from './routes/dashboard-routes.ts';
 import { devRoutes } from './routes/dev-routes.ts';
 import { driverRoutes } from './routes/driver-routes.ts';
 import { notificationRoutes } from './routes/notification-routes.ts';
 import { requestRoutes } from './routes/request-routes.ts';
 import { shareRoutes } from './routes/share-routes.ts';
+import { usageRoutes } from './routes/usage-routes.ts';
 import { vehicleRoutes } from './routes/vehicle-routes.ts';
 import { Accounts } from './store/accounts.ts';
 import { AiKeys } from './store/ai-keys.ts';
+import { AssistantActions } from './store/assistant-actions.ts';
+import { ChatThreads } from './store/chat-threads.ts';
 import { Dashboards } from './store/dashboards.ts';
 import { Drivers } from './store/drivers.ts';
 import { Notifications } from './store/notifications.ts';
 import { Requests } from './store/requests.ts';
 import { ShareLinks } from './store/share-links.ts';
+import { AiUsage } from './store/usage.ts';
 
 export interface BuildOptions extends Partial<MockConfig> {
   logLevel?: string;
@@ -79,6 +85,9 @@ export function buildServer({ logLevel = 'warn', ...overrides }: BuildOptions = 
   // F27 (D-153): dashboard changes, access changes and deletes are pushed to open pages.
   ctx.dashboards.onEvent = (e) => ctx.hub.dashboardEvent(e);
   ctx.aiKeys = new AiKeys(db, clock);
+  ctx.actions = new AssistantActions(ctx);
+  ctx.chatThreads = new ChatThreads(db, clock);
+  ctx.usage = new AiUsage(db, clock);
   try {
     const seeded = prepareStores(ctx, (msg) => app.log.warn(msg));
     app.log.debug(
@@ -143,7 +152,10 @@ export function buildServer({ logLevel = 'warn', ...overrides }: BuildOptions = 
   app.register(analyticsRoutes, { prefix: '/api' });
   app.register(dashboardRoutes, { prefix: '/api' });
   app.register(assistantRoutes);
+  app.register(chatThreadRoutes, { prefix: '/api' });
   app.register(aiKeyRoutes, { prefix: '/api' });
+  app.register(actionRoutes, { prefix: '/api' });
+  app.register(usageRoutes, { prefix: '/api' });
   if (config.dev) app.register(devRoutes, { prefix: '/api/dev' });
 
   app.register(async (scope) => {

@@ -325,14 +325,7 @@ describe('F19-T8 global chat builds a dashboard', () => {
   it('dashboard_created with url, ≥ 3 widgets, thread seeded with 2 messages', async () => {
     const events = await sse(
       '/api/chat',
-      {
-        messages: [
-          {
-            role: 'user',
-            content: 'Build a dashboard of running vs stopped and top idle vehicles',
-          },
-        ],
-      },
+      { message: 'Build a dashboard of running vs stopped and top idle vehicles' },
       cookies.ops,
     );
     const created = events.find((e) => e.type === 'dashboard_created') as Extract<

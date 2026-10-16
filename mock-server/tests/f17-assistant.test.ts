@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { PDFDocument } from 'pdf-lib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { ACTION_TOOL_NAMES } from '../assistant/action-tools.ts';
 import { requestPrefix, toApiMessages } from '../assistant/assistant-runner.ts';
 import {
   buildTools,
@@ -83,7 +84,7 @@ async function chat(
   const res = await fetch(`${server.base}/api/chat`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', cookie },
-    body: JSON.stringify({ messages: [{ role: 'user', content: question }] }),
+    body: JSON.stringify({ message: question }),
     signal,
   });
   expect(res.status).toBe(200);
@@ -132,8 +133,8 @@ describe('F17-T1 tools: schemas, scope and permissions', () => {
       strict?: boolean;
       input_schema: { type: string; additionalProperties?: boolean };
     }[];
-    // F19 added the seven dashboard tools to the one sorted list.
-    expect(defs.map((d) => d.name)).toEqual([
+    // F19 added the seven dashboard tools to the one sorted list; F29 the propose_* actions.
+    expect(defs.map((d) => d.name).filter((n) => !ACTION_TOOL_NAMES.includes(n))).toEqual([
       'add_widget',
       'arrange_widgets',
       'create_dashboard',
@@ -230,13 +231,13 @@ describe('F17-T1 tools: schemas, scope and permissions', () => {
 
 describe('F17-T3 /api/chat against the fake model', () => {
   it('guards: 401 without a session, 403 without chat.use, 422 for a bad body', async () => {
-    const q = { messages: [{ role: 'user', content: 'hi' }] };
+    const q = { message: 'hi' };
     expect((await server.api('POST', '/api/chat', { body: q })).status).toBe(401);
     expect(
       (await server.api('POST', '/api/chat', { body: q, cookie: cookies.viewer })).status,
     ).toBe(403);
     expect(
-      (await server.api('POST', '/api/chat', { body: { messages: [] }, cookie: cookies.ops }))
+      (await server.api('POST', '/api/chat', { body: { message: ' ' }, cookie: cookies.ops }))
         .status,
     ).toBe(422);
   });

@@ -33,7 +33,9 @@ export function ReportCard({ report }: { report: ReportDescriptor }) {
           <span data-testid="report-rows">{rowsText(report.rows)}</span>
         </p>
         {expired ? (
-          <p className="mt-1 text-[11px] text-warn">Link expired — ask again to regenerate</p>
+          <p className="mt-1 text-[11px] text-warn">
+            This report has expired. Ask again to rebuild it.
+          </p>
         ) : (
           <p className="mt-1 text-[11px] text-text-faint">
             Link valid until {formatIst(report.expiresAt)}

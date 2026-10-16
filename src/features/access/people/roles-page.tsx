@@ -240,31 +240,52 @@ function RoleEditor({
         error={errors.name}
         onChange={(e) => setName(e.target.value)}
       />
-      <div className="flex flex-col gap-3">
+      <div className="mb-1.5 flex items-baseline justify-between">
+        <span className="text-xs font-semibold text-text-muted">Permissions</span>
+        <span className="text-xs text-text-faint tabular-nums">
+          {granted.size} / {PERMISSIONS.length}
+        </span>
+      </div>
+      <div className="divide-y divide-tile-border rounded-tile border border-tile-border bg-tile">
         {PERMISSION_GROUPS.map((group) => {
           const locked = !readOnly && group.permissions.some(isSystemOnly);
+          const grantable = group.permissions.filter((p) => !isSystemOnly(p));
+          const allOn = grantable.length > 0 && grantable.every((p) => granted.has(p));
+          const onCount = group.permissions.filter((p) => granted.has(p)).length;
           return (
-            <fieldset
-              key={group.label}
-              className="rounded-tile border border-tile-border bg-tile px-3 pt-1 pb-3"
-            >
-              <legend className="px-1 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
-                {group.label}
-              </legend>
-              <div className="flex flex-col gap-2">
+            <fieldset key={group.label} className="min-w-0 px-3 py-2.5">
+              <div className="mb-1.5 flex items-center gap-2">
+                <legend className="float-left text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase">
+                  {group.label}
+                </legend>
+                <span className="text-[11px] text-text-faint tabular-nums">
+                  {onCount}/{group.permissions.length}
+                </span>
+                {!readOnly && grantable.length > 1 && (
+                  <button
+                    type="button"
+                    className="ml-auto text-[11px] font-semibold text-accent hover:underline"
+                    aria-label={`${allOn ? 'Clear' : 'Select all'} ${group.label}`}
+                    onClick={() => grantable.forEach((p) => toggle(p, !allOn))}
+                  >
+                    {allOn ? 'Clear' : 'All'}
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 gap-x-3 gap-y-1.5 sm:grid-cols-2">
                 {group.permissions.map((p) => {
                   const disabled = readOnly || isSystemOnly(p);
                   return (
                     <label
                       key={p}
                       className={cn(
-                        'flex items-center gap-2.5 text-sm',
+                        'flex min-w-0 items-start gap-2 text-[13px] leading-tight',
                         disabled ? 'text-text-muted' : 'cursor-pointer',
                       )}
                     >
                       <input
                         type="checkbox"
-                        className="size-4 accent-[var(--accent)]"
+                        className="mt-px size-3.5 shrink-0 accent-[var(--accent)]"
                         checked={granted.has(p)}
                         disabled={disabled}
                         onChange={(e) => toggle(p, e.target.checked)}
@@ -285,7 +306,7 @@ function RoleEditor({
           {formError}
         </p>
       )}
-      <div className="mt-5 flex items-center gap-2">
+      <div className="sticky -bottom-4 -mx-4 mt-4 -mb-4 flex items-center gap-2 border-t border-glass-border bg-surface-solid px-4 py-3">
         {role && !readOnly && (
           <Button
             type="button"

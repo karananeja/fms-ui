@@ -14,6 +14,7 @@ import type {
   WidgetPreview,
   WidgetPreviewStatus,
 } from '@shared/contract/dashboards.ts';
+import type { ActionCard } from '@shared/contract/actions.ts';
 import { ApiError, apiFetch, type ApiRequest } from '@/shared/api/api-client';
 import { ERROR_TEXT, type ChatError, type ToolCall } from './assistant-store.ts';
 import { ChatHttpError, isInterruption, streamSse, type ChatErrorCode } from './chat-stream.ts';
@@ -39,6 +40,8 @@ export interface DashboardChatMessage {
   dashboards: readonly DashboardLink[];
   /** D-135: widget previews proposed in this turn (stored with their card state). */
   previews: readonly WidgetPreview[];
+  /** F29: actions proposed in this turn (live; the outcome line is stored in the thread). */
+  actions?: readonly ActionCard[];
   /** F23: `interrupted` = the stream broke; partial text and saved changes stay, Retry offered. */
   status: 'streaming' | 'done' | 'stopped' | 'error' | 'interrupted';
   error: ChatError | null;
@@ -496,6 +499,10 @@ export class DashboardChatStore {
         this.callbacks.onDashboardCreated?.(e.dashboard, e.url);
         dashboardEvents.emit({ kind: 'created', dashboardId: e.dashboard.id });
         return;
+      case 'action_proposed':
+        return this.update(id, (m) => ({
+          actions: [...(m.actions ?? []).filter((a) => a.id !== e.action.id), e.action],
+        }));
       case 'widget_preview':
         return this.update(id, (m) => ({
           previews: [...m.previews.filter((p) => p.id !== e.preview.id), e.preview],

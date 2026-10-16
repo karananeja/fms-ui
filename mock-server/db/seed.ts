@@ -21,6 +21,11 @@ export const SEED_VERSION = 1;
 
 /** Every F22 table plus the dashboard tables, children first (`schema_migrations` is kept). */
 const WIPED_TABLES = [
+  // F28–F30 (threads before users).
+  'chat_messages',
+  'chat_threads',
+  'ai_usage',
+  'assistant_actions',
   'user_ai_keys',
   'org_settings',
   'audit_log',
@@ -183,6 +188,8 @@ export function hydrateStores(ctx: MockContext, warn: (msg: string) => void = ()
   ctx.notifications.hydrate();
   ctx.shares.hydrate();
   ctx.aiKeys.hydrate();
+  // F29 §5: databases seeded before F29 get `audit.view` on the Super Admin role.
+  ctx.actions.hydrate();
 }
 
 /**
