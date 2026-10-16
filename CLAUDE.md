@@ -26,8 +26,8 @@ Setup, scripts and env vars: `README.md`. Seed and e2e accounts: `docs/03-dev-ac
 | F16 | Performance dashboard | Done, accepted |
 | F17 | Fleet assistant | Done, accepted. Real-key Anthropic smoke passed 2026-10-16 (D-157, D-159) |
 | DS3, F18 | Themes & fonts; dashboard store (node:sqlite) | Done, accepted 2026-10-15 |
-| F19, F20, F21 | AI dashboard builder (+ widget previews D-135, voice input); `/dashboards` route & UI; AI provider choice (xAI/OpenAI/Anthropic, D-134) | Done, accepted 2026-10-15. Real-key (Grok) smoke test pending |
-| F22–F27 | Persist admin data in SQLite; chat & dashboard UX (+ Retry after return D-155); prompt caching; user AI keys (needs `FMS_SECRET_KEY`); dynamic widgets; edit/view sharing; card snapshots (D-142); out-of-credits errors (D-156) | Done, accepted 2026-10-16. Real-key (Grok) smoke test pending (xAI team out of credits) |
+| F19, F20, F21 | AI dashboard builder (+ widget previews D-135, voice input); `/dashboards` route & UI; AI provider choice (xAI/OpenAI/Anthropic, D-134) | Done, accepted 2026-10-15. Real-key Anthropic smoke passed 2026-10-16; Grok smoke dropped (no xAI credits) |
+| F22–F27 | Persist admin data in SQLite; chat & dashboard UX (+ Retry after return D-155); prompt caching; user AI keys (needs `FMS_SECRET_KEY`); dynamic widgets; edit/view sharing; card snapshots (D-142); out-of-credits errors (D-156) | Done, accepted 2026-10-16. Real-key Anthropic smoke passed; Grok smoke dropped (no xAI credits) |
 
 Last `main` baseline (2026-10-16, after D-159): `pnpm check` 1251/1253 (F11-T3 time-of-day flake; `widget-query.perf` under load, passes alone), build clean, e2e chromium 114 passed, 17 screenshot tests skipped without `FMS_SHOTS`. Last decision: **D-159** (Part 3: D-112…D-159; no D-147…D-149). Chat DB schema v12.
 
