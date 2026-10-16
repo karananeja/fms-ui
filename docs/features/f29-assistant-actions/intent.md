@@ -28,8 +28,15 @@ The assistant can find, explain and report, and it can build dashboards. But for
 - **Audit log:**
   - Every action confirmed through the assistant is recorded: who, when, which action and target, before → after, and a link to the chat thread (F28).
   - The existing `audit_log` table, which today holds AI-key entries only, is extended.
-  - An **Activity** page for admins lists entries, with filters by user, action, area and date, plus CSV export.
-  - Seeing it needs a new permission, **View activity log** (`audit.view`), given to the admin system roles. Adding a permission is a contract change that needs a decision.
+  - An **Activity** page for admins. It is a working screen, not only a list (user: "the activity window is read-only, i want it to be usable"):
+    - Filters by user, action, area and date; search; CSV export.
+    - **Per entry:**
+      - **Undo** (same rules as below; confirmed and audited).
+      - **Open chat**: the thread and turn that made the change. Only for the entry's own user, because chats stay private (F28); others see the request text quoted in the entry.
+      - **Open target**: the driver, user, fleet, request or share link.
+      - **What changed**: before → after.
+    - Entries that were undone, or whose target changed since, are marked as such.
+  - Seeing it needs a new permission, **View activity log** (`audit.view`), given to the admin system roles. Undo from the page also needs the action's own permission. Adding a permission is a contract change that needs a decision.
 - **Undo:**
   - Where the action can be reversed, the done card offers **Undo** for 24 hours, if the target has not changed since. Undo is confirmed and audited like any other action.
   - Reversible actions: assign/unassign, fleet rename, vehicle moves, user edits including enable or disable, role edits, creating a share link (undo = revoke), sending an invite (undo = revoke).

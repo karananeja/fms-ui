@@ -566,3 +566,9 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "now the ai agent/chatbot can create dashboards with widgets but lets expand the scope so that it can perform user level actions if the user has permissions and also keep track of those chats as well; also i need a monitor to track my token usage" → mapped today's state (global chat is client-memory only; no write tools outside dashboards; `audit_log` only for AI keys; usage only in memory, output tokens dropped). User chose: confirm every write; drivers & requests, users/invites/roles, fleets & vehicles, sharing & notifications; saved threads + audit log + Undo; usage for me + admin view. Drafted intents F28 (saved threads), F29 (actions + audit + Undo), F30 (usage monitor).
 
 **Status/Next:** intents await sign-off. Proposed order: F28 → (F29 ∥ F30).
+
+## 2026-10-16: Instrument widget (D-160); Activity windows should be usable
+
+**User:** "the activity window is read-only, i want it to be usable; also when i ask to create vehicle cluster view in single widget like speed, soc and other parameters, it creates multiple widgets instead of one single widget" → both the dashboard Activity popover (F27) and the drafted F29 Activity page are read-only lists; the user chose to make both usable. F29 intent updated (per-entry Undo, open chat, open target, what changed). Cluster view: the grammar had no multi-reading mark; added `instrument` (D-160, Proposed) on `feature/cluster-widget`: grammar + prompt + renderer, unit and e2e tests.
+
+**Status/Next:** UAT of D-160; dashboard Activity actions design to agree with the user.
