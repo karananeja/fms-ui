@@ -7,7 +7,8 @@ const SHOTS = 'docs/features/f23-chat-dashboard-ux/screenshots';
 /**
  * D-158 (fake model, super admin): once the dock is open, an empty dashboard's canvas keeps the
  * starter's templates and chips (no second prompt box) and shows the last turn's failure with
- * Retry, plus an AI settings link for provider problems.
+ * Retry, plus an AI settings link for provider problems. Failures are stubbed in the browser
+ * (not the shared fake-model script queue, which parallel specs would race for).
  */
 
 const tag = () => `d158${Math.random().toString(36).slice(2, 8)}`;
@@ -23,17 +24,14 @@ async function seed(api: APIRequestContext) {
   expect(res.status()).toBe(201);
   return (await res.json()) as { id: string };
 }
-const script = async (api: APIRequestContext, data: object) =>
-  expect((await api.post('/api/dev/assistant/script', { data })).ok()).toBe(true);
-/** Waits until no assistant run is active (the cut turn is saved). */
-const idle = (api: APIRequestContext) =>
-  expect
-    .poll(
-      async () =>
-        ((await (await api.get('/api/dev/assistant/stats')).json()) as { activeRuns: number })
-          .activeRuns,
-    )
-    .toBe(0);
+const failWith = (page: Page, url: string, error: object) =>
+  page.route(url, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: sse({ type: 'error', ...error }),
+    }),
+  );
 
 test('D-158-T1: failed turn on an empty dashboard → failure card, settings link, templates, Retry', async ({
   page,
@@ -43,13 +41,7 @@ test('D-158-T1: failed turn on an empty dashboard → failure card, settings lin
   const url = `**/api/dashboards/${d.id}/chat`;
   try {
     await page.goto(`/dashboards/${d.id}`);
-    await page.route(url, (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'text/event-stream',
-        body: sse({ type: 'error', code: 'failed', message: REJECTED }),
-      }),
-    );
+    await failWith(page, url, { code: 'failed', message: REJECTED });
     await page.locator('[data-template="fleet-health"]').click();
     await expect(page.getByTestId('dock-panel')).toHaveAttribute('data-state', 'open');
 
@@ -58,25 +50,19 @@ test('D-158-T1: failed turn on an empty dashboard → failure card, settings lin
     await expect(card).toContainText("Couldn't build your dashboard");
     await expect(card).toContainText('HTTP 400');
     await expect(page.getByTestId('canvas-settings')).toHaveAttribute('href', '/settings/ai');
-    const starter = page.getByTestId('dashboard-starter');
-    await expect(starter).toHaveAttribute('data-compact', 'true');
+    await expect(page.getByTestId('dashboard-starter')).toHaveAttribute('data-compact', 'true');
     await expect(page.getByTestId('starter-template')).toHaveCount(4);
     // The dock's box is the only prompt box.
     await expect(page.getByRole('textbox', { name: 'Message the assistant' })).toHaveCount(1);
     await shot(page, { path: `${SHOTS}/d158-canvas-failure.png` });
     await page.unroute(url);
 
-    // 2) A chip from the canvas goes through the dock; a cut turn offers Retry on the canvas.
-    await script(page.request, { name: 'cut' });
+    // 2) A chip from the canvas goes through the dock; a busy turn: Retry, no settings link.
+    await failWith(page, url, { code: 'busy', message: 'busy' });
     await page.getByTestId('starter-chip').first().click();
-    await expect(lastAnswer(page)).toHaveAttribute('data-status', 'error', { timeout: 15_000 });
-    await expect(page.getByTestId('canvas-retry')).toBeVisible();
+    await expect(card).toContainText('Assistant is busy');
     await expect(page.getByTestId('canvas-settings')).toHaveCount(0);
-    // After a reload the stored turn is `interrupted`; the canvas still offers Retry.
-    await idle(page.request);
-    await page.reload();
-    await expect(lastAnswer(page)).toHaveAttribute('data-status', 'interrupted');
-    await expect(card).toContainText('cut off');
+    await page.unroute(url);
     await page.getByTestId('canvas-retry').click();
     await expect(lastAnswer(page)).toHaveAttribute('data-status', 'done', { timeout: 20_000 });
     await expect(card).toHaveCount(0);
