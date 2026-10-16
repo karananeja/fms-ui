@@ -77,7 +77,8 @@ export interface RunOptions {
   /** F24: stable per user + chat (see `chatCacheKey`); routes OpenAI / xAI requests to a cache. */
   cacheKey?: string;
   /** F24: called once per completed provider run with its token usage (dev stats). */
-  onUsage?: (provider: ChatProvider['name'], usage: Usage) => void;
+  /** F30: also the tool steps of the run (for the usage monitor). */
+  onUsage?: (provider: ChatProvider['name'], usage: Usage, steps: number) => void;
 }
 
 /**
@@ -153,7 +154,7 @@ export async function runChat(opts: RunOptions): Promise<RunOutcome> {
       },
     });
     const usage: Usage = result.usage;
-    opts.onUsage?.(provider.name, usage);
+    opts.onUsage?.(provider.name, usage, result.iterations);
     // F24: one line per turn with the cache use (cached / all input tokens).
     log('assistant turn', {
       provider: provider.name,

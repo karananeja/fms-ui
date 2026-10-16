@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { actionCardSchema, actionProposedEventSchema } from './actions.ts';
 import { epochMsSchema } from './common.ts';
 import {
   dashboardSchema,
@@ -94,6 +95,8 @@ export const chatThreadExtrasSchema = z.object({
   dashboards: z.array(dashboardLinkSchema).max(20).optional(),
   entities: z.array(entityRefSchema).max(200).optional(),
   previews: z.array(widgetPreviewSchema).max(30).optional(),
+  /** F29: action cards proposed in this reply (their status is re-read on load). */
+  actions: z.array(actionCardSchema).max(20).optional(),
 });
 export type ChatThreadExtras = z.infer<typeof chatThreadExtrasSchema>;
 
@@ -156,6 +159,8 @@ export const chatEventSchema = z.discriminatedUnion('type', [
   }),
   /** D-135: `preview_widget` succeeded (both chats); the dashboard is unchanged. */
   z.object({ type: z.literal('widget_preview'), preview: widgetPreviewSchema }),
+  /** F29: a write tool proposed an action; nothing changed until the user confirms it. */
+  actionProposedEventSchema,
   /**
    * The stored messages of this turn. F19 dashboard chat: `messages` = the user + assistant
    * `ThreadMessage`s. F28 global chat: `messages` is empty and `chat` carries the thread id, its

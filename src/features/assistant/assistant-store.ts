@@ -14,6 +14,7 @@ import {
   type ChatThreadList,
   type ChatThreadSummary,
 } from '@shared/contract/chat-threads.ts';
+import type { ActionCard } from '@shared/contract/actions.ts';
 import type { ToolChip, WidgetPreview } from '@shared/contract/dashboards.ts';
 import { sessionStore, type SessionState } from '@/features/auth/session/session-store';
 import { ApiError, apiFetch, type ApiRequest } from '@/shared/api/api-client';
@@ -59,6 +60,8 @@ export interface AssistantMessage {
   dashboards?: readonly DashboardLink[];
   /** D-135: widget previews (their card state is local). */
   previews?: readonly WidgetPreview[];
+  /** F29: actions proposed in this reply. */
+  actions?: readonly ActionCard[];
   /** F28: the stored tool chips of a saved reply (live `tools` are empty then). */
   chips?: readonly ToolChip[];
   /** F28: `null` until the server stored it. */
@@ -211,6 +214,7 @@ export function fromStored(m: ChatThreadMessage): Message {
     entities: m.extras.entities ?? [],
     dashboards: m.extras.dashboards ?? [],
     previews: m.extras.previews ?? [],
+    actions: m.extras.actions ?? [],
     status: outcome,
     error: outcome === 'error' ? { code, message: note?.[1] ?? ERROR_TEXT[code] } : null,
   };
@@ -303,6 +307,8 @@ export class AssistantStore {
 
   /** Opens a saved conversation; `false` when it is gone (the panel stays on a new chat). */
   async load(id: string, opts: { quiet?: boolean } = {}): Promise<boolean> {
+    // An explicit choice (History, an Activity link) wins over the panel's opening pick.
+    this.opened = true;
     if (this.state.streaming && this.state.threadId !== id) this.abortRun();
     if (this.state.streaming) return true;
     this.loadController?.abort();
@@ -600,6 +606,10 @@ export class AssistantStore {
         dashboardEvents.emit({ kind: 'created', dashboardId: e.dashboard.id });
         return this.update(id, (m) => ({
           dashboards: [...(m.dashboards ?? []), { summary: e.dashboard, url: e.url }],
+        }));
+      case 'action_proposed':
+        return this.update(id, (m) => ({
+          actions: [...(m.actions ?? []).filter((a) => a.id !== e.action.id), e.action],
         }));
       case 'widget_preview':
         return this.update(id, (m) => ({

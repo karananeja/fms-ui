@@ -12,7 +12,9 @@ import type {
   ToolChip as StoredChip,
   WidgetPreview,
 } from '@shared/contract/dashboards.ts';
+import type { ActionCard as ActionCardData } from '@shared/contract/actions.ts';
 import { can, ROUTE_PERMISSIONS } from '@/features/access/permissions/can';
+import { LiveActionCard } from '@/features/activity/components/action-card';
 import { selectMe, useSession } from '@/features/auth/session/use-session';
 import { cn } from '@/shared/lib/utils';
 import { ERROR_TEXT, type ChatError, type ToolCall } from '../assistant-store.ts';
@@ -105,6 +107,8 @@ export interface ChatViewMessage {
   chips?: readonly StoredChip[];
   change?: ChangeSet | null;
   previews?: readonly WidgetPreview[];
+  /** F29: proposed actions (Confirm / Cancel / Undo). */
+  actions?: readonly ActionCardData[];
   status?: 'streaming' | 'done' | 'stopped' | 'error' | 'interrupted';
   error?: ChatError | null;
 }
@@ -239,6 +243,9 @@ function Answer({
         <DashboardLinkCard key={d.summary.id} link={d} onNavigate={onNavigate} />
       ))}
       {renderPreview && (m.previews ?? []).map((p) => <div key={p.id}>{renderPreview(p)}</div>)}
+      {(m.actions ?? []).map((a) => (
+        <LiveActionCard key={a.id} initial={a} />
+      ))}
       {status === 'streaming' && <ProgressRow label={progressLabel(m)} onStop={onStop} />}
       {status === 'stopped' && <p className="text-xs text-text-faint">Stopped.</p>}
       {status === 'interrupted' && (

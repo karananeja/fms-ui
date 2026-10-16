@@ -43,6 +43,7 @@ import {
   type ToolSpec,
 } from './tool-kit.ts';
 
+import { ACTION_SPECS } from './action-tools.ts';
 import { DASHBOARD_SPECS } from './dashboard-tools.ts';
 
 export { ToolFailure, type ToolHost } from './tool-kit.ts';
@@ -591,6 +592,8 @@ const SPECS: ToolSpec<any>[] = [
   listRequests,
   vehicleHistory,
   ...DASHBOARD_SPECS,
+  // F29: write actions only propose; the user confirms in the chat.
+  ...ACTION_SPECS,
 ].sort((a, b) => a.name.localeCompare(b.name));
 
 export const TOOL_NAMES = SPECS.map((s) => s.name);

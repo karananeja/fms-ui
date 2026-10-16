@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { PDFDocument } from 'pdf-lib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { ACTION_TOOL_NAMES } from '../assistant/action-tools.ts';
 import { requestPrefix, toApiMessages } from '../assistant/assistant-runner.ts';
 import {
   buildTools,
@@ -132,8 +133,8 @@ describe('F17-T1 tools: schemas, scope and permissions', () => {
       strict?: boolean;
       input_schema: { type: string; additionalProperties?: boolean };
     }[];
-    // F19 added the seven dashboard tools to the one sorted list.
-    expect(defs.map((d) => d.name)).toEqual([
+    // F19 added the seven dashboard tools to the one sorted list; F29 the propose_* actions.
+    expect(defs.map((d) => d.name).filter((n) => !ACTION_TOOL_NAMES.includes(n))).toEqual([
       'add_widget',
       'arrange_widgets',
       'create_dashboard',

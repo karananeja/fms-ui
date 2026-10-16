@@ -76,6 +76,8 @@ export interface ToolHost {
   logError: (err: unknown) => void;
   /** F19: defaults to the global chat. */
   mode?: ChatMode;
+  /** F28/F29: the saved global conversation of this turn (action cards link to it). */
+  threadId?: string;
   /** F19: defaults to a fresh state per `buildTools`. */
   turn?: TurnState;
 }

@@ -139,10 +139,10 @@ describe('F19-T2 prompt and caching', () => {
     expect(SYSTEM_PROMPT).toContain("only the signed-in user's own dashboards");
   });
 
-  it('16 tool definitions (D-135 preview_widget) + system prompt are byte-identical across users and chat modes', () => {
+  it('37 tool definitions (D-135 preview_widget, F29 actions) + system prompt are byte-identical across users and chat modes', () => {
     const a = toolDefinitions(buildTools(host('ops')));
     const b = toolDefinitions(buildTools(host('superadmin', inDash('dash-x'))));
-    expect(a).toHaveLength(16);
+    expect(a).toHaveLength(37);
     expect(digest(a)).toBe(digest(b));
     expect(digest(requestPrefix())).toBe(digest(requestPrefix()));
     const prefix = JSON.stringify({ tools: a, system: SYSTEM_PROMPT });

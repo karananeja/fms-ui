@@ -21,6 +21,10 @@ export const SEED_VERSION = 1;
 
 /** Every F22 table plus the dashboard tables, children first (`schema_migrations` is kept). */
 const WIPED_TABLES = [
+  // F28–F30 (threads before users).
+  'chat_messages',
+  'chat_threads',
+  'ai_usage',
   'assistant_actions',
   'user_ai_keys',
   'org_settings',

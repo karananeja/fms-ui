@@ -5,6 +5,7 @@ import {
   chatRequestSchema,
   dashboardChatRequestSchema,
   SESSION_COOKIE,
+  type ActionCard,
   type ChatEvent,
   type ChatThreadExtras,
   type ChatTurn,
@@ -148,6 +149,48 @@ export async function assistantRoutes(app: FastifyInstance) {
     s.cachedTokens += cachedTokens;
     cacheStats.set(provider, s);
   };
+  // F29: a decided action (confirmed, cancelled, failed, undone) leaves a short line in the
+  // chat it came from, so the model knows the outcome on its next turn.
+  ctx.actions.onDecided.push((_card, r, line) => {
+    try {
+      if (r.threadId)
+        ctx.chatThreads.appendMessage(r.userId, r.threadId, { role: 'assistant', text: line });
+      else if (r.dashboardId)
+        ctx.dashboards.appendMessage(r.userId, r.dashboardId, { role: 'assistant', text: line });
+    } catch (err) {
+      // The conversation may have been deleted since.
+      app.log.warn({ error: err instanceof Error ? err.message : String(err) }, 'action line not saved');
+    }
+  });
+
+  /** F30: `onUsage` that also stores one usage row for this run (who, where, model, key). */
+  const usageFor =
+    (
+      user: User,
+      env: Env,
+      model: string,
+      where: { chat: 'global' | 'dashboard'; threadId?: string; dashboardId?: string },
+    ) =>
+    (provider: ProviderName, usage: Usage, steps: number) => {
+      onUsage(provider, usage);
+      const fake = env.mode === 'fake';
+      try {
+        ctx.usage.record({
+          userId: user.id,
+          chat: where.chat,
+          threadId: where.threadId ?? null,
+          dashboardId: where.dashboardId ?? null,
+          provider: fake ? 'fake' : provider,
+          model,
+          source: fake ? 'fake' : env.source === 'user' ? 'user' : 'server',
+          steps,
+          usage,
+          outcome: 'done',
+        });
+      } catch (err) {
+        app.log.error(err);
+      }
+    };
   const streamEnds = Object.fromEntries(END_REASONS.map((r) => [r, 0])) as Record<
     EndReason,
     number
@@ -304,6 +347,7 @@ export async function assistantRoutes(app: FastifyInstance) {
       dashboards: [] as DashboardLink[],
       entities: [] as EntityRef[],
       previews: [] as WidgetPreview[],
+      actions: [] as ActionCard[],
     } satisfies ChatThreadExtras;
     const collect = (e: ChatEvent) => {
       if (e.type === 'report') shown.reports.push(e.report);
@@ -311,6 +355,7 @@ export async function assistantRoutes(app: FastifyInstance) {
       else if (e.type === 'dashboard_created')
         shown.dashboards.push({ summary: e.dashboard, url: e.url });
       else if (e.type === 'widget_preview') shown.previews.push(e.preview);
+      else if (e.type === 'action_proposed') shown.actions.push(e.action);
       emit(e);
     };
     let saved = false;
@@ -354,14 +399,14 @@ export async function assistantRoutes(app: FastifyInstance) {
         }));
       const outcome = await runChat({
         provider: run.provider,
-        host: hostFor(user, permissions, sid),
+        host: { ...hostFor(user, permissions, sid), threadId },
         context: contextFor(user, permissions),
         turns,
         emit: collect,
         signal: run.signal,
         abortReason: run.abortReason,
         cacheKey: chatCacheKey(user.id, 'global'),
-        onUsage,
+        onUsage: usageFor(user, env, run.provider.model, { chat: 'global', threadId }),
         log: (msg, data) =>
           app.log.info({ mode: env.mode, source: env.source, ...redactLog(data, env) }, msg),
         onFinish: (outcome) => {
@@ -459,7 +504,7 @@ export async function assistantRoutes(app: FastifyInstance) {
         emit: stream.emit,
         signal: run.signal,
         abortReason: run.abortReason,
-        onUsage,
+        onUsage: usageFor(user, env, run.provider.model, { chat: 'dashboard', dashboardId }),
         log: (msg, data) =>
           app.log.info(
             { mode: env.mode, source: env.source, dashboardId, ...redactLog(data, env) },

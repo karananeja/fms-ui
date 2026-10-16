@@ -1,10 +1,10 @@
 import type { ActionCard as ActionCardData, ActionStatus } from '@shared/contract/index.ts';
 import { ArrowRight, Undo2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { TintPill } from '@/features/live-tracking/components/status-pill';
 import { errorText } from '@/features/access/lib/access-format';
 import { Button } from '@/shared/ui/button';
-import { cancelAction, confirmAction, undoAction } from '../api/activity-api';
+import { cancelAction, confirmAction, getAction, undoAction } from '../api/activity-api';
 import { ACTION_STATUS, AREA_ICON, AREA_LABEL } from '../lib/activity-format';
 
 export interface ActionCardProps {
@@ -132,6 +132,13 @@ export function LiveActionCard({
   onChange?: (card: ActionCardData) => void;
 }) {
   const [card, setCard] = useState(initial);
+  // A card from a saved reply may be stale (confirmed elsewhere, expired): re-read it once.
+  useEffect(() => {
+    if (initial.status !== 'proposed' && !initial.canUndo) return;
+    const ac = new AbortController();
+    getAction(initial.id, { signal: ac.signal }).then(setCard, () => {});
+    return () => ac.abort();
+  }, [initial.id, initial.status, initial.canUndo]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const run = (call: (id: string) => Promise<ActionCardData>) => async () => {

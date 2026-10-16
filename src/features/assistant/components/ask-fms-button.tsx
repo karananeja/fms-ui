@@ -1,4 +1,5 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { useRouterState } from '@tanstack/react-router';
 import { Sparkles } from 'lucide-react';
 import { useCan } from '@/features/access/permissions/can';
 import { Button } from '@/shared/ui/button';
@@ -15,6 +16,17 @@ const AssistantPanel = lazy(() => loadPanel().then((m) => ({ default: m.Assistan
 export function AskFmsButton() {
   const allowed = useCan('chat.use');
   const [open, setOpen] = useState(false);
+  // F29: an Activity "Open chat" link (`?thread=<id>`) opens that saved conversation.
+  const thread = useRouterState({
+    select: (s) => (s.location.search as { thread?: unknown }).thread,
+  });
+  const opened = useRef<string | null>(null);
+  useEffect(() => {
+    if (!allowed || typeof thread !== 'string' || opened.current === thread) return;
+    opened.current = thread;
+    setOpen(true);
+    void import('../assistant-store.ts').then(({ assistantStore }) => assistantStore.load(thread));
+  }, [allowed, thread]);
   if (!allowed) return null;
   return (
     <Sheet open={open} onOpenChange={setOpen}>
