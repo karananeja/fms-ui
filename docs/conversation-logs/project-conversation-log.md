@@ -526,3 +526,13 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "approved and update the artifact as well" → UAT of F22–F27 (with D-142 snapshots, D-155, D-156 and the layout fixes) accepted; D-065…D-067, D-141…D-146 and D-150…D-156 accepted. Merged `feature/f22-persist-admin-data` into `main` (--no-ff), deleted the branch, updated the catalogue and CLAUDE.md, and updated the architecture explainer artifact for F22–F27.
 
 **Status/Next:** Part 3 done. Pending: real-key Grok smoke test (xAI team needs credits); known flakes F11-T3, F09-T8, F06-T6.
+
+## 2026-10-16: AI key saving and the Haiku fallback fix
+
+**User:** "when i try to add keys from ai settings page, i am not able to save the key, what is wrong?" → `.env` had no `FMS_SECRET_KEY` (F25), so the server reported storage unavailable. On request, the assistant added the variables missing from `.env.example` (`MOCK_DB`, `MOCK_DB_RESET`, `FMS_XAI_STREAM_USAGE`, `FMS_SSE_HEARTBEAT_MS`, a generated `FMS_SECRET_KEY`) in the example's order, without changing or reading the user's values, and deleted its temporary copies of `.env`.
+
+**User:** "i have added my anthropic key but i get error, it is not able to generate response, look at the recent dashboard created" → the latest dashboard's first turn failed in ~1 s with `failed`. The user key uses `claude-haiku-5-5`; every Anthropic request sent `fallbacks: "default"`, which Haiku 5.5 does not support (400), shown as "Something went wrong".
+
+**User:** "yes" → D-157 (Proposed) on `fix/anthropic-haiku-fallback`: fallback params only for supporting models; a provider 400/404/422 shows "The AI provider rejected the request (HTTP …)". Test added in `provider-credits.test.ts`. `pnpm check` 1248/1249 (F11-T3 known flake), typecheck and lint clean, build clean.
+
+**Status/Next:** UAT: restart `pnpm dev` on the branch and Retry the dashboard turn with Haiku. After approval: merge `--no-ff` into `main`, delete the branch.
