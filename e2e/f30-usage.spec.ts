@@ -1,5 +1,6 @@
 import { signIn } from './auth-helpers.ts';
 import { expect, SIGNED_OUT, test } from './fixtures.ts';
+import { shot } from './shots.ts';
 
 /** F30: Settings → AI usage (own view, Organisation tab, CSV export). */
 
@@ -25,6 +26,17 @@ test.describe('F30 AI usage', () => {
 
     await page.getByRole('button', { name: 'Organisation' }).click();
     await expect(page.getByRole('region', { name: 'By user' })).toBeVisible();
+    // The filters and Export CSV share one baseline and height.
+    const boxes = await Promise.all(
+      [page.locator('#usage-user'), page.locator('#usage-provider'), page.getByTestId('usage-export')].map(
+        (l) => l.boundingBox(),
+      ),
+    );
+    for (const b of boxes) {
+      expect(Math.abs(b!.y + b!.height - (boxes[0]!.y + boxes[0]!.height))).toBeLessThanOrEqual(1);
+      expect(Math.abs(b!.height - boxes[0]!.height)).toBeLessThanOrEqual(1);
+    }
+    await shot(page, { path: 'docs/features/f30-token-usage-monitor/screenshots/f30-org-tab.png' });
     const download = page.waitForEvent('download');
     await page.getByTestId('usage-export').click();
     const file = await download;

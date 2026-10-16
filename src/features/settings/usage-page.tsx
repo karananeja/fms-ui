@@ -105,7 +105,8 @@ function OrgUsage({ range }: { range: UsageRange }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-end gap-3 [&>div]:mb-0">
+      {/* The fields' own bottom margin is dropped so they line up with the button (all 40 px). */}
+      <div className="flex flex-wrap items-end gap-3 [&>div>div]:mb-0">
         <div className="w-56">
           <SelectField
             id="usage-user"
@@ -133,6 +134,7 @@ function OrgUsage({ range }: { range: UsageRange }) {
           onClick={() => void exportCsv()}
           disabled={exporting}
           data-testid="usage-export"
+          className="h-10"
         >
           <Download className="size-4" aria-hidden />
           {exporting ? 'Exporting…' : 'Export CSV'}
