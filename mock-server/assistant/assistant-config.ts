@@ -152,7 +152,7 @@ export const FAKE_USER_KEY_PREFIX = 'fake-';
 export const isFakeUserKey = (key: string) => key.startsWith(FAKE_USER_KEY_PREFIX);
 
 export type AssistantSource = 'user' | 'server' | 'none';
-export type NotConfiguredReason = 'fallback_disabled' | 'server_not_configured';
+export type NotConfiguredReason = 'fallback_disabled' | 'server_not_configured' | 'no_models_enabled';
 
 export interface ResolvedAssistant extends AssistantEnv {
   source: AssistantSource;
@@ -161,17 +161,31 @@ export interface ResolvedAssistant extends AssistantEnv {
 }
 
 /**
- * F25 (D-143) resolution order: the user's active key → the server env (F21 `assistantEnv`) only
- * when the org allows the fallback → not configured. A fake user key (`fake-…`) uses the fake
- * model on that provider's wire format and never sends the user's key anywhere.
+ * F25 (D-143) + F31 (D-171) resolution order: the default assistant when the user picked it and
+ * the org allows it → the user's model (an enabled model of a readable key) → the server env
+ * (F21 `assistantEnv`) only when the org allows the fallback → not configured. A fake user key
+ * (`fake-…`) uses the fake model on that provider's wire format and never sends the user's key.
  */
 export function resolveAssistant(opts: {
   userKey?: { provider: ProviderName; apiKey: string; model: string };
   allowFallback: boolean;
   fakeAvailable: boolean;
+  /** F31: the user picked the default assistant in the chat picker. */
+  preferServer?: boolean;
+  /** F31: the user has keys but no enabled model (`no_models_enabled`). */
+  hasKeys?: boolean;
   env?: NodeJS.ProcessEnv;
 }): ResolvedAssistant {
   const { userKey } = opts;
+  const server = (): ResolvedAssistant | undefined => {
+    if (!opts.allowFallback) return undefined;
+    const env = assistantEnv(opts.env);
+    return env.mode === 'not-configured' ? undefined : { ...env, source: 'server' };
+  };
+  if (opts.preferServer) {
+    const s = server();
+    if (s) return s;
+  }
   if (userKey) {
     const fake = opts.fakeAvailable && isFakeUserKey(userKey.apiKey);
     return {
@@ -182,6 +196,15 @@ export function resolveAssistant(opts: {
       model: userKey.model,
     };
   }
+  const s = server();
+  if (s) return s;
+  if (opts.hasKeys)
+    return {
+      source: 'none',
+      mode: 'not-configured',
+      notConfigured: 'no_models_enabled',
+      reason: 'the user has keys but no enabled model',
+    };
   if (!opts.allowFallback)
     return {
       source: 'none',
@@ -190,7 +213,5 @@ export function resolveAssistant(opts: {
       reason: 'the user has no API key and the server key fallback is off',
     };
   const env = assistantEnv(opts.env);
-  if (env.mode === 'not-configured')
-    return { ...env, source: 'none', notConfigured: 'server_not_configured' };
-  return { ...env, source: 'server' };
+  return { ...env, mode: 'not-configured', source: 'none', notConfigured: 'server_not_configured' };
 }

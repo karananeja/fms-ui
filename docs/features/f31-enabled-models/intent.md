@@ -1,6 +1,6 @@
 # F31 — Enabled models & chat model picker · Intent
 
-**Status:** Draft, awaiting sign-off (2026-10-16). User: "instead of selecting the model while adding the api key, let the user select the models and enable them via the settings page so that the user can only use the models that are enabled". Answers to four questions: picker in the chat; a checklist per key; server key unchanged; models from all saved keys.
+**Status:** Signed off: 2026-10-16 (user: "yes, go ahead"). User: "instead of selecting the model while adding the api key, let the user select the models and enable them via the settings page so that the user can only use the models that are enabled". Answers to four questions: picker in the chat; a checklist per key; server key unchanged; models from all saved keys.
 
 ## Why
 F25 ties each saved key to one model, which is chosen in the add-key form. Switching models means saving the key again, and the user can't keep a short list of models they trust and switch between them.

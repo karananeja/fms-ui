@@ -16,7 +16,7 @@ import {
 import { useDashboardChat } from '@/features/assistant/use-dashboard-chat';
 import {
   AddKeyNote,
-  AssistantModelLabel,
+  ModelPicker,
   useAssistantStatus,
 } from '@/features/settings/components/assistant-status';
 import { Button } from '@/shared/ui/button';
@@ -151,7 +151,7 @@ export function ChatDock({
         <Sparkles aria-hidden className="size-4 text-accent" />
         <div className="flex min-w-0 flex-1 flex-col leading-tight">
           <h2 className="text-sm font-semibold">Ask FMS</h2>
-          <AssistantModelLabel status={assistantStatus} />
+          <ModelPicker assistant={assistantStatus} disabled={state.streaming} />
         </div>
         {onCollapse && (
           <Button variant="ghost" size="icon-sm" aria-label="Collapse chat" onClick={onCollapse}>
@@ -160,7 +160,7 @@ export function ChatDock({
         )}
       </div>
       {state.notConfigured ? (
-        <AddKeyNote status={assistantStatus} testId="chat-not-configured" />
+        <AddKeyNote status={assistantStatus.status} testId="chat-not-configured" />
       ) : state.status === 'error' ? (
         <p className="p-4 text-sm text-danger" role="alert">
           {state.error ?? "Couldn't load the chat."}

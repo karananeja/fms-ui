@@ -3,11 +3,10 @@ import {
   AI_PROVIDERS,
   type AiKeysState,
   type AiKeySummary,
-  type AiKeyTestResult,
   type AiProvider,
 } from '@shared/contract/index.ts';
-import { KeyRound, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { KeyRound, RefreshCw, Trash2 } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AdminLayout } from '@/features/access/components/admin-layout';
 import {
@@ -15,7 +14,6 @@ import {
   LoadError,
   LockedNote,
   Segmented,
-  SelectField,
 } from '@/features/access/components/admin-ui';
 import { errorText } from '@/features/access/lib/access-format';
 import { useResource } from '@/features/access/lib/use-resource';
@@ -26,12 +24,13 @@ import { Button } from '@/shared/ui/button';
 import {
   getAiKeys,
   getAiSettings,
-  listAiModels,
+  refreshAiModels,
   removeAiKey,
   saveAiKey,
-  testAiKey,
+  setEnabledAiModels,
   updateAiSettings,
 } from './api/ai-keys-api';
+import { ModelChecklist } from './components/model-checklist';
 import { assistantLabel, notConfiguredText } from './lib/assistant-label';
 
 const PROVIDER_OPTIONS = AI_PROVIDERS.map((p) => ({ value: p, label: AI_PROVIDER_LABELS[p] }));
@@ -39,10 +38,16 @@ const PROVIDER_OPTIONS = AI_PROVIDERS.map((p) => ({ value: p, label: AI_PROVIDER
 const card = 'rounded-tile border border-tile-border bg-tile p-4';
 const heading = 'mb-3 text-[11px] font-semibold tracking-[0.06em] text-text-muted uppercase';
 
+/** A server state from Save / Refresh may carry a notice ("models couldn't be loaded"). */
+function showNotice(next: AiKeysState) {
+  if (next.notice) toast.warning(next.notice);
+}
+
 /**
- * F25 Settings → AI assistant (route `/settings/ai`, `chat.use`): who answers the chat, the
- * user's saved keys (masked only), add/replace a key with Load models + Test connection, and
- * for `roles.manage` the "Allow the server key as a fallback" switch (D-143).
+ * F25 + F31 Settings → AI assistant (route `/settings/ai`, `chat.use`): who answers the chat,
+ * add a key (the server checks it and loads its models), the user's keys (masked only) with a
+ * model checklist each, and for `roles.manage` the "Allow the server key as a fallback" switch
+ * (D-143, D-171).
  */
 export function AiKeysPage() {
   const res = useResource((signal) => getAiKeys({ signal }));
@@ -65,8 +70,8 @@ export function AiKeysPage() {
               administrator.
             </LockedNote>
           )}
-          <SavedKeys state={state} onChange={update} />
           <KeyForm state={state} onSaved={update} />
+          <SavedKeys state={state} onChange={update} />
         </>
       )}
       {!state && !res.error && <p className="text-sm text-text-muted">Loading…</p>}
@@ -87,6 +92,95 @@ function StatusLine({ state }: { state: AiKeysState }) {
   );
 }
 
+function KeyForm({ state, onSaved }: { state: AiKeysState; onSaved: (s: AiKeysState) => void }) {
+  const [provider, setProvider] = useState<AiProvider>(
+    () => AI_PROVIDERS.find((p) => !state.keys.some((k) => k.provider === p)) ?? 'xai',
+  );
+  const [apiKey, setApiKey] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const name = AI_PROVIDER_LABELS[provider];
+  const existing = state.keys.find((k) => k.provider === provider);
+
+  const save = async () => {
+    const key = apiKey.trim();
+    if (!key) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const r = await saveAiKey(provider, { apiKey: key });
+      setApiKey('');
+      onSaved(r);
+      setNotice(r.notice ?? null);
+      toast.success(`${name} key saved`);
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section aria-labelledby="add-key-title" className={card}>
+      <h2 id="add-key-title" className={heading}>
+        Add a key
+      </h2>
+      <div className="mb-4">
+        <Segmented
+          label="Provider"
+          value={provider}
+          onChange={(p) => {
+            setProvider(p);
+            setApiKey('');
+            setError(null);
+            setNotice(null);
+          }}
+          options={PROVIDER_OPTIONS}
+          disabled={busy}
+        />
+      </div>
+      <form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
+        <TextField
+          id="ai-key"
+          label={`${name} API key`}
+          type="password"
+          autoComplete="off"
+          spellCheck={false}
+          value={apiKey}
+          placeholder={existing ? `Replaces ${existing.masked}` : 'Paste your key'}
+          onChange={(e) => setApiKey(e.target.value)}
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs text-text-muted">
+            We check the key and load its models. Then pick the models to use below.
+          </p>
+          <Button
+            type="submit"
+            className="ml-auto"
+            disabled={!apiKey.trim() || busy || !state.storageAvailable}
+          >
+            {busy ? 'Checking key…' : 'Save key'}
+          </Button>
+        </div>
+        {notice && <p className="mt-3 text-sm text-warn">{notice}</p>}
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-danger">
+            {error}
+          </p>
+        )}
+      </form>
+    </section>
+  );
+}
+
 function SavedKeys({
   state,
   onChange,
@@ -97,11 +191,11 @@ function SavedKeys({
   const [confirm, setConfirm] = useState<AiProvider | null>(null);
   const [pending, setPending] = useState(false);
 
-  const run = async (fn: () => Promise<AiKeysState>, done: string) => {
+  const remove = async (provider: AiProvider) => {
     setPending(true);
     try {
-      onChange(await fn());
-      toast.success(done);
+      onChange(await removeAiKey(provider));
+      toast.success('Key removed');
     } catch (err) {
       toast.error(errorText(err));
     } finally {
@@ -120,22 +214,18 @@ function SavedKeys({
           No keys yet.{' '}
           {state.fallback.allowed && state.fallback.serverConfigured
             ? 'The default assistant is used until you add one.'
-            : 'Add one below to use the assistant.'}
+            : 'Add one above to use the assistant.'}
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-3">
           {state.keys.map((k) => (
-            <KeyRow
+            <KeyCard
               key={k.provider}
               k={k}
-              pending={pending}
-              onUse={() =>
-                void run(
-                  () => saveAiKey(k.provider, { model: k.model }),
-                  `Using ${AI_PROVIDER_LABELS[k.provider]}`,
-                )
-              }
+              storageAvailable={state.storageAvailable}
+              onChange={onChange}
               onRemove={() => setConfirm(k.provider)}
+              removing={pending}
             />
           ))}
         </ul>
@@ -144,221 +234,192 @@ function SavedKeys({
         open={confirm !== null}
         onOpenChange={(open) => !open && setConfirm(null)}
         title={`Remove your ${confirm ? AI_PROVIDER_LABELS[confirm] : ''} key?`}
-        description="The key is deleted from the server. You can add it again later."
+        description="The key and its enabled models are deleted from the server. You can add it again later."
         confirmLabel="Remove"
         pending={pending}
-        onConfirm={() => confirm && void run(() => removeAiKey(confirm), 'Key removed')}
+        onConfirm={() => confirm && void remove(confirm)}
       />
     </section>
   );
 }
 
-function KeyRow({
+function KeyCard({
   k,
-  pending,
-  onUse,
+  storageAvailable,
+  onChange,
   onRemove,
+  removing,
 }: {
   k: AiKeySummary;
-  pending: boolean;
-  onUse: () => void;
+  storageAvailable: boolean;
+  onChange: (next: AiKeysState) => void;
   onRemove: () => void;
+  removing: boolean;
 }) {
   const name = AI_PROVIDER_LABELS[k.provider];
-  return (
-    <li
-      aria-label={`${name} key`}
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-tile border border-tile-border bg-surface-solid px-3 py-2"
-    >
-      <KeyRound aria-hidden className="size-4 text-text-muted" />
-      <span className="font-semibold">{name}</span>
-      <span className="text-sm text-text-muted tabular-nums">{k.masked}</span>
-      <span className="text-sm">{k.model}</span>
-      {!k.readable && (
-        <span className="text-xs text-danger">Can&apos;t be read. Paste it again.</span>
-      )}
-      <span className="ml-auto flex items-center gap-2">
-        {k.active ? (
-          <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-accent uppercase">
-            Active
-          </span>
-        ) : (
-          <Button size="sm" variant="outline" disabled={pending || !k.readable} onClick={onUse}>
-            Use
-          </Button>
-        )}
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-danger hover:text-danger"
-          aria-label={`Remove ${name} key`}
-          disabled={pending}
-          onClick={onRemove}
-        >
-          <Trash2 /> Remove
-        </Button>
-      </span>
-    </li>
-  );
-}
+  const [busy, setBusy] = useState<null | 'refresh' | 'replace'>(null);
+  const [replacing, setReplacing] = useState(false);
+  const [newKey, setNewKey] = useState('');
+  const [replaceError, setReplaceError] = useState<string | null>(null);
+  // Optimistic enabled list while a save is in flight; only the latest request settles it.
+  const [optimistic, setOptimistic] = useState<string[] | null>(null);
+  const seq = useRef(0);
+  const enabled = optimistic ?? k.enabledModels;
 
-function KeyForm({ state, onSaved }: { state: AiKeysState; onSaved: (s: AiKeysState) => void }) {
-  const [provider, setProvider] = useState<AiProvider>(
-    () => state.keys.find((k) => k.active)?.provider ?? 'xai',
-  );
-  const stored = state.keys.find((k) => k.provider === provider && k.readable);
-  const [apiKey, setApiKey] = useState('');
-  const [model, setModel] = useState(stored?.model ?? '');
-  const [models, setModels] = useState<string[] | null>(null);
-  const [result, setResult] = useState<AiKeyTestResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<null | 'models' | 'test' | 'save'>(null);
-
-  const pickProvider = (p: AiProvider) => {
-    setProvider(p);
-    setApiKey('');
-    setModels(null);
-    setResult(null);
-    setError(null);
-    setModel(state.keys.find((k) => k.provider === p)?.model ?? '');
+  const setEnabled = async (next: string[]) => {
+    const id = ++seq.current;
+    setOptimistic(next);
+    try {
+      const r = await setEnabledAiModels(k.provider, next);
+      if (id !== seq.current) return;
+      onChange(r);
+      setOptimistic(null);
+    } catch (err) {
+      if (id !== seq.current) return;
+      setOptimistic(null);
+      toast.error(errorText(err));
+    }
   };
 
-  const keyArg = apiKey.trim() ? apiKey.trim() : undefined;
-  const hasKey = keyArg !== undefined || stored !== undefined;
-
-  const call = async <T,>(kind: 'models' | 'test' | 'save', fn: () => Promise<T>) => {
-    setBusy(kind);
-    setError(null);
+  const refresh = async () => {
+    setBusy('refresh');
     try {
-      return await fn();
+      const r = await refreshAiModels(k.provider);
+      onChange(r);
+      toast.success(`${name} models refreshed`);
+      showNotice(r);
     } catch (err) {
-      setError(errorText(err));
-      return undefined;
+      toast.error(errorText(err));
     } finally {
       setBusy(null);
     }
   };
 
-  const loadModels = async () => {
-    const r = await call('models', () => listAiModels({ provider, apiKey: keyArg }));
-    if (!r) return;
-    setModels(r.models);
-    if (!r.models.includes(model) && r.models[0]) setModel(r.models[0]);
-  };
-
-  const test = async () => {
-    setResult(null);
-    const r = await call('test', () =>
-      testAiKey({ provider, apiKey: keyArg, model: model.trim() }),
-    );
-    if (!r) return;
-    setResult(r);
-    if (r.models.length) setModels(r.models);
-  };
-
-  const save = async () => {
-    const r = await call('save', () =>
-      saveAiKey(provider, { apiKey: keyArg, model: model.trim() }),
-    );
-    if (!r) return;
-    setApiKey('');
-    setResult(null);
-    onSaved(r);
-    toast.success(`${AI_PROVIDER_LABELS[provider]} key saved`);
+  const replace = async () => {
+    const key = newKey.trim();
+    if (!key) return;
+    setBusy('replace');
+    setReplaceError(null);
+    try {
+      const r = await saveAiKey(k.provider, { apiKey: key });
+      setNewKey('');
+      setReplacing(false);
+      onChange(r);
+      toast.success(`${name} key replaced`);
+      showNotice(r);
+    } catch (err) {
+      setReplaceError(errorText(err));
+    } finally {
+      setBusy(null);
+    }
   };
 
   return (
-    <section aria-labelledby="add-key-title" className={card}>
-      <h2 id="add-key-title" className={heading}>
-        {stored ? 'Replace or change your key' : 'Add a key'}
-      </h2>
-      <div className="mb-4">
-        <Segmented
-          label="Provider"
-          value={provider}
-          onChange={pickProvider}
-          options={PROVIDER_OPTIONS}
-          disabled={busy !== null}
-        />
+    <li
+      aria-label={`${name} key`}
+      className="rounded-tile border border-tile-border bg-surface-solid px-3 py-3"
+    >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <KeyRound aria-hidden className="size-4 text-text-muted" />
+        <span className="font-semibold">{name}</span>
+        <span className="text-sm text-text-muted tabular-nums">{k.masked}</span>
+        {k.readable && (
+          <span className="text-xs text-text-muted tabular-nums">
+            {enabled.length} of {k.availableModels.length} models enabled
+          </span>
+        )}
+        <span className="ml-auto flex flex-wrap items-center gap-1">
+          {k.readable && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy !== null}
+              onClick={() => void refresh()}
+            >
+              <RefreshCw className={cn(busy === 'refresh' && 'animate-spin')} />
+              {busy === 'refresh' ? 'Refreshing…' : 'Refresh models'}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            aria-expanded={replacing}
+            disabled={busy !== null || !storageAvailable}
+            onClick={() => {
+              setReplacing((r) => !r);
+              setNewKey('');
+              setReplaceError(null);
+            }}
+          >
+            Replace key
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-danger hover:text-danger"
+            aria-label={`Remove ${name} key`}
+            disabled={removing || busy !== null}
+            onClick={onRemove}
+          >
+            <Trash2 /> Remove
+          </Button>
+        </span>
       </div>
-      <form
-        noValidate
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save();
-        }}
-      >
-        <TextField
-          id="ai-key"
-          label={`${AI_PROVIDER_LABELS[provider]} API key`}
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          value={apiKey}
-          placeholder={stored ? `Leave empty to keep ${stored.masked}` : 'Paste your key'}
-          onChange={(e) => {
-            setApiKey(e.target.value);
-            setResult(null);
+
+      {replacing && (
+        <form
+          noValidate
+          className="mt-3 flex flex-wrap items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void replace();
           }}
-        />
-        {models && models.length > 0 ? (
-          <SelectField
-            id="ai-model"
-            label="Model"
-            value={model}
-            onChange={setModel}
-            options={models.map((m) => ({ value: m, label: m }))}
-          />
-        ) : (
+        >
           <TextField
-            id="ai-model"
-            label="Model"
-            value={model}
-            placeholder="Load models, or type a model id"
-            onChange={(e) => setModel(e.target.value)}
+            id={`replace-key-${k.provider}`}
+            label={`New ${name} API key`}
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            className="mb-0 min-w-56 flex-1"
+            value={newKey}
+            placeholder="Paste the new key"
+            onChange={(e) => setNewKey(e.target.value)}
           />
-        )}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!hasKey || busy !== null}
-            onClick={() => void loadModels()}
-          >
-            {busy === 'models' ? 'Loading…' : 'Load models'}
+          <Button type="submit" className="h-11" disabled={!newKey.trim() || busy !== null}>
+            {busy === 'replace' ? 'Checking key…' : 'Save'}
           </Button>
           <Button
             type="button"
-            variant="outline"
-            disabled={!hasKey || !model.trim() || busy !== null}
-            onClick={() => void test()}
+            variant="ghost"
+            className="h-11"
+            disabled={busy !== null}
+            onClick={() => setReplacing(false)}
           >
-            {busy === 'test' ? 'Testing…' : 'Test connection'}
+            Cancel
           </Button>
-          <Button
-            type="submit"
-            className="ml-auto"
-            disabled={!hasKey || !model.trim() || busy !== null || !state.storageAvailable}
-          >
-            {busy === 'save' ? 'Saving…' : 'Save key'}
-          </Button>
-        </div>
-        {result && (
-          <p
-            role="status"
-            aria-label="Test result"
-            className={cn('mt-3 text-sm', result.ok ? 'text-ok' : 'text-danger')}
-          >
-            {result.message}
-          </p>
-        )}
-        {error && (
-          <p role="alert" className="mt-3 text-sm text-danger">
-            {error}
-          </p>
-        )}
-      </form>
-    </section>
+          {replaceError && (
+            <p role="alert" className="w-full text-sm text-danger">
+              {replaceError}
+            </p>
+          )}
+        </form>
+      )}
+
+      {!k.readable ? (
+        <p className="mt-2 text-xs text-danger">Can&apos;t be read. Paste it again.</p>
+      ) : k.availableModels.length === 0 ? (
+        <p className="mt-2 text-sm text-text-muted">No models loaded. Try Refresh models.</p>
+      ) : (
+        <ModelChecklist
+          name={name}
+          available={k.availableModels}
+          enabled={enabled}
+          disabled={!storageAvailable}
+          onChange={(next) => void setEnabled(next)}
+        />
+      )}
+    </li>
   );
 }
 

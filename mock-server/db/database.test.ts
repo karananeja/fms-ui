@@ -49,6 +49,7 @@ const ALL_TABLES = [
   'share_links',
   'sqlite_sequence',
   'user_ai_keys',
+  'user_ai_prefs',
   'users',
   'vehicle_fleet',
 ];
