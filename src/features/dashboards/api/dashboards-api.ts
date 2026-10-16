@@ -32,6 +32,13 @@ export interface DashboardsApi {
   candidates(q: string, signal?: AbortSignal): Promise<ShareCandidate[]>;
   /** F27: who changed what (no chat content). */
   activity(id: string, signal?: AbortSignal): Promise<DashboardActivity>;
+  /** D-161: undo one Activity entry, or restore the dashboard to before it. */
+  activityAction(
+    id: string,
+    activityId: string,
+    action: 'undo' | 'restore',
+    version: number,
+  ): Promise<Dashboard>;
 }
 
 const base = (id: string) => `/api/dashboards/${encodeURIComponent(id)}`;
@@ -62,6 +69,13 @@ export const dashboardsApi: DashboardsApi = {
     ),
   activity: async (id, signal) =>
     dashboardActivitySchema.parse(await apiFetch(`${base(id)}/activity`, { signal })),
+  activityAction: async (id, activityId, action, version) =>
+    dashboardSchema.parse(
+      await apiFetch(`${base(id)}/activity/${encodeURIComponent(activityId)}/${action}`, {
+        method: 'POST',
+        body: { version },
+      }),
+    ),
   revokeShare: async (id, userId) => {
     await apiFetch(`${base(id)}/shares/${encodeURIComponent(userId)}`, { method: 'DELETE' });
   },

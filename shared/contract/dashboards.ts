@@ -375,6 +375,17 @@ export const dashboardActivityItemSchema = z.object({
   summary: z.string(),
   version: z.number().int().min(1),
   at: epochMsSchema,
+  /** D-161: widgets the entry added, removed, edited or moved ("Show" highlights them). */
+  widgetIds: z.array(z.string()).default([]),
+  /** D-161: "Undo" — only this entry, while nothing later touched the same parts. */
+  undoable: z.boolean().default(false),
+  /** D-161: "Restore to before this" (whole dashboard; later changes are reverted too). */
+  restorable: z.boolean().default(false),
+  undone: z.boolean().default(false),
+  /** Made by an assistant turn. */
+  viaChat: z.boolean().default(false),
+  /** The change set, for the viewer's own chat turns only ("Open chat"). */
+  changeId: z.string().nullable().default(null),
 });
 export type DashboardActivityItem = z.infer<typeof dashboardActivityItemSchema>;
 export const dashboardActivitySchema = z.object({

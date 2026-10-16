@@ -99,6 +99,10 @@ interface ActivityRow {
   change_id: string | null;
   manual: number;
   at: number;
+  /** D-161: content before / after this entry (`null` on rows written before v13). */
+  before_json: string | null;
+  after_json: string | null;
+  undone_at: number | null;
 }
 
 /** F27 (D-152): manual saves by the same person within this window share one activity row. */
@@ -219,6 +223,66 @@ export function describeEdit(prev: DashboardContent, next: DashboardContent): st
   return parts.join('; ') || 'Saved';
 }
 
+/** D-161: what an activity entry changed: widget ids (added, removed, edited or moved) and meta. */
+export interface Touched {
+  widgets: string[];
+  title: boolean;
+  description: boolean;
+}
+
+const layoutOf = (c: DashboardContent, wid: string) =>
+  JSON.stringify(BREAKPOINT_IDS.map((bp) => c.layout[bp].find((l) => l.i === wid) ?? null));
+
+export function touchedBy(prev: DashboardContent, next: DashboardContent): Touched {
+  const a = new Map(prev.widgets.map((w) => [w.id, JSON.stringify(w)]));
+  const b = new Map(next.widgets.map((w) => [w.id, JSON.stringify(w)]));
+  const ids = [...new Set([...a.keys(), ...b.keys()])].filter(
+    (wid) => a.get(wid) !== b.get(wid) || layoutOf(prev, wid) !== layoutOf(next, wid),
+  );
+  return {
+    widgets: ids,
+    title: prev.title !== next.title,
+    description: prev.description !== next.description,
+  };
+}
+
+/** D-161: `current` with only what `t` touched put back as it was in `before`. */
+export function revertTouched(
+  current: DashboardContent,
+  before: DashboardContent,
+  t: Touched,
+): DashboardContent {
+  const ids = new Set(t.widgets);
+  const restored = before.widgets.filter((w) => ids.has(w.id));
+  const widgets = [...current.widgets.filter((w) => !ids.has(w.id)), ...restored];
+  const layout = Object.fromEntries(
+    BREAKPOINT_IDS.map((bp) => [
+      bp,
+      [
+        ...current.layout[bp].filter((l) => !ids.has(l.i)),
+        ...before.layout[bp].filter((l) => ids.has(l.i)),
+      ],
+    ]),
+  ) as DashboardLayout;
+  return {
+    title: t.title ? before.title : current.title,
+    description: t.description ? before.description : current.description,
+    widgets,
+    layout,
+  };
+}
+
+/** True when `current` still matches `after` on everything `t` touched (no later edit there). */
+export function untouchedSince(current: DashboardContent, after: DashboardContent, t: Touched) {
+  if (t.title && current.title !== after.title) return false;
+  if (t.description && current.description !== after.description) return false;
+  const cur = new Map(current.widgets.map((w) => [w.id, JSON.stringify(w)]));
+  const aft = new Map(after.widgets.map((w) => [w.id, JSON.stringify(w)]));
+  return t.widgets.every(
+    (wid) => cur.get(wid) === aft.get(wid) && layoutOf(current, wid) === layoutOf(after, wid),
+  );
+}
+
 /** Merges two manual-save lines (distinct parts, original order). */
 function mergeSummaries(a: string, b: string): string {
   const parts = [...new Set([...a.split('; '), ...b.split('; ')])].filter((p) => p !== 'Saved');
@@ -314,21 +378,43 @@ export class Dashboards {
 
   /** F27 (D-152): who changed what, newest first (≤ 20; any access). */
   activity(userId: string, id: string): DashboardActivity {
-    this.get(userId, id);
+    const dash = this.get(userId, id);
+    const canEdit = dash.access !== 'viewer';
+    const current = this.content(this.row(id));
+    const onBoard = new Set(current.widgets.map((w) => w.id));
     const rows = this.db
       .prepare(
         'SELECT * FROM dashboard_activity WHERE dashboard_id = ? ORDER BY at DESC, rowid DESC LIMIT ?',
       )
       .all(id, DASHBOARD_ACTIVITY_MAX) as unknown as ActivityRow[];
     return {
-      items: rows.map((r) => ({
-        id: r.id,
-        userId: r.user_id,
-        name: this.ownerName(r.user_id),
-        summary: r.summary,
-        version: r.version,
-        at: r.at,
-      })),
+      items: rows.map((r) => {
+        const snap = this.snapshotsOf(r);
+        const touched = snap ? touchedBy(snap.before, snap.after) : null;
+        const undoable =
+          canEdit &&
+          !!snap &&
+          r.undone_at === null &&
+          (touched!.widgets.length > 0 || touched!.title || touched!.description) &&
+          untouchedSince(current, snap.after, touched!);
+        return {
+          id: r.id,
+          userId: r.user_id,
+          name: this.ownerName(r.user_id),
+          summary: r.summary,
+          version: r.version,
+          at: r.at,
+          // D-161: what the entry can do for this viewer.
+          // Show highlights only what is still on the dashboard.
+          widgetIds: (touched?.widgets ?? []).filter((w) => onBoard.has(w)),
+          undoable,
+          restorable: canEdit && !!snap,
+          undone: r.undone_at !== null,
+          viaChat: !!r.change_id,
+          // Chats are private: only the author can open the turn that made the change.
+          changeId: r.change_id && r.user_id === userId ? r.change_id : null,
+        };
+      }),
     };
   }
 
@@ -366,7 +452,7 @@ export class Dashboards {
       });
       const summary = describeEdit(prev, content);
       const dashboard = this.write(row, content, actorId, summary);
-      this.record(id, actorId, summary, dashboard.version, { manual: true });
+      this.record(id, actorId, summary, dashboard.version, { manual: true }, { before: prev, after: content });
       return dashboard;
     });
   }
@@ -697,7 +783,7 @@ export class Dashboards {
         this.db
           .prepare('UPDATE dashboard_changes SET summary = ?, after_version = ? WHERE id = ?')
           .run(change.summary, change.after_version, change.id);
-        this.record(id, actorId, text, dashboard.version, { changeId: change.id });
+        this.record(id, actorId, text, dashboard.version, { changeId: change.id }, { before, after: content });
         return {
           dashboard,
           change: this.toChange(change, change.id, dashboard.version, actorId),
@@ -729,7 +815,7 @@ export class Dashboards {
           change.created_at,
           actorId,
         );
-      this.record(id, actorId, text, dashboard.version, { changeId: change.id });
+      this.record(id, actorId, text, dashboard.version, { changeId: change.id }, { before, after: content });
       this.db
         .prepare(
           `DELETE FROM dashboard_changes WHERE dashboard_id = ? AND id NOT IN (
@@ -762,11 +848,63 @@ export class Dashboards {
         throw new HttpError(409, 'not_undoable', 'Only the person who made a change can undo it');
       const before = dashboardContentSchema.parse(JSON.parse(change.before));
       const summary = `Undid: ${change.summary}`.slice(0, 500);
+      const current = this.content(row);
       const dashboard = this.write(row, before, actorId, summary);
       this.db
         .prepare('UPDATE dashboard_changes SET undone_at = ? WHERE id = ?')
         .run(this.clock.now(), change.id);
-      this.record(id, actorId, summary, dashboard.version);
+      this.markActivityUndone(id, { changeId: change.id });
+      this.record(id, actorId, summary, dashboard.version, {}, { before: current, after: before });
+      return dashboard;
+    });
+  }
+
+  /**
+   * D-161: undoes one Activity entry — only what it touched — when nothing later changed those
+   * widgets / title / description. Owners and editors; recorded as its own entry (undoable too).
+   * An entry from a chat turn also marks that change set undone (its chip shows Undone).
+   */
+  undoActivity(actorId: string, id: string, activityId: string, expectedVersion: number): Dashboard {
+    return this.tx(() => {
+      const row = this.requireEditable(actorId, id);
+      this.requireVersion(row, expectedVersion);
+      const entry = this.activityRow(id, activityId);
+      const snap = this.snapshotsOf(entry);
+      if (!snap || entry.undone_at !== null)
+        throw new HttpError(409, 'not_undoable', entry.undone_at ? 'Already undone' : 'This change has no saved state to undo');
+      const current = this.content(row);
+      const touched = touchedBy(snap.before, snap.after);
+      if (!untouchedSince(current, snap.after, touched))
+        throw new HttpError(409, 'not_undoable', 'A later change touched the same widgets. Use “Restore to before this” instead.');
+      const next = this.commitContent(actorId, current.widgets, revertTouched(current, snap.before, touched));
+      const summary = `Undid: ${entry.summary}`.slice(0, 500);
+      const dashboard = this.write(row, next, actorId, summary);
+      this.markActivityUndone(id, { activityId: entry.id });
+      if (entry.change_id)
+        this.db
+          .prepare('UPDATE dashboard_changes SET undone_at = ? WHERE id = ? AND undone_at IS NULL')
+          .run(this.clock.now(), entry.change_id);
+      this.record(id, actorId, summary, dashboard.version, {}, { before: current, after: next });
+      return dashboard;
+    });
+  }
+
+  /**
+   * D-161: puts the whole dashboard back to how it was just before an Activity entry (later
+   * changes by anyone are reverted too; the client confirms). Recorded as its own entry.
+   */
+  restoreActivity(actorId: string, id: string, activityId: string, expectedVersion: number): Dashboard {
+    return this.tx(() => {
+      const row = this.requireEditable(actorId, id);
+      this.requireVersion(row, expectedVersion);
+      const entry = this.activityRow(id, activityId);
+      const snap = this.snapshotsOf(entry);
+      if (!snap) throw new HttpError(409, 'not_undoable', 'This change has no saved state to restore');
+      const current = this.content(row);
+      const next = this.commitContent(actorId, current.widgets, snap.before);
+      const summary = `Restored to before: ${entry.summary}`.slice(0, 500);
+      const dashboard = this.write(row, next, actorId, summary);
+      this.record(id, actorId, summary, dashboard.version, {}, { before: current, after: next });
       return dashboard;
     });
   }
@@ -843,7 +981,9 @@ export class Dashboards {
     userId: string,
     summary: string,
     version: number,
-    opts: { changeId?: string; manual?: boolean } = {},
+    opts: { changeId?: string; manual?: boolean },
+    /** D-161: the content just before and after this write. */
+    snap: { before: DashboardContent; after: DashboardContent },
   ) {
     const now = this.clock.now();
     const latest = this.db
@@ -857,16 +997,19 @@ export class Dashboards {
       latest?.manual === 1 &&
       latest.user_id === userId &&
       now - latest.at <= ACTIVITY_COALESCE_MS;
-    if (latest && (sameChange || sameManual)) {
+    if (latest && latest.undone_at === null && (sameChange || sameManual)) {
       const text = sameManual ? mergeSummaries(latest.summary, summary) : summary;
+      // A merged row keeps its first `before`; `after` follows the latest write.
       this.db
-        .prepare('UPDATE dashboard_activity SET summary = ?, version = ?, at = ? WHERE id = ?')
-        .run(text, version, now, latest.id);
+        .prepare(
+          'UPDATE dashboard_activity SET summary = ?, version = ?, at = ?, after_json = ? WHERE id = ?',
+        )
+        .run(text, version, now, JSON.stringify(snap.after), latest.id);
       return;
     }
     this.db
       .prepare(
-        'INSERT INTO dashboard_activity (id, dashboard_id, user_id, summary, version, change_id, manual, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO dashboard_activity (id, dashboard_id, user_id, summary, version, change_id, manual, at, before_json, after_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       )
       .run(
         `act-${randomUUID()}`,
@@ -877,6 +1020,8 @@ export class Dashboards {
         opts.changeId ?? null,
         opts.manual ? 1 : 0,
         now,
+        JSON.stringify(snap.before),
+        JSON.stringify(snap.after),
       );
     this.db
       .prepare(
@@ -885,6 +1030,36 @@ export class Dashboards {
            ORDER BY at DESC, rowid DESC LIMIT ?)`,
       )
       .run(id, id, DASHBOARD_ACTIVITY_MAX);
+  }
+
+  private activityRow(id: string, activityId: string): ActivityRow {
+    const r = this.db
+      .prepare('SELECT * FROM dashboard_activity WHERE dashboard_id = ? AND id = ?')
+      .get(id, activityId) as ActivityRow | undefined;
+    if (!r) throw new HttpError(404, 'not_found', 'Activity entry not found');
+    return r;
+  }
+
+  private snapshotsOf(r: ActivityRow): { before: DashboardContent; after: DashboardContent } | null {
+    if (!r.before_json || !r.after_json) return null;
+    return {
+      before: dashboardContentSchema.parse(JSON.parse(r.before_json)),
+      after: dashboardContentSchema.parse(JSON.parse(r.after_json)),
+    };
+  }
+
+  private markActivityUndone(id: string, by: { activityId?: string; changeId?: string }) {
+    const now = this.clock.now();
+    if (by.activityId)
+      this.db
+        .prepare('UPDATE dashboard_activity SET undone_at = ? WHERE dashboard_id = ? AND id = ?')
+        .run(now, id, by.activityId);
+    if (by.changeId)
+      this.db
+        .prepare(
+          'UPDATE dashboard_activity SET undone_at = ? WHERE dashboard_id = ? AND change_id = ? AND undone_at IS NULL',
+        )
+        .run(now, id, by.changeId);
   }
 
   private requireVersion(row: DashRow, version: number) {

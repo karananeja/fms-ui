@@ -366,4 +366,16 @@ UPDATE dashboard_messages SET outcome = 'interrupted'
     AND (text = '(stopped)' OR text LIKE '%' || char(10) || char(10) || '(stopped)');
 `,
   },
+  {
+    version: 13,
+    name: 'dashboard_activity_snapshots',
+    // D-161: an activity row keeps the content before and after it, so a single entry can be
+    // undone (when nothing later touched the same parts) or the dashboard restored to before
+    // it. Older rows have no snapshots: shown, but not undoable or restorable.
+    sql: `
+ALTER TABLE dashboard_activity ADD COLUMN before_json TEXT;
+ALTER TABLE dashboard_activity ADD COLUMN after_json TEXT;
+ALTER TABLE dashboard_activity ADD COLUMN undone_at INTEGER;
+`,
+  },
 ];

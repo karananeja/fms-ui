@@ -110,6 +110,20 @@ export async function dashboardRoutes(app: FastifyInstance) {
     },
   );
 
+  // D-161: Activity entry actions (owner or editor), guarded like Undo.
+  for (const action of ['undo', 'restore'] as const)
+    app.post<{ Params: { id: string; activityId: string } }>(
+      `/dashboards/:id/activity/:activityId/${action}`,
+      async (req) => {
+        const user = auth(req);
+        const { version } = parse(undoBodySchema, req.body);
+        busyCheck(user.id, req.params.id);
+        return action === 'undo'
+          ? dashboards.undoActivity(user.id, req.params.id, req.params.activityId, version)
+          : dashboards.restoreActivity(user.id, req.params.id, req.params.activityId, version);
+      },
+    );
+
   // ---- D-142: the caller's own list-card snapshot (raw image bodies, this scope only) ----
   app.addContentTypeParser(
     [...SNAPSHOT_MIME_TYPES],
