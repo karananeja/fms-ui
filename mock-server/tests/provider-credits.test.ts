@@ -2,11 +2,16 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { ChatEvent } from '@shared/contract/index.ts';
 import { describe, expect, it } from 'vitest';
-import { AnthropicProvider } from '../assistant/anthropic-provider.ts';
+import { AnthropicProvider, requestPrefix } from '../assistant/anthropic-provider.ts';
+import { FALLBACK_BETA } from '../assistant/assistant-config.ts';
 import { runChat, type RunOptions } from '../assistant/assistant-runner.ts';
 import { OpenAiCompatibleProvider } from '../assistant/openai-provider.ts';
 import { KeyCheckError, listModels } from '../assistant/provider-models.ts';
-import { OUT_OF_CREDITS_MESSAGE, type ChatProvider } from '../assistant/provider.ts';
+import {
+  OUT_OF_CREDITS_MESSAGE,
+  rejectedMessage,
+  type ChatProvider,
+} from '../assistant/provider.ts';
 
 /** User report 2026-10-16: an xAI team out of credits showed "not set up correctly". */
 
@@ -90,6 +95,27 @@ describe('out of credits is reported as such', () => {
         ),
       ).kind,
     ).toBe('busy');
+  });
+
+  it('a model without the refusal fallback (Haiku) gets no fallback params; a 400 names the rejection', async () => {
+    expect(requestPrefix('claude-opus-5-5')).toMatchObject({
+      betas: [FALLBACK_BETA],
+      fallbacks: 'default',
+    });
+    const haiku = requestPrefix('claude-haiku-5-5');
+    expect(haiku).not.toHaveProperty('betas');
+    expect(haiku).not.toHaveProperty('fallbacks');
+    const p = new AnthropicProvider(new Anthropic({ apiKey: 'k' }), 'claude-haiku-5-5');
+    const bad = Anthropic.APIError.generate(
+      400,
+      { error: { type: 'invalid_request_error', message: 'fallbacks: not supported' } },
+      undefined,
+      new Headers(),
+    );
+    expect(p.classify(bad)).toEqual({ kind: 'rejected', status: 400 });
+    expect(await errorOf(oa('openai', 404, { error: 'no such model' }))).toMatchObject({
+      message: rejectedMessage(404),
+    });
   });
 
   it('F25 key check: an out-of-credits key is not called "rejected this key"; provider text is not passed on', async () => {

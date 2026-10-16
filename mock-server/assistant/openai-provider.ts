@@ -7,6 +7,7 @@ import { buildTools, strictSafeSchema, toolDefinitions } from './assistant-tools
 import {
   emptyUsage,
   isOutOfCredits,
+  isRejectedStatus,
   messageText,
   ProviderCutError,
   ProviderHttpError,
@@ -208,6 +209,7 @@ export class OpenAiCompatibleProvider implements ChatProvider {
         return { kind: 'credits', status: err.status };
       if (err.status === 429 || err.status >= 500) return { kind: 'busy', status: err.status };
       if (err.status === 401 || err.status === 403) return { kind: 'auth', status: err.status };
+      if (isRejectedStatus(err.status)) return { kind: 'rejected', status: err.status };
       return { kind: 'failed', status: err.status };
     }
     // fetch rejects with a TypeError on network failures; a cut stream is worth a retry too.
