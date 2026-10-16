@@ -572,3 +572,7 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "the activity window is read-only, i want it to be usable; also when i ask to create vehicle cluster view in single widget like speed, soc and other parameters, it creates multiple widgets instead of one single widget" → both the dashboard Activity popover (F27) and the drafted F29 Activity page are read-only lists; the user chose to make both usable. F29 intent updated (per-entry Undo, open chat, open target, what changed). Cluster view: the grammar had no multi-reading mark; added `instrument` (D-160, Proposed) on `feature/cluster-widget`: grammar + prompt + renderer, unit and e2e tests.
 
 **Status/Next:** UAT of D-160; dashboard Activity actions design to agree with the user.
+
+**D-161:** dashboard Activity actions (Undo one entry, Restore to before, Show, Open chat) on `feature/cluster-widget` with D-160; migration v13; server + e2e tests. `pnpm check` 1255/1256 (`widget-query.perf` under load), build clean; dashboard e2e 22/22 in parallel.
+
+**Status/Next:** UAT of D-160 and D-161 on `feature/cluster-widget`. F28–F30 intents still await sign-off.
