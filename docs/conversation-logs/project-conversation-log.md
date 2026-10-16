@@ -552,3 +552,7 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Status/Next:** UAT on `feature/dashboard-canvas-states` (real Anthropic key, Opus/Sonnet/Haiku). After approval: merge `--no-ff`, delete the branch, accept D-158 and D-159.
 
 **User:** "it is still failing" (log: 400 "Schemas contains too many optional parameters (31) … limit: 24") and "so give me the steps to update the env as fallback" → explained that the `.env` Anthropic fallback takes the same path, so only an OpenAI key or `FMS_ASSISTANT_FAKE=1` work as a fallback today. D-159 extended: Anthropic tools are no longer strict (zod validates every input). Assistant tests 102/102.
+
+**User:** "it worked" (Anthropic replies with a real key) → then "approved": D-158 and D-159 accepted; full `pnpm check` 1251/1253 (F11-T3, `widget-query.perf` under load: known), build clean; merged `feature/dashboard-canvas-states` into `main` (--no-ff), deleted the branch; catalogue and CLAUDE.md updated (Anthropic real-key smoke done).
+
+**Status/Next:** done. Pending: Grok smoke test (xAI credits); known flakes F11-T3, F09-T8, F06-T6; scripted assistant e2e specs race under parallel workers (shared fake-model script queue).
