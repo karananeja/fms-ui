@@ -27,6 +27,17 @@ export const DASHBOARD_CHAT_MAX_ITERATIONS = 12;
 export const DASHBOARD_CHAT_TIMEOUT_MS = 90_000;
 /** Server-side refusal fallback (`fallbacks: "default"`). */
 export const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
+/**
+ * Models that accept `fallbacks: "default"`; any other model (e.g. claude-haiku-5-5, picked in
+ * AI settings) answers 400, so the request leaves the beta and the parameter out.
+ */
+const FALLBACK_MODELS = new Set([
+  'claude-fable-5-1',
+  'claude-opus-5-5',
+  'claude-opus-5',
+  'claude-sonnet-5-5',
+]);
+export const supportsFallback = (model: string) => FALLBACK_MODELS.has(model);
 /** Path prefix of the fake Messages API (the SDK appends `/v1/messages`). */
 export const FAKE_MODEL_PATH = '/__fake-anthropic';
 /** Fake mode never needs a real key; the SDK still requires one to build headers. */

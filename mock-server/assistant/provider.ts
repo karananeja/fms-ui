@@ -62,9 +62,17 @@ export interface ProviderResult {
 /** How a thrown provider error maps to the chat error codes. */
 export interface ErrorClass {
   /** `credits`: the provider account is out of credits or over its spending limit. */
-  kind: 'timeout' | 'busy' | 'auth' | 'credits' | 'failed';
+  /** `rejected`: the provider refused the request itself (400/404/422), e.g. a model it lacks. */
+  kind: 'timeout' | 'busy' | 'auth' | 'credits' | 'rejected' | 'failed';
   status?: number;
 }
+
+export const isRejectedStatus = (status: number | undefined) =>
+  status === 400 || status === 404 || status === 422;
+
+/** Fixed wording: provider response bodies are never shown (they can echo key fragments). */
+export const rejectedMessage = (status: number | undefined) =>
+  `The AI provider rejected the request${status ? ` (HTTP ${status})` : ''}. Check the model chosen in AI settings, or ask an administrator.`;
 
 /**
  * The provider's own wording for an exhausted account: OpenAI 429 `insufficient_quota` ("You

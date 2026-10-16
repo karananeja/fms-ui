@@ -5,11 +5,13 @@ import {
   ASSISTANT_MAX_TOKENS,
   ASSISTANT_MODEL,
   FALLBACK_BETA,
+  supportsFallback,
 } from './assistant-config.ts';
 import { buildTools } from './assistant-tools.ts';
 import {
   emptyUsage,
   isOutOfCredits,
+  isRejectedStatus,
   ProviderCutError,
   type ChatMessage,
   type ChatProvider,
@@ -37,8 +39,7 @@ export function requestPrefix(model: string = ASSISTANT_MODEL) {
     max_tokens: ASSISTANT_MAX_TOKENS,
     thinking: { type: 'adaptive' as const },
     output_config: { effort: ASSISTANT_EFFORT },
-    betas: [FALLBACK_BETA],
-    fallbacks: 'default' as const,
+    ...(supportsFallback(model) && { betas: [FALLBACK_BETA], fallbacks: 'default' as const }),
     cache_control: EPHEMERAL,
     tool_choice: { type: 'auto' as const },
     system: [{ type: 'text' as const, text: SYSTEM_PROMPT, cache_control: EPHEMERAL }],
@@ -123,6 +124,8 @@ export class AnthropicProvider implements ChatProvider {
       err instanceof Anthropic.PermissionDeniedError
     )
       return { kind: 'auth', status: err.status };
+    if (err instanceof Anthropic.APIError && isRejectedStatus(err.status))
+      return { kind: 'rejected', status: err.status };
     return { kind: 'failed', status: err instanceof Anthropic.APIError ? err.status : undefined };
   }
 }

@@ -5,6 +5,7 @@ import type { ToolHost } from './assistant-tools.ts';
 import {
   OUT_OF_CREDITS_MESSAGE,
   ProviderCutError,
+  rejectedMessage,
   totalInput,
   type ChatMessage,
   type ChatProvider,
@@ -216,7 +217,9 @@ export async function runChat(opts: RunOptions): Promise<RunOutcome> {
         ? OUT_OF_CREDITS_MESSAGE
         : cls.kind === 'auth'
           ? 'The assistant is not set up correctly. Ask an administrator.'
-          : 'Something went wrong. Try again.',
+          : cls.kind === 'rejected'
+            ? rejectedMessage(cls.status)
+            : 'Something went wrong. Try again.',
     );
   }
   return final;
