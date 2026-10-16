@@ -536,3 +536,7 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "yes" → D-157 (Proposed) on `fix/anthropic-haiku-fallback`: fallback params only for supporting models; a provider 400/404/422 shows "The AI provider rejected the request (HTTP …)". Test added in `provider-credits.test.ts`. `pnpm check` 1248/1249 (F11-T3 known flake), typecheck and lint clean, build clean.
 
 **Status/Next:** UAT: restart `pnpm dev` on the branch and Retry the dashboard turn with Haiku. After approval: merge `--no-ff` into `main`, delete the branch.
+
+**User:** "approved" → D-157 accepted; merged `fix/anthropic-haiku-fallback` into `main` (--no-ff) and deleted the branch.
+
+**Status/Next:** done. Pending as before: real-key Grok smoke test; known flakes F11-T3, F09-T8, F06-T6.
