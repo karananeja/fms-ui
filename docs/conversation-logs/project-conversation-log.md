@@ -576,3 +576,9 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **D-161:** dashboard Activity actions (Undo one entry, Restore to before, Show, Open chat) on `feature/cluster-widget` with D-160; migration v13; server + e2e tests. `pnpm check` 1255/1256 (`widget-query.perf` under load), build clean; dashboard e2e 22/22 in parallel.
 
 **Status/Next:** UAT of D-160 and D-161 on `feature/cluster-widget`. F28–F30 intents still await sign-off.
+
+**User:** "when a new dashboard is created, it is not organised automatically also it would be good to have fit to the screen options for widget" → clarified as an organise button. D-162 (Proposed): first-free-gap placement, organised new dashboards, Organise button with Undo. **User:** "when in share mode, if the user adds the widget by clicking the button, then the dashboard should scroll to the bottom" → the added widget is scrolled into view and outlined (D-162). `pnpm check` 1256/1259 (F11-T3 ×2, perf under load), build clean, dashboard e2e 24/24.
+
+**User:** "i dont see the ai chat workflow in the artifact, update that part and explain the share dashboard feature as well" → architecture artifact v4: chat-turn workflow diagram + step list, new Sharing section (diagram, owner/editor/viewer table, vs live-location links), D-157…D-162 and migration v13.
+
+**Status/Next:** UAT of D-160, D-161, D-162 on `feature/cluster-widget`. F28–F30 intents await sign-off.
