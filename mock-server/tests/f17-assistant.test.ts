@@ -126,10 +126,10 @@ const stats = async () =>
   };
 
 describe('F17-T1 tools: schemas, scope and permissions', () => {
-  it('tool schemas are strict objects and zod-validated', () => {
+  it('tool schemas are closed objects and zod-validated', () => {
     const defs = toolDefinitions(buildTools(host('ops'))) as {
       name: string;
-      strict: boolean;
+      strict?: boolean;
       input_schema: { type: string; additionalProperties?: boolean };
     }[];
     // F19 added the seven dashboard tools to the one sorted list.
@@ -152,7 +152,7 @@ describe('F17-T1 tools: schemas, scope and permissions', () => {
       'vehicle_history',
     ]);
     for (const d of defs) {
-      expect(d.strict).toBe(true);
+      expect(d.strict).toBeUndefined(); // D-159: zod validates; strict grammar limits are too tight
       expect(d.input_schema.type).toBe('object');
       expect(d.input_schema.additionalProperties).toBe(false);
     }

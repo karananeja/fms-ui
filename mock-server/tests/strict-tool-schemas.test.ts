@@ -47,7 +47,10 @@ describe('strict tool schemas', () => {
       (k) => `${k}: ${[...used.get(k)!].join(', ')}`,
     );
     expect(bad).toEqual([]);
-    expect(defs.every((d) => d.strict)).toBe(true);
+  });
+
+  it('no tool is strict (Anthropic: "too many optional parameters (31) … limit: 24")', () => {
+    expect(defs.filter((d) => d.strict).map((d) => d.name)).toEqual([]);
   });
 
   it('bounds are still enforced: an out-of-range input fails zod parse', () => {

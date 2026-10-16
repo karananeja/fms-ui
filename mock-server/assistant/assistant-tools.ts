@@ -689,16 +689,16 @@ export function buildTools(host: ToolHost): BetaRunnableTool[] {
         }
       },
     });
-    // Strict tools reject bounds such as an integer's `minimum`/`maximum` (Anthropic 400); zod's
-    // `parse` still enforces them, and a parse error reaches the model as an `is_error` result.
+    // D-159: not `strict`. Anthropic's strict grammar rejects integer bounds and caps optional
+    // parameters at 24 across all tools (ours have more); zod validates every input instead
+    // (`parse`, or in `run`), and a failure reaches the model as an `is_error` result.
     const input_schema = strictSafeSchema((tool as { input_schema: unknown }).input_schema);
-    if (!s.validateInRun) return { ...tool, input_schema, strict: true } as BetaRunnableTool;
+    if (!s.validateInRun) return { ...tool, input_schema } as BetaRunnableTool;
     return {
       ...tool,
       input_schema,
       // Validated in `run`, so a bad widget reaches the model as an `is_error` result with paths.
       parse: (args: unknown) => args,
-      strict: true,
     } as BetaRunnableTool;
   });
 }

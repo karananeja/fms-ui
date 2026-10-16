@@ -154,7 +154,7 @@ describe('F19-T2 prompt and caching', () => {
       a.find((t) => (t as { name: string }).name === 'create_dashboard'),
     );
     expect(create).not.toMatch(/"(minimum|maximum|maxLength|minLength|oneOf|pattern)"/);
-    expect((a as { strict: boolean }[]).every((t) => t.strict)).toBe(true);
+    expect((a as { strict?: boolean }[]).some((t) => t.strict)).toBe(false); // D-159
   });
 
   it('<context> and <dashboard> go in the latest user turn only (F24, D-141)', () => {
