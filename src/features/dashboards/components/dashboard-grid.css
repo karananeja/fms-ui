@@ -98,3 +98,11 @@
     animation: none;
   }
 }
+
+/* D-161: Activity "Show" / "Open chat" briefly outline what an entry touched. */
+[data-activity-highlight] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-tile);
+  transition: outline-color 0.3s;
+}

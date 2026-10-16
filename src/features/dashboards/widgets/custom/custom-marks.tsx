@@ -30,14 +30,17 @@ export function GaugeMark({ value, max, text }: { value: number | null; max: num
     <div className="grid h-full place-items-center" data-testid="custom-gauge" role="img" aria-label={`${text} of ${formatNum(max)}`}>
       <svg viewBox="0 0 100 60" className="h-full max-h-40 w-auto">
         <path d="M10 52 A40 40 0 0 1 90 52" fill="none" strokeWidth="10" strokeLinecap="round" style={{ stroke: 'var(--tile)' }} />
-        <path
-          d="M10 52 A40 40 0 0 1 90 52"
-          fill="none"
-          strokeWidth="10"
-          strokeLinecap="round"
-          strokeDasharray={`${frac * C} ${C}`}
-          style={{ stroke: 'var(--accent)' }}
-        />
+        {/* A round cap paints a dot even at zero length: no arc for 0. */}
+        {frac > 0 && (
+          <path
+            d="M10 52 A40 40 0 0 1 90 52"
+            fill="none"
+            strokeWidth="10"
+            strokeLinecap="round"
+            strokeDasharray={`${frac * C} ${C}`}
+            style={{ stroke: 'var(--accent)' }}
+          />
+        )}
         <text x="50" y="50" textAnchor="middle" fontSize="13" fontWeight="800" className="font-display" style={{ fill: 'var(--text)' }}>
           {text}
         </text>
@@ -255,6 +258,68 @@ export function TableMark({
       <p className="shrink-0 pt-1.5 text-[11px] text-text-faint" data-testid="custom-footer">
         {footer}
       </p>
+    </div>
+  );
+}
+
+/** D-160: gauges for these readings; the rest are labelled readouts. */
+const gaugeMax = (field: string, fd: FieldDef | undefined, speedMax: number) =>
+  field === 'speed' ? speedMax : fd?.format === 'percent' ? 100 : null;
+
+/** D-160 instrument: one vehicle's live readings (header, gauges, readouts) in one widget. */
+export function InstrumentMark({
+  spec,
+  row,
+  labeller,
+}: {
+  spec: CustomSpec;
+  row: Record<string, Cell>;
+  labeller: Labeller;
+}) {
+  const fields = datasetFields(spec.data);
+  const columns = spec.mark.columns ?? [];
+  const speedMax = spec.mark.max ?? 120;
+  const gauges = columns.filter((c) => gaugeMax(c, fields[c], speedMax) !== null);
+  const readouts = columns.filter((c) => !gauges.includes(c));
+  const status = row.status ?? null;
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-2" data-testid="custom-instrument">
+      <div className="flex shrink-0 items-center gap-2 text-sm">
+        <span className="truncate font-semibold">{cellLabel('regno', row.regno ?? null, fields.regno, labeller)}</span>
+        {status !== null && (
+          <span className="flex items-center gap-1 text-xs text-text-muted" data-testid="instrument-status">
+            <span aria-hidden className="size-2 rounded-full" style={{ background: categoryColor('status', status, 0) }} />
+            {cellLabel('status', status, fields.status, labeller)}
+          </span>
+        )}
+      </div>
+      {gauges.length > 0 && (
+        <div className="mx-auto my-auto grid w-full max-w-md auto-cols-fr grid-flow-col gap-2 [&_svg]:max-h-24">
+          {gauges.map((c) => {
+            const max = gaugeMax(c, fields[c], speedMax)!;
+            const v = typeof row[c] === 'number' ? (row[c] as number) : null;
+            const text = cellLabel(c, v, fields[c], labeller);
+            return (
+              <div key={c} className="flex min-h-0 flex-col items-center" data-testid="instrument-gauge" data-field={c}>
+                <div className="h-24 w-full">
+                  <GaugeMark value={v} max={max} text={text} />
+                </div>
+                <span className="text-[11px] text-text-muted">{fields[c]?.label ?? c}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {readouts.length > 0 && (
+        <dl className="grid shrink-0 grid-cols-2 gap-x-3 gap-y-1 text-xs">
+          {readouts.map((c) => (
+            <div key={c} className="flex min-w-0 items-baseline gap-1.5" data-testid="instrument-readout" data-field={c}>
+              <dt className="shrink-0 text-text-muted">{fields[c]?.label ?? c}</dt>
+              <dd className="truncate font-semibold tabular-nums">{cellLabel(c, row[c] ?? null, fields[c], labeller)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </div>
   );
 }

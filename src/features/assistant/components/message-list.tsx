@@ -212,7 +212,12 @@ function Answer({
   const error = m.error ?? null;
   const changed = (m.chips?.length ?? 0) > 0 || !!m.change;
   return (
-    <div data-testid="assistant-message" data-status={status} className="space-y-2">
+    <div
+      data-testid="assistant-message"
+      data-status={status}
+      data-change-id={m.change?.id}
+      className="space-y-2"
+    >
       {live ? (
         <ul aria-label="Tools used" className="flex flex-wrap gap-1.5">
           {tools.map((t) => (

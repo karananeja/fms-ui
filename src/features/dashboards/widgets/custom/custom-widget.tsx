@@ -19,7 +19,7 @@ import { DataBody } from '../data-body';
 import { useLiveWidgetData, useRestWidget } from '../widget-data';
 import { CustomChart, type ChartSeries } from './custom-chart';
 import { bucketLabel, categoryColor, cellLabel, formatValue, valueFormat, type Labeller } from './custom-format';
-import { GaugeMark, HeatmapMark, NumberMark, PieMark, TableMark } from './custom-marks';
+import { GaugeMark, HeatmapMark, InstrumentMark, NumberMark, PieMark, TableMark } from './custom-marks';
 import { MapMark } from './map-mark';
 
 type Custom = Extract<Widget, { type: 'custom' }>;
@@ -35,12 +35,14 @@ export interface CustomResult {
   truncated: boolean;
 }
 
-const ROW_LIMIT: Partial<Record<CustomSpec['mark']['type'], number>> = { bar: 12, table: 50 };
+const ROW_LIMIT: Partial<Record<CustomSpec['mark']['type'], number>> = { bar: 12, table: 50, instrument: 1 };
 
 /** Columns the mark reads from rows. */
 function rowFields(spec: CustomSpec): string[] {
   const m = spec.mark;
-  return [...new Set([...(m.columns ?? []), m.x, m.y, m.label].filter((f): f is string => !!f))];
+  // D-160: the instrument header shows the vehicle's regno and status.
+  const header = m.type === 'instrument' ? ['regno', 'status'] : [];
+  return [...new Set([...(m.columns ?? []), m.x, m.y, m.label, ...header].filter((f): f is string => !!f))];
 }
 
 const withDefaultLimit = (spec: CustomSpec) => {
@@ -158,6 +160,11 @@ export function CustomView({ spec, result }: { spec: CustomSpec; result: CustomR
         labeller={labeller}
       />
     );
+  }
+  if (m.type === 'instrument') {
+    const row = result.rows?.[0];
+    if (!row) return <WidgetIssueState issue="not-found" />;
+    return <InstrumentMark spec={spec} row={row} labeller={labeller} />;
   }
   const empty =
     (result.groups && result.groups.length === 0) || (result.rows && result.rows.length === 0);

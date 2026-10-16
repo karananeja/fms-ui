@@ -5,6 +5,7 @@ import {
   Copy,
   EllipsisVertical,
   History,
+  LayoutGrid,
   Loader2,
   MessageSquare,
   RotateCw,
@@ -16,6 +17,7 @@ import {
   DASHBOARD_TITLE_MAX,
   type Dashboard,
   type DashboardActivity,
+  type DashboardActivityItem,
 } from '@shared/contract/dashboards.ts';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
@@ -45,6 +47,7 @@ export function DashboardTitleBar({
   canEdit = owner,
   meId = null,
   loadActivity,
+  activityActions,
   saveState,
   now,
   compact,
@@ -53,6 +56,7 @@ export function DashboardTitleBar({
   onRename,
   onRetry,
   onRefresh,
+  onOrganise,
   onShare,
   onDuplicate,
   onDelete,
@@ -65,6 +69,8 @@ export function DashboardTitleBar({
   meId?: string | null;
   /** F27: the Activity list; omitted = no Activity button. */
   loadActivity?: () => Promise<DashboardActivity>;
+  /** D-161: Undo / Restore / Show / Open chat on entries (owner or editor). */
+  activityActions?: ActivityActions;
   saveState: SaveState;
   now: number;
   /** Below 640 px: everything except Refresh moves into "More". */
@@ -74,6 +80,8 @@ export function DashboardTitleBar({
   onRename(title: string): void;
   onRetry(): void;
   onRefresh(): void;
+  /** D-162: owner or editor; omitted = no Organise action. */
+  onOrganise?: () => void;
   onShare(): void;
   onDuplicate(): void;
   onDelete(): void;
@@ -116,6 +124,8 @@ export function DashboardTitleBar({
   );
 
   const actions = [
+    // D-162: re-pack the widgets edge to edge (undoable).
+    canEdit && onOrganise && { id: 'organise', label: 'Organise', icon: LayoutGrid, run: onOrganise },
     owner && { id: 'share', label: 'Share', icon: Share2, run: onShare },
     { id: 'duplicate', label: 'Duplicate', icon: Copy, run: onDuplicate },
     owner && { id: 'delete', label: 'Delete', icon: Trash2, run: onDelete, danger: true },
@@ -212,7 +222,9 @@ export function DashboardTitleBar({
             <RotateCw />
           )}
         </Button>
-        {loadActivity && <ActivityButton load={loadActivity} now={now} meId={meId} />}
+        {loadActivity && (
+          <ActivityButton load={loadActivity} now={now} meId={meId} actions={activityActions} />
+        )}
         {!compact &&
           actions.map((a) => (
             <Button
@@ -272,27 +284,66 @@ export function DashboardTitleBar({
   );
 }
 
-/** F27 (D-152): who changed the dashboard and when (no chat content), read on open. */
+/** D-161: what an Activity entry can do (the page performs it). */
+export interface ActivityActions {
+  /** Undo just this entry. Resolves when done; rejects with a message to show. */
+  undo(item: DashboardActivityItem): Promise<void>;
+  /** Restore the whole dashboard to before this entry. */
+  restore(item: DashboardActivityItem): Promise<void>;
+  /** Highlight the widgets the entry touched. */
+  show(item: DashboardActivityItem): void;
+  /** Open the viewer's own chat turn that made the change. */
+  openChat(item: DashboardActivityItem): void;
+}
+
+const entryAction =
+  'rounded-md px-1.5 py-0.5 text-[11px] font-bold text-accent outline-none hover:bg-tile focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
+
+/** F27 (D-152): who changed the dashboard and when (no chat content), read on open. D-161: actionable. */
 function ActivityButton({
   load,
   now,
   meId,
+  actions,
 }: {
   load: () => Promise<DashboardActivity>;
   now: number;
   meId: string | null;
+  actions?: ActivityActions;
 }) {
   const [items, setItems] = useState<DashboardActivity['items'] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const reload = () => {
+    setFailed(false);
+    load().then(
+      (a) => setItems(a.items),
+      () => setFailed(true),
+    );
+  };
+  const run = async (item: DashboardActivityItem, act: 'undo' | 'restore') => {
+    if (!actions) return;
+    setBusy(item.id);
+    setError(null);
+    try {
+      await actions[act](item);
+      setConfirming(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't do that.");
+    } finally {
+      setBusy(null);
+      reload();
+    }
+  };
   return (
     <Popover.Root
       onOpenChange={(open) => {
         if (!open) return;
-        setFailed(false);
-        load().then(
-          (a) => setItems(a.items),
-          () => setFailed(true),
-        );
+        setConfirming(null);
+        setError(null);
+        reload();
       }}
     >
       <Popover.Trigger asChild>
@@ -310,10 +361,15 @@ function ActivityButton({
         <Popover.Content
           align="end"
           sideOffset={4}
-          className="z-50 w-72 rounded-tile border border-glass-border bg-surface-solid p-3 text-text shadow-float"
+          className="z-50 w-80 rounded-tile border border-glass-border bg-surface-solid p-3 text-text shadow-float"
         >
           <h2 className="mb-2 text-xs font-bold text-text-muted">Activity</h2>
-          <ul className="max-h-72 space-y-2 overflow-y-auto" data-testid="activity-list">
+          {error && (
+            <p role="alert" className="mb-2 text-xs text-danger" data-testid="activity-error">
+              {error}
+            </p>
+          )}
+          <ul className="max-h-80 space-y-2.5 overflow-y-auto" data-testid="activity-list">
             {failed ? (
               <li className="text-xs text-danger">Couldn't load the activity.</li>
             ) : items === null ? (
@@ -321,11 +377,105 @@ function ActivityButton({
             ) : items.length === 0 ? (
               <li className="text-xs text-text-muted">No changes yet</li>
             ) : (
-              items.map((a) => (
-                <li key={a.id} className="text-xs" data-testid="activity-item">
+              items.map((a, k) => (
+                <li
+                  key={a.id}
+                  className="text-xs"
+                  data-testid="activity-item"
+                  data-undone={a.undone || undefined}
+                >
                   <span className="font-semibold">{a.userId === meId ? 'You' : a.name}</span>{' '}
-                  <span className="text-text-muted">· {formatUpdated(a.at, now)}</span>
-                  <span className="block break-words text-text-muted">{a.summary}</span>
+                  <span className="text-text-muted">
+                    · {formatUpdated(a.at, now)}
+                    {a.viaChat && ' · via chat'}
+                    {a.undone && ' · undone'}
+                  </span>
+                  <span
+                    className={cn('block break-words text-text-muted', a.undone && 'line-through')}
+                  >
+                    {a.summary}
+                  </span>
+                  {actions && confirming === a.id ? (
+                    <div
+                      className="mt-1 rounded-md border border-danger/30 bg-danger/10 p-2"
+                      data-testid="activity-confirm"
+                    >
+                      <p>
+                        Restore the dashboard to before this?
+                        {k > 0 && ` This also reverts ${k} later change${k === 1 ? '' : 's'}.`}
+                      </p>
+                      <div className="mt-1.5 flex gap-1">
+                        <button
+                          type="button"
+                          className={entryAction}
+                          disabled={busy !== null}
+                          onClick={() => void run(a, 'restore')}
+                          data-testid="activity-restore-confirm"
+                        >
+                          Restore
+                        </button>
+                        <button
+                          type="button"
+                          className={cn(entryAction, 'text-text-muted')}
+                          onClick={() => setConfirming(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    actions && (
+                      <div className="mt-0.5 -ml-1.5 flex flex-wrap items-center">
+                        {a.undoable && (
+                          <button
+                            type="button"
+                            className={entryAction}
+                            disabled={busy !== null}
+                            onClick={() => void run(a, 'undo')}
+                            data-testid="activity-undo"
+                          >
+                            {busy === a.id ? 'Undoing…' : 'Undo'}
+                          </button>
+                        )}
+                        {a.restorable && k > 0 && (
+                          <button
+                            type="button"
+                            className={entryAction}
+                            disabled={busy !== null}
+                            onClick={() => setConfirming(a.id)}
+                            data-testid="activity-restore"
+                          >
+                            Restore to before this
+                          </button>
+                        )}
+                        {a.widgetIds.length > 0 && (
+                          <button
+                            type="button"
+                            className={entryAction}
+                            onClick={() => actions.show(a)}
+                            data-testid="activity-show"
+                          >
+                            Show
+                          </button>
+                        )}
+                        {a.changeId && (
+                          <button
+                            type="button"
+                            className={entryAction}
+                            onClick={() => actions.openChat(a)}
+                            data-testid="activity-open-chat"
+                          >
+                            Open chat
+                          </button>
+                        )}
+                        {!a.undoable && !a.undone && a.restorable && k > 0 && (
+                          <span className="px-1.5 text-[11px] text-text-faint">
+                            Undo unavailable: changed later
+                          </span>
+                        )}
+                      </div>
+                    )
+                  )}
                 </li>
               ))
             )}

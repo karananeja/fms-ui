@@ -66,6 +66,25 @@ describe('F26-T1 widget grammar validation', () => {
     expect(messages({ data: { dataset: 'sql' }, mark: { type: 'number' } }).length).toBeGreaterThan(0);
   });
 
+  it('D-160 instrument: one live vehicle, its readings in one widget', () => {
+    const one = { all: [{ field: 'regno', op: 'eq', value: 'MH12AB1234' }] };
+    expect(
+      messages({ data: { dataset: 'live-vehicles', filter: one }, mark: { type: 'instrument', columns: ['speed', 'soc', 'dte', 'gpstime'] } }),
+    ).toEqual([]);
+    expect(messages({ data: { dataset: 'live-vehicles' }, mark: { type: 'instrument', columns: ['speed'] } })[0]).toMatch(/Ask the user which vehicle/);
+    expect(messages({ data: { dataset: 'live-vehicles', filter: one }, mark: { type: 'instrument' } })[0]).toMatch(/needs mark.columns/);
+    expect(messages({ data: { dataset: 'requests' }, mark: { type: 'instrument', columns: ['type'] } })[0]).toMatch(/use dataset live-vehicles/);
+    expect(
+      messages({ data: { dataset: 'live-vehicles', filter: one }, shape: { groupBy: 'status' }, mark: { type: 'instrument', columns: ['speed'] } })[0],
+    ).toMatch(/shows one vehicle/);
+    expect(
+      messages({ data: { dataset: 'live-vehicles', filter: one }, mark: { type: 'instrument', columns: ['battery'] } })[0],
+    ).toMatch(/Unknown field "battery"/);
+    expect(
+      messages({ data: { dataset: 'live-vehicles', filter: one }, mark: { type: 'instrument', columns: ['speed'], follow: true } })[0],
+    ).toMatch(/only for map marks/);
+  });
+
   it('permission per dataset, ranges in sync, at most 3 maps per dashboard', () => {
     expect(CUSTOM_RANGES).toEqual(TIME_RANGES);
     const w = (k: number, spec: CustomSpec) => ({ id: `w-m${k}`, type: 'custom' as const, title: `Map ${k}`, spec });

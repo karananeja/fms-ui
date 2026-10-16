@@ -18,7 +18,11 @@ import { IDLE_DOCK, type DockState } from '@/features/assistant/chat-progress';
 import { ChatDock } from '../components/chat-dock';
 import { DashboardGrid } from '../components/dashboard-grid';
 import { DashboardStarter, TurnFailureCard } from '../components/dashboard-starter';
-import { DashboardTitleBar, TitleBarSkeleton } from '../components/dashboard-title-bar';
+import {
+  DashboardTitleBar,
+  TitleBarSkeleton,
+  type ActivityActions,
+} from '../components/dashboard-title-bar';
 import { DeleteDialog } from '../components/delete-dialog';
 import { ShareDialog } from '../components/share-dialog';
 import { QueryCache } from '../data/query-cache';
@@ -47,6 +51,16 @@ function writeDock(open: boolean): void {
   } catch {
     // storage unavailable: keep the in-memory state only
   }
+}
+
+/** D-161: scrolls to the first match and outlines every match for a moment. */
+function flash(selectors: string[]) {
+  const els = selectors.flatMap((s) => [...document.querySelectorAll<HTMLElement>(s)]);
+  els[0]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  for (const el of els) el.setAttribute('data-activity-highlight', '');
+  setTimeout(() => {
+    for (const el of els) el.removeAttribute('data-activity-highlight');
+  }, 2500);
 }
 
 /** F23: shown above the grid while a chat turn builds or changes the dashboard. */
@@ -277,9 +291,42 @@ function DashboardView({
       );
       throw err;
     }
+    // D-162: bring the new widget into view (it may land in a gap or at the bottom).
+    if (!at)
+      setTimeout(() => flash([`[data-widget-id="${CSS.escape(p.widget.id ?? '')}"]`]), 150);
     await previewStatusRef.current?.(p.id, 'added');
   };
+  const organise = () => {
+    const undo = session.organise();
+    if (!undo) return toast('Already organised');
+    toast('Widgets organised', { duration: 6000, action: { label: 'Undo', onClick: undo } });
+  };
   const adopt = useCallback((next: Dashboard) => session.adoptRemote(next), [session]);
+  // D-161: Activity entry actions.
+  const activityActions: ActivityActions = {
+    undo: (item) => runActivity(item.id, 'undo'),
+    restore: (item) => runActivity(item.id, 'restore'),
+    show: (item) => flash(item.widgetIds.map((w) => `[data-widget-id="${CSS.escape(w)}"]`)),
+    openChat: (item) => {
+      if (!item.changeId) return;
+      if (desktop) {
+        if (!dockOpen) toggleDock();
+      } else setSheetOpen(true);
+      const sel = `[data-testid="chat-dock"] [data-change-id="${CSS.escape(item.changeId)}"]`;
+      setTimeout(() => flash([sel]), 350);
+    },
+  };
+  const runActivity = async (activityId: string, action: 'undo' | 'restore') => {
+    if (!d) return;
+    try {
+      adopt(await api.activityAction(id, activityId, action, d.version));
+      toast(action === 'undo' ? 'Change undone' : 'Dashboard restored');
+    } catch (err) {
+      throw new Error(err instanceof ApiError ? err.message : "Couldn't do that. Try again.", {
+        cause: err,
+      });
+    }
+  };
   const consumeAsk = useCallback(
     () => void navigate({ to: '/dashboards/$id', params: { id }, search: {}, replace: true }),
     [navigate, id],
@@ -364,6 +411,7 @@ function DashboardView({
                 canEdit={canEdit}
                 meId={meId}
                 loadActivity={() => api.activity(id)}
+                activityActions={activityActions}
                 saveState={state.saveState}
                 now={now}
                 compact={compact}
@@ -376,6 +424,7 @@ function DashboardView({
                 onRename={(t) => session.setTitle(t)}
                 onRetry={() => session.retry()}
                 onRefresh={refreshAll}
+                onOrganise={canEdit ? organise : undefined}
                 onShare={() => setDialog('share')}
                 onDuplicate={() => void duplicate()}
                 onDelete={() => setDialog('delete')}
