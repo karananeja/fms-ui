@@ -41,9 +41,9 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 | F25 | User-provided AI keys (per user, encrypted, Settings → AI assistant, default-assistant switch) | F22, F21 | Signed off | Draft (written with the intent) | Done (wired) | Passed (full check + e2e 2026-10-16) | Accepted 2026-10-16 |
 | F26 | Dynamic widgets (widget grammar: 7 datasets, charts, tables, live map with follow/trail) | F23, F20 | Signed off | Draft (written with the intent) | Done (+ D-160 instrument mark) | Passed (full check + e2e 2026-10-16) | Accepted 2026-10-16 |
 | F27 | Dashboard sharing with edit / view access (private chats per editor, live updates, activity) | F20, D-142 | Signed off | Draft (written with the intent) | Done (+ D-161 actionable Activity) | Passed (full check + e2e 2026-10-16) | Accepted 2026-10-16 |
-| F28 | Saved Ask FMS conversations (server-side threads per user, history list, reopen and continue) | F17, F23, D-155 | Signed off 2026-10-16 | Draft (waiting for sign-off) | — | — | — |
-| F29 | Assistant actions with Confirm, audit log (Activity page, `audit.view`) and Undo | F28, F03 | Signed off 2026-10-16 | — | — | — | — |
-| F30 | AI token usage monitor (per run in SQLite, My usage + admin view, estimated cost) | F25 | Signed off 2026-10-16 | — | — | — | — |
+| F28 | Saved Ask FMS conversations (server-side threads per user, history list, reopen and continue) | F17, F23, D-155 | Signed off 2026-10-16 | Draft (built on the user's go-ahead) | Done | Passed (targeted) | Pending UAT |
+| F29 | Assistant actions with Confirm, audit log (Activity page, `audit.view`) and Undo | F28, F03 | Signed off 2026-10-16 | Draft (built on the user's go-ahead) | Done | Passed (targeted) | Pending UAT |
+| F30 | AI token usage monitor (per run in SQLite, My usage + admin view, estimated cost) | F25 | Signed off 2026-10-16 | Draft (built on the user's go-ahead) | Done | Passed (targeted) | Pending UAT |
 | D-142 | Dashboard snapshots on list cards (per viewer, theme-aware) | F23 | Approved in chat | Addendum to F20 | Done | Passed (full check + e2e 2026-10-16) | Accepted 2026-10-16 |
 | Fix | Vehicle details sheet scrolls to its end at the top snap point (F07) | F07 | User bug report | — | Done | Passed | Accepted 2026-10-16 |
 

@@ -590,3 +590,15 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "yes" → F28, F29, F30 intents signed off. Wrote `docs/features/f28-saved-chat-threads/spec.md` (storage v14, thread API replacing the `messages` body of `/api/chat`, panel history, limits, 8 acceptance tests); D-163…D-165 Proposed.
 
 **Status/Next:** F28 spec awaits sign-off; then F28 build, then F29 ∥ F30 specs.
+
+## 2026-10-16: F28–F30 built
+
+**User:** "speed up, focus on development and relax testing for these three features" → specs written (F29, F30 alongside the build); migrations v14–v16 added up front; three agents in parallel (F28 threads + panel; F30 usage store/API/page; F29 actions server + Activity page), disjoint files, own ports; then integration: usage recording in both chats, action tools + cards in both chats, decided-action lines, Activity "Open chat" → Ask FMS thread.
+
+**User:** "use date picker from shadcn in activity" → new dependency react-day-picker 10.0.2 approved (D-170); shadcn Calendar + date-range picker.
+
+**User:** "why is ai usage empty?" → recording was wired only at integration and no turn had run since; earlier usage was never stored (no backfill). Added F30-T4 (one turn writes one row).
+
+**Tests:** `pnpm check` 1293/1296 (F11-T3 ×2, perf under load), build clean; e2e for F28/F29/F30 + chat/dashboard specs 26/26. Decisions D-163…D-170 Proposed.
+
+**Status/Next:** UAT of F28–F30 on `feature/f28-f30-chat-usage`.
