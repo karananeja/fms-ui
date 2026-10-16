@@ -689,10 +689,13 @@ export function buildTools(host: ToolHost): BetaRunnableTool[] {
         }
       },
     });
-    if (!s.validateInRun) return { ...tool, strict: true };
+    // Strict tools reject bounds such as an integer's `minimum`/`maximum` (Anthropic 400); zod's
+    // `parse` still enforces them, and a parse error reaches the model as an `is_error` result.
+    const input_schema = strictSafeSchema((tool as { input_schema: unknown }).input_schema);
+    if (!s.validateInRun) return { ...tool, input_schema, strict: true } as BetaRunnableTool;
     return {
       ...tool,
-      input_schema: strictSafeSchema((tool as { input_schema: unknown }).input_schema),
+      input_schema,
       // Validated in `run`, so a bad widget reaches the model as an `is_error` result with paths.
       parse: (args: unknown) => args,
       strict: true,

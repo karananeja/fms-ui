@@ -1978,8 +1978,6 @@ exports[`F21-T2 zod tools → OpenAI tools > all 16 tools (D-135 preview_widget)
           },
           "limit": {
             "description": "Max vehicles to list, 1–50 (default 20).",
-            "maximum": 9007199254740991,
-            "minimum": -9007199254740991,
             "type": "integer",
           },
           "query": {
