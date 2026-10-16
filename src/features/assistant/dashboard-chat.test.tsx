@@ -334,6 +334,15 @@ describe('F19-T9 components', () => {
     expect(screen.getAllByTestId('tool-chip')).toHaveLength(1);
     await userEvent.click(screen.getByTestId('change-undo'));
     expect(onUndo).toHaveBeenCalledWith(expect.objectContaining({ id: 'chg-1' }));
+
+    // Each sent prompt has a copy button.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const copies = screen.getAllByTestId('copy-prompt');
+    expect(copies).toHaveLength(2);
+    await userEvent.click(copies[0]!);
+    expect(writeText).toHaveBeenCalledWith(screen.getAllByTestId('user-message')[0]!.textContent);
+    expect(copies[0]).toHaveAccessibleName('Copied');
   });
 
   it('the global panel shows an "Open dashboard" card on dashboard_created', async () => {

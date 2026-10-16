@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { PanelRightClose, Sparkles } from 'lucide-react';
 import type { Dashboard, WidgetPreview } from '@shared/contract/dashboards.ts';
-import { IDLE_DOCK, turnActivity, type DockState } from '@/features/assistant/chat-progress';
+import {
+  IDLE_DOCK,
+  turnActivity,
+  turnFailure,
+  type DockState,
+} from '@/features/assistant/chat-progress';
 import { Composer } from '@/features/assistant/components/composer';
 import { MessageList } from '@/features/assistant/components/message-list';
 import {
@@ -32,6 +37,7 @@ export function ChatDock({
   draggablePreviews = false,
   onActivity,
   stopRef,
+  retryRef,
   busyBy = null,
   syncKey = 0,
 }: {
@@ -41,6 +47,8 @@ export function ChatDock({
   busyBy?: string | null;
   /** F23: filled with the chat's Stop (the empty-dashboard starter's composer uses it). */
   stopRef?: RefObject<(() => void) | null>;
+  /** Filled with the chat's Retry (the empty canvas's failure card uses it). */
+  retryRef?: RefObject<(() => void) | null>;
   /** F23: the running turn's state (the page shows the build skeletons from it). */
   onActivity?(a: DockState): void;
   dashboardId: string;
@@ -84,6 +92,15 @@ export function ChatDock({
     };
   }, [stopRef, stop]);
 
+  const { retry } = chat;
+  useEffect(() => {
+    if (!retryRef) return;
+    retryRef.current = retry;
+    return () => {
+      if (retryRef.current === retry) retryRef.current = null;
+    };
+  }, [retryRef, retry]);
+
   const { reload } = chat;
   const synced = useRef(syncKey);
   useEffect(() => {
@@ -103,9 +120,17 @@ export function ChatDock({
   const othersAsking = !!busyBy && !state.streaming;
   const ready = state.status === 'ready';
   const count = state.messages.length;
+  const failure = state.streaming ? null : turnFailure(state.messages.at(-1));
+  const failMessage = failure?.message;
+  const failRetryable = failure?.retryable;
+  const failSetup = failure?.setup;
   useEffect(() => {
-    onActivity?.({ streaming, changing, ready, messages: count });
-  }, [onActivity, streaming, changing, ready, count]);
+    const failure =
+      failMessage === undefined
+        ? null
+        : { message: failMessage, retryable: !!failRetryable, setup: !!failSetup };
+    onActivity?.({ streaming, changing, ready, messages: count, failure });
+  }, [onActivity, streaming, changing, ready, count, failMessage, failRetryable, failSetup]);
   useEffect(() => () => onActivity?.(IDLE_DOCK), [onActivity]);
 
   // One send per `?ask=` value; cleared once consumed, so the F23 starter can ask again.

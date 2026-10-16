@@ -1,22 +1,28 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   Activity,
   ArrowRight,
   BatteryCharging,
   Gauge,
   HeartPulse,
+  KeyRound,
   LifeBuoy,
   MousePointerClick,
+  RotateCcw,
   Sparkles,
+  TriangleAlert,
   Trophy,
   Users,
   Wrench,
   type LucideIcon,
 } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 import type { Permission } from '@shared/contract/permissions.ts';
 import { can } from '@/features/access/permissions/can';
+import type { TurnFailure } from '@/features/assistant/chat-progress';
 import { Composer } from '@/features/assistant/components/composer';
 import { selectMe, useSession } from '@/features/auth/session/use-session';
+import { Button } from '@/shared/ui/button';
 
 interface Chip {
   text: string;
@@ -135,7 +141,7 @@ function GhostGrid() {
     <div
       aria-hidden
       data-testid="starter-ghost"
-      className="pointer-events-none absolute inset-0 grid grid-cols-12 grid-rows-6 gap-3 p-1 opacity-60 [mask-image:linear-gradient(to_bottom,black,transparent)]"
+      className="pointer-events-none absolute inset-0 grid grid-cols-12 grid-rows-6 gap-3 [mask-image:linear-gradient(to_bottom,black,transparent)] p-1 opacity-60"
     >
       {tiles.map((c, k) => (
         <div
@@ -156,10 +162,16 @@ export function DashboardStarter({
   streaming,
   onSend,
   onStop,
+  compact = false,
+  notice,
 }: {
   streaming: boolean;
   onSend(prompt: string): void;
   onStop(): void;
+  /** The dock is open (it has the prompt box): templates and chips only, under `notice`. */
+  compact?: boolean;
+  /** Shown above the templates in compact mode (e.g. the last turn's failure card). */
+  notice?: ReactNode;
 }) {
   const me = useSession(selectMe);
   const allowed = useMemo(
@@ -173,27 +185,35 @@ export function DashboardStarter({
   const templates = STARTER_TEMPLATES.filter((t) => allowed(t.needs));
 
   return (
-    <div data-testid="dashboard-starter" className="relative min-h-[28rem] w-full">
+    <div
+      data-testid="dashboard-starter"
+      data-compact={compact || undefined}
+      className="relative min-h-[28rem] w-full"
+    >
       <GhostGrid />
       <div className="relative mx-auto flex max-w-3xl flex-col gap-5 py-6 text-left">
-        <div className="overflow-hidden rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid shadow-float">
-          <div className="px-5 pt-5">
-            <h2 className="flex items-center gap-2 font-display text-xl font-extrabold tracking-wide">
-              <Sparkles aria-hidden className="size-5 text-accent" />
-              What do you want to see?
-            </h2>
-            <p className="mt-1 text-sm text-text-muted">
-              Describe it in plain words, or start from an example below.
-            </p>
+        {compact ? (
+          notice
+        ) : (
+          <div className="overflow-hidden rounded-[var(--radius-panel)] border border-glass-border bg-surface-solid shadow-float">
+            <div className="px-5 pt-5">
+              <h2 className="flex items-center gap-2 font-display text-xl font-extrabold tracking-wide">
+                <Sparkles aria-hidden className="size-5 text-accent" />
+                What do you want to see?
+              </h2>
+              <p className="mt-1 text-sm text-text-muted">
+                Describe it in plain words, or start from an example below.
+              </p>
+            </div>
+            <Composer
+              streaming={streaming}
+              onSend={onSend}
+              onStop={onStop}
+              placeholder="e.g. Running vs stopped vehicles and today's open breakdowns"
+              suggestions="dashboard"
+            />
           </div>
-          <Composer
-            streaming={streaming}
-            onSend={onSend}
-            onStop={onStop}
-            placeholder="e.g. Running vs stopped vehicles and today's open breakdowns"
-            suggestions="dashboard"
-          />
-        </div>
+        )}
 
         {templates.length > 0 && (
           <section aria-labelledby="starter-templates">
@@ -272,6 +292,48 @@ export function DashboardStarter({
           ))}
         </ol>
       </div>
+    </div>
+  );
+}
+
+/** The empty canvas's card for a failed (or cut-off) last turn: the reason, Retry, settings. */
+export function TurnFailureCard({
+  failure,
+  onRetry,
+}: {
+  failure: TurnFailure;
+  onRetry?: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      data-testid="canvas-failure"
+      className="rounded-[var(--radius-panel)] border border-danger/30 bg-surface-solid p-5 shadow-float"
+    >
+      <h2 className="flex items-center gap-2 text-base font-semibold">
+        <TriangleAlert aria-hidden className="size-5 text-danger" />
+        Couldn't build your dashboard
+      </h2>
+      <p className="mt-1 text-sm text-text-muted">{failure.message}</p>
+      {(failure.retryable || failure.setup) && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {failure.retryable && onRetry && (
+            <Button size="sm" onClick={onRetry} data-testid="canvas-retry">
+              <RotateCcw aria-hidden />
+              Retry
+            </Button>
+          )}
+          {failure.setup && (
+            <Button asChild size="sm" variant="outline">
+              <Link to="/settings/ai" data-testid="canvas-settings">
+                <KeyRound aria-hidden />
+                AI settings
+              </Link>
+            </Button>
+          )}
+        </div>
+      )}
+      <p className="mt-4 text-xs text-text-faint">Or start again from a template below.</p>
     </div>
   );
 }

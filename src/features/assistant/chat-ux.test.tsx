@@ -6,7 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SessionContext } from '@/features/auth/session/use-session';
 import { fakeApi, fakeMe, sessionAs } from '@/features/auth/testing/fake-session';
 import { arrange, parseListSearch } from '@/features/dashboards/lib/list-search';
-import { formatElapsed, progressLabel, turnActivity } from './chat-progress.ts';
+import type { ChatError } from './assistant-store.ts';
+import { formatElapsed, progressLabel, turnActivity, turnFailure } from './chat-progress.ts';
 import { ChatStreamCutError, streamSse } from './chat-stream.ts';
 import { Composer } from './components/composer.tsx';
 import { DashboardChatStore, type DashboardChatStream } from './dashboard-chat-store.ts';
@@ -156,6 +157,30 @@ describe('F23-T3 progress helpers', () => {
       false,
     );
     expect(turnActivity(false, { status: 'done', tools, change: null }).changing).toBe(false);
+  });
+
+  it('D-158: the canvas failure follows the last reply (settings link only for setup problems)', () => {
+    const a = (status: string, error: ChatError | null = null) => ({
+      role: 'assistant',
+      status,
+      error,
+    });
+    expect(turnFailure(undefined)).toBeNull();
+    expect(turnFailure(a('done'))).toBeNull();
+    expect(turnFailure({ role: 'user', status: 'done', error: null })).toBeNull();
+    expect(turnFailure(a('interrupted'))).toMatchObject({ retryable: true, setup: false });
+    const rejected =
+      'The AI provider rejected the request (HTTP 400). Check the model chosen in AI settings, or ask an administrator.';
+    expect(turnFailure(a('error', { code: 'failed', message: rejected }))).toEqual({
+      message: rejected,
+      retryable: true,
+      setup: true,
+    });
+    expect(turnFailure(a('error', { code: 'busy', message: 'x' }))).toMatchObject({
+      message: 'Assistant is busy, try again',
+      setup: false,
+    });
+    expect(turnFailure(a('error', { code: 'refusal', message: '' }))?.retryable).toBe(false);
   });
 });
 
