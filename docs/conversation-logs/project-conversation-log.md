@@ -612,3 +612,11 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Tests:** `pnpm check` 1295/1296 (`widget-query.perf` under load; passes alone), build clean; e2e access-people 7/7 (2 shot tests skipped).
 
 **Status/Next:** D-163…D-170 accepted; merged `feature/f28-f30-chat-usage` into `main` (--no-ff), deleted the branch; catalogue and CLAUDE.md updated (schema v16). Open: known flakes F11-T3, F09-T8, F06-T6; scripted assistant e2e specs race under parallel workers; OpenAI/xAI models have no prices (tokens only).
+
+## 2026-10-16: F31 enabled models (intent + spec drafted)
+
+**User:** "instead of selecting the model while adding the api key, let the user select the models and enable them via the settings page so that the user can only use the models that are enabled" → asked four questions; the user chose: a model picker in the chat, a model checklist per key, the server key unchanged, and enabled models from all saved keys.
+
+**Assistant:** Wrote `docs/features/f31-enabled-models/intent.md` and `spec.md`: migration v17 (`enabled_models`, `available_models`), Save without a model, Refresh and enable endpoints, `PUT /api/me/ai-model`, `assistantStatus.options`, `ModelPicker` in both chat headers, and 8 acceptance tests. D-171 Proposed (amends D-143).
+
+**Status/Next:** F31 intent + spec await sign-off; then build on `feature/f31-enabled-models`.
