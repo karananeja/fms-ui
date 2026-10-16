@@ -560,3 +560,9 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "grok smoke test wont be possible" → Grok real-key smoke test dropped (no xAI credits); CLAUDE.md and catalogue updated. The xAI path stays covered only by the fake OpenAI-compatible adapter tests.
 
 **Status/Next:** nothing pending on Part 3. Known flakes F11-T3, F09-T8, F06-T6; scripted assistant e2e specs race under parallel workers.
+
+## 2026-10-16: Part 4 intents: saved chats, assistant actions, usage monitor
+
+**User:** "now the ai agent/chatbot can create dashboards with widgets but lets expand the scope so that it can perform user level actions if the user has permissions and also keep track of those chats as well; also i need a monitor to track my token usage" → mapped today's state (global chat is client-memory only; no write tools outside dashboards; `audit_log` only for AI keys; usage only in memory, output tokens dropped). User chose: confirm every write; drivers & requests, users/invites/roles, fleets & vehicles, sharing & notifications; saved threads + audit log + Undo; usage for me + admin view. Drafted intents F28 (saved threads), F29 (actions + audit + Undo), F30 (usage monitor).
+
+**Status/Next:** intents await sign-off. Proposed order: F28 → (F29 ∥ F30).
