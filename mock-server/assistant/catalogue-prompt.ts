@@ -82,6 +82,23 @@ export const CUSTOM_EXAMPLES: { ask: string; widget: WidgetToolInput }[] = [
     },
   },
   {
+    ask: 'a cluster view of MH12AB1234 with speed, SOC, range, odometer, ignition and last GPS',
+    widget: {
+      type: 'custom',
+      title: 'MH12AB1234',
+      spec: {
+        data: {
+          dataset: 'live-vehicles',
+          filter: { all: [{ field: 'regno', op: 'eq', value: 'MH12AB1234' }] },
+        },
+        mark: {
+          type: 'instrument',
+          columns: ['speed', 'soc', 'dte', 'odometer', 'ignition', 'gpstime'],
+        },
+      },
+    },
+  },
+  {
     ask: 'breakdowns per fleet this week as a bar chart',
     widget: {
       type: 'custom',
@@ -157,8 +174,9 @@ function customSection(): string {
     '#### spec.shape (optional; filter → group → aggregate → sort → limit)',
     `{ groupBy?: a string/enum/fleet field; timeBucket?: ${TIME_BUCKETS.join(' | ')} (IST, on the time field); aggregate?: { op: ${AGGREGATE_OPS.join(' | ')}; field?: a number field (required unless count) } (default count when grouped); sort?: { by: a field or "value"; dir: asc | desc }; limit?: 1–${CUSTOM_ROWS_MAX} (≤ ${CUSTOM_GROUPS_MAX} groups) }`,
     '#### spec.mark',
-    `{ type: ${MARK_TYPES.join(' | ')}; x?; y?; color?; size?; label?: field names; columns?: 1–${CUSTOM_COLUMNS_MAX} fields (table); format?: ${VALUE_FORMATS.join(' | ')}; unit?: ≤ 12 chars; max?: number (gauge); cluster?, follow?, fit?: boolean; trailMinutes?: 5–240 (map) }`,
+    `{ type: ${MARK_TYPES.join(' | ')}; x?; y?; color?; size?; label?: field names; columns?: 1–${CUSTOM_COLUMNS_MAX} fields (table, instrument); format?: ${VALUE_FORMATS.join(' | ')}; unit?: ≤ 12 chars; max?: number (gauge; instrument speed gauge); cluster?, follow?, fit?: boolean; trailMinutes?: 5–240 (map) }`,
     '- number / gauge: one value (aggregate, or the row count); no groupBy/timeBucket.',
+    '- instrument: ONE vehicle\'s live readings together in ONE widget (a "cluster" / instrument view of e.g. speed, SOC, range, odometer, ignition, last GPS). Dataset live-vehicles, data.filter.all [{ field: "regno", op: "eq", value: "<regno>" }], mark.columns = the readings (≤ 8); speed and percent fields draw as gauges (max = speed gauge max, default 120). When the user asks for several readings of one vehicle, use ONE instrument widget, not one widget per reading. If they did not name the vehicle, ask which one.',
     '- bar: groupBy and/or timeBucket (a second dimension becomes series), or rows with x (category) + y (number).',
     '- line / area: timeBucket (groupBy → one series each, ≤ 6), or rows with x (a time field) + y (number).',
     '- pie / donut: groupBy only. heatmap: groupBy (rows) + timeBucket (columns).',

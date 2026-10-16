@@ -53,6 +53,8 @@ export const MARK_TYPES = [
   'heatmap',
   'table',
   'map',
+  /** D-160: one vehicle's live readings in one widget (gauges + readouts). */
+  'instrument',
 ] as const;
 export type MarkType = (typeof MARK_TYPES)[number];
 export const VALUE_FORMATS = ['number', 'percent', 'duration', 'distance', 'datetime'] as const;
@@ -488,6 +490,19 @@ export function customSpecIssues(spec: CustomSpec): SpecIssue[] {
       noMapOptions();
       if (!grouped && !m.columns?.length)
         add(['mark', 'columns'], `A row table needs mark.columns (1–${CUSTOM_COLUMNS_MAX} of: ${names.join(', ')})`);
+      m.columns?.forEach((c, k) => known(['mark', 'columns', k], c));
+      break;
+    case 'instrument':
+      noMapOptions();
+      if (data.dataset !== 'live-vehicles') {
+        add(['data', 'dataset'], 'An instrument shows one vehicle live: use dataset live-vehicles');
+        break;
+      }
+      if (grouped) add(['shape'], 'An instrument shows one vehicle: remove groupBy, timeBucket and aggregate');
+      if (!followTarget(spec))
+        add(['data', 'filter'], 'An instrument needs data.filter.all with { field: "regno", op: "eq", value: "<regno>" }. Ask the user which vehicle.');
+      if (!m.columns?.length)
+        add(['mark', 'columns'], `An instrument needs mark.columns: the readings to show (1–${CUSTOM_COLUMNS_MAX} of: ${names.join(', ')})`);
       m.columns?.forEach((c, k) => known(['mark', 'columns', k], c));
       break;
     case 'map': {
