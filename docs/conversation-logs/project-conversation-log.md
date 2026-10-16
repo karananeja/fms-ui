@@ -540,3 +540,13 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "approved" → D-157 accepted; merged `fix/anthropic-haiku-fallback` into `main` (--no-ff) and deleted the branch.
 
 **Status/Next:** done. Pending as before: real-key Grok smoke test; known flakes F11-T3, F09-T8, F06-T6.
+
+## 2026-10-16: Empty canvas states, prompt copy button and the real Anthropic 400
+
+**User:** "when there is failure or something the left side looks to simple … it should be more happening screen na?" → with the dock open, an empty canvas showed one line and ignored a failed turn. User chose the status-aware canvas: failure card (reason, Retry, AI settings for setup problems) over the compact starter (templates and chips, no second prompt box). D-158 (Proposed).
+
+**User:** "add copy button to the user prompt in the chat window also i have used opus and sonnet model i still get the same error" → copy button on sent prompts in both chats (D-158). The D-157 fix was right for Haiku but not the whole story: the user's server log showed Anthropic 400 "tools.5.custom: For 'integer' type, properties maximum, minimum are not supported". Strict tools other than the `validateInRun` ones were sent with zod's raw schema (`.int()` adds safe-integer bounds). D-159 (Proposed): strict-safe schema for every tool; regression test; F24 snapshot updated.
+
+**Tests:** `pnpm check` 1249/1252: F11-T3 ×2 (known time-of-day flake) and `widget-query.perf` under load (passes alone); typecheck and lint clean; build clean. e2e D-158 + F20 + F23 + D-155: 16/16 twice in parallel. Found that specs sharing the fake model's global script queue race in parallel; the new spec stubs failures in the browser instead.
+
+**Status/Next:** UAT on `feature/dashboard-canvas-states` (real Anthropic key, Opus/Sonnet/Haiku). After approval: merge `--no-ff`, delete the branch, accept D-158 and D-159.
