@@ -582,3 +582,5 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **User:** "i dont see the ai chat workflow in the artifact, update that part and explain the share dashboard feature as well" → architecture artifact v4: chat-turn workflow diagram + step list, new Sharing section (diagram, owner/editor/viewer table, vs live-location links), D-157…D-162 and migration v13.
 
 **Status/Next:** UAT of D-160, D-161, D-162 on `feature/cluster-widget`. F28–F30 intents await sign-off.
+
+**User:** "approved" → D-160, D-161, D-162 accepted; merged `feature/cluster-widget` into `main` (--no-ff), deleted the branch; catalogue (F20, F26, F27) and CLAUDE.md updated (schema v13). F28–F30 intents: sign-off asked separately.
