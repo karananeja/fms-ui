@@ -1,8 +1,10 @@
 export * from './access.ts';
+export * from './actions.ts';
 export * from './ai-keys.ts';
 export * from './analytics.ts';
 export * from './assistant.ts';
 export * from './auth.ts';
+export * from './chat-threads.ts';
 export * from './common.ts';
 export * from './dashboards.ts';
 export * from './dev.ts';
@@ -14,5 +16,6 @@ export * from './payloads.ts';
 export * from './permissions.ts';
 export * from './requests.ts';
 export * from './share-links.ts';
+export * from './usage.ts';
 export * from './widget-grammar.ts';
 export * from './ws.ts';

@@ -211,14 +211,18 @@ async function sse(
 }
 
 const ask = (question: string, cookie = cookies.ops, opts = {}) =>
-  sse('/api/chat', { messages: [{ role: 'user', content: question }] }, cookie, opts);
+  sse('/api/chat', { message: question }, cookie, opts);
 const dashChat = (id: string, message: string) =>
   sse(`/api/dashboards/${id}/chat`, { message }, cookies.ops);
 const text = (events: ChatEvent[]) =>
   events.flatMap((e) => (e.type === 'text' ? [e.delta] : [])).join('');
 /** Event types with runs of text deltas collapsed (chunking may differ). */
+/** Event types (runs of text collapsed); F28 `thread_saved` events are left out. */
 const shape = (events: ChatEvent[]) =>
-  events.map((e) => e.type).filter((t, k, a) => t !== 'text' || a[k - 1] !== 'text');
+  events
+    .map((e) => e.type)
+    .filter((t) => t !== 'thread_saved')
+    .filter((t, k, a) => t !== 'text' || a[k - 1] !== 'text');
 const script = (body: unknown) =>
   server.api('POST', '/api/dev/assistant/script', {
     body,

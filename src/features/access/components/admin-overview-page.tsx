@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 import {
   ArrowRight,
   Building2,
+  History,
   IdCard,
   KeyRound,
   Link2,
@@ -10,6 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { listAudit } from '@/features/activity/api/activity-api';
 import { listDrivers } from '@/features/drivers/api/drivers-api';
 import { listShareLinks } from '@/features/share/api/share-api';
 import { countActive } from '@/features/share/lib/share-link-model';
@@ -32,7 +34,8 @@ function OverviewCard({
     | '/admin/drivers'
     | '/admin/invites'
     | '/admin/roles'
-    | '/admin/share-links';
+    | '/admin/share-links'
+    | '/admin/activity';
   icon: LucideIcon;
   label: string;
   load: (signal: AbortSignal) => Promise<ReactNode>;
@@ -76,6 +79,7 @@ export function AdminOverviewPage() {
   const roles = useCan('roles.manage');
   const shares = useCan('share.revoke');
   const drivers = useCan('drivers.manage');
+  const activity = useCan('audit.view');
   return (
     <AdminLayout
       title="Admin"
@@ -176,6 +180,25 @@ export function AdminOverviewPage() {
               return (
                 <>
                   <Big>{count.format(countActive(list))}</Big> active
+                </>
+              );
+            }}
+          />
+        )}
+        {activity && (
+          <OverviewCard
+            to="/admin/activity"
+            icon={History}
+            label="Activity"
+            load={async (signal) => {
+              const page = await listAudit({}, { signal });
+              return (
+                <>
+                  <Big>
+                    {count.format(page.items.length)}
+                    {page.nextCursor ? '+' : ''}
+                  </Big>{' '}
+                  recent
                 </>
               );
             }}

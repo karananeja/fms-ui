@@ -378,4 +378,92 @@ ALTER TABLE dashboard_activity ADD COLUMN after_json TEXT;
 ALTER TABLE dashboard_activity ADD COLUMN undone_at INTEGER;
 `,
   },
+  {
+    version: 14,
+    name: 'chat_threads',
+    // F28 (D-163): the global Ask FMS conversations, per user. `extras_json` keeps what a reply
+    // showed besides text (tool chips, reports, dashboard links, entities; F29 action cards).
+    sql: `
+CREATE TABLE chat_threads (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title      TEXT NOT NULL,
+  title_auto INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX chat_threads_user ON chat_threads (user_id, updated_at DESC);
+CREATE TABLE chat_messages (
+  id          TEXT PRIMARY KEY,
+  thread_id   TEXT NOT NULL REFERENCES chat_threads(id) ON DELETE CASCADE,
+  seq         INTEGER NOT NULL,
+  role        TEXT NOT NULL CHECK (role IN ('user','assistant')),
+  text        TEXT NOT NULL,
+  extras_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(extras_json)),
+  outcome     TEXT NOT NULL DEFAULT 'done' CHECK (outcome IN ('done','error','interrupted','stopped')),
+  error_code  TEXT,
+  created_at  INTEGER NOT NULL,
+  UNIQUE (thread_id, seq)
+);
+`,
+  },
+  {
+    version: 15,
+    name: 'ai_usage',
+    // F30: one row per model run (global chat, dashboard chat, Retry, auto-title).
+    sql: `
+CREATE TABLE ai_usage (
+  id                 TEXT PRIMARY KEY,
+  user_id            TEXT NOT NULL,
+  at                 INTEGER NOT NULL,
+  chat               TEXT NOT NULL CHECK (chat IN ('global','dashboard','title')),
+  thread_id          TEXT,
+  dashboard_id       TEXT,
+  provider           TEXT NOT NULL,
+  model              TEXT NOT NULL,
+  source             TEXT NOT NULL CHECK (source IN ('user','server','fake')),
+  steps              INTEGER NOT NULL DEFAULT 0,
+  input_tokens       INTEGER NOT NULL DEFAULT 0,
+  output_tokens      INTEGER NOT NULL DEFAULT 0,
+  cache_read_tokens  INTEGER NOT NULL DEFAULT 0,
+  cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+  outcome            TEXT NOT NULL,
+  cost_usd           REAL
+);
+CREATE INDEX ai_usage_user_at ON ai_usage (user_id, at DESC);
+CREATE INDEX ai_usage_at ON ai_usage (at DESC);
+`,
+  },
+  {
+    version: 16,
+    name: 'assistant_actions',
+    // F29 (D-166…D-168): write actions the assistant proposes and the user confirms; the audit
+    // log gains area, links and before / after for the Activity page and Undo.
+    sql: `
+CREATE TABLE assistant_actions (
+  id           TEXT PRIMARY KEY,
+  user_id      TEXT NOT NULL,
+  thread_id    TEXT,
+  dashboard_id TEXT,
+  kind         TEXT NOT NULL,
+  params_json  TEXT NOT NULL CHECK (json_valid(params_json)),
+  preview_json TEXT NOT NULL CHECK (json_valid(preview_json)),
+  state_hash   TEXT NOT NULL,
+  status       TEXT NOT NULL CHECK (status IN ('proposed','done','failed','cancelled','expired','undone')),
+  result_json  TEXT,
+  undo_json    TEXT,
+  created_at   INTEGER NOT NULL,
+  expires_at   INTEGER NOT NULL,
+  decided_at   INTEGER,
+  undone_at    INTEGER
+);
+CREATE INDEX assistant_actions_user ON assistant_actions (user_id, created_at DESC);
+ALTER TABLE audit_log ADD COLUMN area TEXT;
+ALTER TABLE audit_log ADD COLUMN action_id TEXT;
+ALTER TABLE audit_log ADD COLUMN thread_id TEXT;
+ALTER TABLE audit_log ADD COLUMN before_json TEXT;
+ALTER TABLE audit_log ADD COLUMN after_json TEXT;
+ALTER TABLE audit_log ADD COLUMN undone_at INTEGER;
+`,
+  },
 ];

@@ -330,7 +330,7 @@ describe('P-T3 fake model: single widget → preview_widget, builds → mutating
       const build = await chat(d.id, 'build me a fleet health dashboard');
       const global = await sse(
         '/api/chat',
-        { messages: [{ role: 'user', content: 'add a small KPI of running vehicles' }] },
+        { message: 'add a small KPI of running vehicles' },
         cookies.ops,
       );
       return { d, single, build, global };

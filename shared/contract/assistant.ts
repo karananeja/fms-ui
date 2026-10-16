@@ -4,15 +4,19 @@ import {
   dashboardSchema,
   dashboardSummarySchema,
   threadMessageSchema,
+  threadOutcomeSchema,
+  toolChipSchema,
   widgetPreviewSchema,
   widgetSchema,
   type WidgetInput,
 } from './dashboards.ts';
 
 /**
- * F17 fleet assistant: `POST /api/chat` takes the whole transcript (text only, ≤ 30 turns, oldest
- * dropped first) and streams Server-Sent Events, one JSON `ChatEvent` per `data:` line.
- * `GET /api/chat/reports/:id` downloads a generated report (15 min).
+ * F17 fleet assistant: `POST /api/chat` streams Server-Sent Events, one JSON `ChatEvent` per
+ * `data:` line. F28 (D-163): the body is only the new message (`{ threadId?, message, retryOf? }`);
+ * the server keeps the conversation (`chat_threads`, see `chat-threads.ts`) and rebuilds the
+ * model transcript (last 30 turns) from it. `GET /api/chat/reports/:id` downloads a generated
+ * report (15 min).
  */
 
 export const CHAT_MAX_TURNS = 30;
@@ -25,23 +29,22 @@ export const chatTurnSchema = z.object({
 });
 export type ChatTurn = z.infer<typeof chatTurnSchema>;
 
-/** The last turn must be the user's question. */
-export const chatRequestSchema = z.object({
-  messages: z
-    .array(chatTurnSchema)
-    .min(1)
-    .max(CHAT_MAX_TURNS)
-    .refine((m) => m.at(-1)?.role === 'user', { message: 'The last turn must be from the user' })
-    .refine(
-      (m) => {
-        const q = m.at(-1)?.content ?? '';
-        return q.trim().length > 0 && q.length <= CHAT_MAX_CHARS;
-      },
-      {
-        message: `The question must be 1–${CHAT_MAX_CHARS} characters`,
-      },
-    ),
-});
+/**
+ * F28 (D-163) `POST /api/chat`: only the new message. Without `threadId` the server creates the
+ * thread (auto title). `retryOf` (D-155, needs `threadId`) re-runs the thread's latest assistant
+ * message when it did not end `done` (409 `not_retryable` otherwise).
+ */
+export const chatRequestSchema = z
+  .strictObject({
+    threadId: z.string().min(1).max(100).optional(),
+    message: z
+      .string()
+      .trim()
+      .min(1, `The question must be 1–${CHAT_MAX_CHARS} characters`)
+      .max(CHAT_MAX_CHARS, `The question must be 1–${CHAT_MAX_CHARS} characters`),
+    retryOf: z.string().min(1).max(100).optional(),
+  })
+  .refine((b) => !b.retryOf || !!b.threadId, { message: 'retryOf needs a threadId' });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
 export const REPORT_KINDS = [
@@ -74,6 +77,38 @@ export const entityRefSchema = z.object({
   label: z.string(),
 });
 export type EntityRef = z.infer<typeof entityRefSchema>;
+
+// ---- F28 stored global-chat messages (D-163) ----
+
+/** A dashboard created from a chat answer, with its page URL (`/dashboards/<id>`). */
+export const dashboardLinkSchema = z.object({ summary: dashboardSummarySchema, url: z.string() });
+
+/**
+ * What a stored reply showed besides text: tool chips, report descriptors (files expire after
+ * 15 min and are never stored), dashboard links, entity refs and widget previews (D-135; their
+ * card state stays local). F29 adds action cards.
+ */
+export const chatThreadExtrasSchema = z.object({
+  chips: z.array(toolChipSchema).max(50).optional(),
+  reports: z.array(reportDescriptorSchema).max(20).optional(),
+  dashboards: z.array(dashboardLinkSchema).max(20).optional(),
+  entities: z.array(entityRefSchema).max(200).optional(),
+  previews: z.array(widgetPreviewSchema).max(30).optional(),
+});
+export type ChatThreadExtras = z.infer<typeof chatThreadExtrasSchema>;
+
+export const chatThreadMessageSchema = z.object({
+  id: z.string(),
+  seq: z.number().int().min(1),
+  role: z.enum(['user', 'assistant']),
+  text: z.string(),
+  extras: chatThreadExtrasSchema,
+  /** D-155: how the turn of this (assistant) message ended. */
+  outcome: threadOutcomeSchema,
+  errorCode: z.string().max(40).nullable(),
+  createdAt: epochMsSchema,
+});
+export type ChatThreadMessage = z.infer<typeof chatThreadMessageSchema>;
 
 /** `chat_busy` is pre-stream only (409: a turn is already running on that dashboard, F19). */
 export const CHAT_ERROR_CODES = [
@@ -121,8 +156,23 @@ export const chatEventSchema = z.discriminatedUnion('type', [
   }),
   /** D-135: `preview_widget` succeeded (both chats); the dashboard is unchanged. */
   z.object({ type: z.literal('widget_preview'), preview: widgetPreviewSchema }),
-  /** F19 dashboard chat only: the stored user + assistant messages of this turn. */
-  z.object({ type: z.literal('thread_saved'), messages: z.array(threadMessageSchema) }),
+  /**
+   * The stored messages of this turn. F19 dashboard chat: `messages` = the user + assistant
+   * `ThreadMessage`s. F28 global chat: `messages` is empty and `chat` carries the thread id, its
+   * title and the stored `ChatThreadMessage`s: once with the user message before the first text
+   * delta, and again with user + assistant when the reply is stored.
+   */
+  z.object({
+    type: z.literal('thread_saved'),
+    messages: z.array(threadMessageSchema),
+    chat: z
+      .object({
+        threadId: z.string(),
+        title: z.string(),
+        messages: z.array(chatThreadMessageSchema),
+      })
+      .optional(),
+  }),
   z.object({
     type: z.literal('done'),
     stopReason: z.string(),
@@ -170,11 +220,7 @@ export const dashboardChatRequestSchema = z.strictObject({
 });
 export type DashboardChatRequest = z.infer<typeof dashboardChatRequestSchema>;
 
-/** A dashboard created from a chat answer, with its page URL (`/dashboards/<id>`). */
-export interface DashboardLink {
-  summary: z.infer<typeof dashboardSummarySchema>;
-  url: string;
-}
+export type DashboardLink = z.infer<typeof dashboardLinkSchema>;
 
 /** A catalogue widget as the assistant writes it: no `id` (assigned by the server). */
 export type WidgetToolInput = WidgetInput extends infer W

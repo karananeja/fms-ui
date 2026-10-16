@@ -15,6 +15,7 @@ export const ADMIN_PERMISSIONS = [
   'roles.manage',
   'share.revoke',
   'drivers.manage',
+  'audit.view',
 ] as const satisfies readonly Permission[];
 
 /**
@@ -33,8 +34,12 @@ export const ROUTE_PERMISSIONS = {
   '/admin/invites': 'users.invite',
   '/admin/roles': 'roles.manage',
   '/admin/share-links': 'share.revoke',
+  // F29: the audit log of assistant actions.
+  '/admin/activity': 'audit.view',
   // F25: last, so it never becomes the default landing page.
   '/settings/ai': 'chat.use',
+  // F30: the caller's own AI token usage (an Organisation tab needs `roles.manage`).
+  '/settings/usage': 'chat.use',
 } as const satisfies Record<string, PermissionCheck>;
 
 export type AppPath = keyof typeof ROUTE_PERMISSIONS;

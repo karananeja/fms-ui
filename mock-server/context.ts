@@ -11,11 +11,14 @@ import { HttpError } from './http-error.ts';
 import type { LiveHub } from './live/live-hub.ts';
 import { SESSION_TTL_MS, type Accounts } from './store/accounts.ts';
 import type { AiKeys } from './store/ai-keys.ts';
+import type { AssistantActions } from './store/assistant-actions.ts';
+import type { ChatThreads } from './store/chat-threads.ts';
 import type { Dashboards } from './store/dashboards.ts';
 import type { Drivers } from './store/drivers.ts';
 import type { Notifications } from './store/notifications.ts';
 import type { Requests } from './store/requests.ts';
 import type { ShareLinks } from './store/share-links.ts';
+import type { AiUsage } from './store/usage.ts';
 
 export interface MockContext {
   config: MockConfig;
@@ -33,6 +36,12 @@ export interface MockContext {
   dashboards: Dashboards;
   /** F25 user AI keys, org settings, audit log. */
   aiKeys: AiKeys;
+  /** F28 saved Ask FMS conversations. */
+  chatThreads: ChatThreads;
+  /** F30 AI token usage (one row per model run). */
+  usage: AiUsage;
+  /** F29 assistant actions (propose / confirm / undo) and the audit log. */
+  actions: AssistantActions;
 }
 
 declare module 'fastify' {

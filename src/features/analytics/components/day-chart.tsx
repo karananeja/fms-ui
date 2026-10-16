@@ -20,8 +20,11 @@ export interface DayChartProps {
   /** IST dates, one per point. */
   days: string[];
   series: Series[];
-  /** `bars`: grouped daily bars; `lines`: line(s) with a light area under the first; `stacked`: stacked areas. */
-  kind: 'bars' | 'lines' | 'stacked';
+  /**
+   * `bars`: grouped daily bars; `lines`: line(s) with a light area under the first; `stacked`:
+   * stacked areas; `stacked-bars`: one bar per day, series stacked (F30).
+   */
+  kind: 'bars' | 'lines' | 'stacked' | 'stacked-bars';
   unit: string;
   /** Fixed y maximum (e.g. 100 for %); otherwise from the data. */
   yMax?: number;
@@ -45,7 +48,7 @@ export function DayChart({ title, days, series, kind, unit, yMax }: DayChartProp
   const n = days.length;
   const stacked = kind === 'stacked';
   const totals = days.map((_, k) =>
-    stacked
+    stacked || kind === 'stacked-bars'
       ? series.reduce((s, x) => s + (x.values[k] ?? 0), 0)
       : Math.max(0, ...series.map((x) => x.values[k] ?? 0)),
   );
@@ -84,6 +87,26 @@ export function DayChart({ title, days, series, kind, unit, yMax }: DayChartProp
           />
         ) : null,
       ),
+    );
+  } else if (kind === 'stacked-bars') {
+    const w = Math.max(1, band * 0.7);
+    const base = days.map(() => 0);
+    shapes = series.map((s, si) =>
+      s.values.map((v, k) => {
+        if (!v) return null;
+        const lo = base[k]!;
+        base[k] = lo + v;
+        return (
+          <rect
+            key={`${si}-${k}`}
+            x={cx(k) - w / 2}
+            y={y(lo + v)}
+            width={w}
+            height={Math.max(0, y(lo) - y(lo + v))}
+            style={{ fill: s.color, opacity: at === null || at === k ? 1 : 0.55 }}
+          />
+        );
+      }),
     );
   } else if (stacked) {
     const base = days.map(() => 0);

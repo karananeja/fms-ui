@@ -192,7 +192,7 @@ async function ask(question: string, cookie = cookies.ops): Promise<ChatEvent[]>
   const res = await fetch(`${server.base}/api/chat`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', cookie },
-    body: JSON.stringify({ messages: [{ role: 'user', content: question }] }),
+    body: JSON.stringify({ message: question }),
   });
   return (await res.text())
     .split('\n\n')

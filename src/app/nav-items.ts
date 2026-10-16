@@ -1,6 +1,7 @@
 import {
   Building2,
   ChartColumn,
+  History,
   IdCard,
   Inbox,
   KeyRound,
@@ -65,6 +66,7 @@ export const navItems: NavItem[] = [
     icon: Link2,
     permission: P['/admin/share-links'],
   },
+  { to: '/admin/activity', label: 'Activity', icon: History, permission: P['/admin/activity'] },
 ];
 
 /** F03-R2: the items `me` may open (the Admin entry needs any admin permission). */

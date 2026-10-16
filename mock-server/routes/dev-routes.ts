@@ -1,6 +1,7 @@
-import { setClockSchema } from '@shared/contract/index.ts';
+import { actionKindSchema, setClockSchema } from '@shared/contract/index.ts';
 import type { FastifyInstance } from 'fastify';
-import { parse } from '../context.ts';
+import { z } from 'zod';
+import { parse, sessionUser } from '../context.ts';
 import { resetStores } from '../db/seed.ts';
 
 /** Dev-only helpers (registered only when `NODE_ENV !== 'production'`). */
@@ -23,6 +24,20 @@ export async function devRoutes(app: FastifyInstance) {
   app.post('/reset', async (_req, reply) => {
     resetStores(app.mock);
     return reply.code(204).send();
+  });
+
+  /** F29 e2e: proposes an action as the signed-in user, like an assistant write tool would. */
+  app.post('/actions/propose', async (req, reply) => {
+    const user = sessionUser(app.mock, req);
+    const body = parse(
+      z.object({
+        kind: actionKindSchema,
+        params: z.record(z.string(), z.unknown()),
+        threadId: z.string().nullable().optional(),
+      }),
+      req.body,
+    );
+    return reply.code(201).send(app.mock.actions.propose(user, body));
   });
 
   app.get('/stats', async () => {

@@ -18,6 +18,7 @@ export const PERMISSIONS = [
   'chat.use',
   'dashboards.use',
   'driver.self',
+  'audit.view',
 ] as const;
 
 export const permissionSchema = z.enum(PERMISSIONS);
@@ -46,6 +47,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   'chat.use': 'Use the assistant',
   'dashboards.use': 'Use dashboards',
   'driver.self': 'Driver self-service',
+  'audit.view': 'View activity log',
 };
 
 /** F03-R14 (B8): permissions only system roles (Super Admin) may hold; custom roles can't. */

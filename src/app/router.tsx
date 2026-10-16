@@ -226,6 +226,14 @@ const aiSettingsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/settings/ai-keys-page'), 'AiKeysPage'),
 });
 
+// F30: AI token usage (own; an Organisation tab with `roles.manage`).
+const usageSettingsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: 'settings/usage',
+  staticData: { title: 'AI usage', permission: ROUTE_PERMISSIONS['/settings/usage'] },
+  component: lazyRouteComponent(() => import('@/features/settings/usage-page'), 'UsagePage'),
+});
+
 // Admin pages are a separate chunk each (no map code); F03a / F03b own the page files.
 const adminRoute = createRoute({ getParentRoute: () => appLayoutRoute, path: 'admin' });
 const adminIndexRoute = createRoute({
@@ -282,6 +290,20 @@ const adminShareLinksRoute = createRoute({
     'ShareLinksPage',
   ),
 });
+// F29: the audit log of assistant actions (filters in the URL; `?thread=` links open the chat).
+const adminActivityRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: 'activity',
+  staticData: { title: 'Activity', permission: ROUTE_PERMISSIONS['/admin/activity'] },
+  validateSearch: (s: Record<string, unknown>): { thread?: string } => {
+    const thread = optionalString(s.thread);
+    return thread ? { thread } : {};
+  },
+  component: lazyRouteComponent(
+    () => import('@/features/activity/pages/activity-page'),
+    'ActivityPage',
+  ),
+});
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
@@ -297,6 +319,7 @@ const routeTree = rootRoute.addChildren([
     dashboardsRoute,
     dashboardRoute,
     aiSettingsRoute,
+    usageSettingsRoute,
     adminRoute.addChildren([
       adminIndexRoute,
       adminFleetsRoute,
@@ -305,6 +328,7 @@ const routeTree = rootRoute.addChildren([
       adminInvitesRoute,
       adminRolesRoute,
       adminShareLinksRoute,
+      adminActivityRoute,
     ]),
   ]),
 ]);

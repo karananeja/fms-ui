@@ -126,6 +126,7 @@ describe('F03-R1/R2: permission guards and nav', () => {
         'Invites',
         'Roles',
         'Share links',
+        'Activity',
       ]);
       cleanup();
     }

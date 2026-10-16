@@ -8,7 +8,7 @@ export const PERMISSION_GROUPS: readonly { label: string; permissions: readonly 
   { label: 'Share', permissions: ['share.create', 'share.revoke'] },
   {
     label: 'Admin',
-    permissions: ['users.invite', 'users.manage', 'fleets.manage', 'roles.manage'],
+    permissions: ['users.invite', 'users.manage', 'fleets.manage', 'roles.manage', 'audit.view'],
   },
   { label: 'Drivers', permissions: ['drivers.manage', 'requests.manage', 'driver.self'] },
   { label: 'Insights', permissions: ['analytics.view', 'chat.use', 'dashboards.use'] },

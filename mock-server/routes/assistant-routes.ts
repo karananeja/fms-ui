@@ -1,11 +1,19 @@
 import Anthropic from '@anthropic-ai/sdk';
 import {
+  CHAT_CHIPS_MAX,
+  CHAT_MAX_TURNS,
   chatRequestSchema,
   dashboardChatRequestSchema,
   SESSION_COOKIE,
   type ChatEvent,
+  type ChatThreadExtras,
+  type ChatTurn,
+  type DashboardLink,
+  type EntityRef,
   type Permission,
+  type ReportDescriptor,
   type User,
+  type WidgetPreview,
 } from '@shared/contract/index.ts';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { AddressInfo } from 'node:net';
@@ -34,8 +42,16 @@ import {
   runChat,
   type AbortReason,
   type EndReason,
+  type RunOutcome,
 } from '../assistant/assistant-runner.ts';
-import { runDashboardTurn, storedText, takeChatLock } from '../assistant/dashboard-chat.ts';
+import { titleFromPrompt } from '../assistant/auto-title.ts';
+import {
+  runDashboardTurn,
+  storedText,
+  takeChatLock,
+  turnOutcome,
+} from '../assistant/dashboard-chat.ts';
+import { newTurnState } from '../assistant/tool-kit.ts';
 import { permittedWidgetTypes } from '../assistant/dashboard-tools.ts';
 import type { UserContext } from '../assistant/system-prompt.ts';
 import { fakeScriptBodySchema, registerFakeModel } from '../assistant/fake-model.ts';
@@ -45,7 +61,9 @@ import { HttpError } from '../http-error.ts';
 
 /**
  * F17 assistant (registered without a prefix):
- * - `POST /api/chat` (`chat.use`): SSE, one JSON `ChatEvent` per `data:` line.
+ * - `POST /api/chat` (`chat.use`): SSE, one JSON `ChatEvent` per `data:` line; F28 (D-163): one
+ *   turn of a saved conversation (`{ threadId?, message, retryOf? }`, threads in `ctx.chatThreads`;
+ *   list / rename / delete / stop in `chat-thread-routes.ts`).
  * - `POST /api/dashboards/:id/chat` (`chat.use` + `dashboards.use`, owner or editor; F19/F27): SSE,
  *   one turn of that dashboard's chat (409 `chat_busy` while another turn runs on it). D-155:
  *   `retryOf` re-runs the caller's latest failed turn (409 `not_retryable` otherwise).
@@ -227,10 +245,28 @@ export async function assistantRoutes(app: FastifyInstance) {
     widgetTypes: permittedWidgetTypes(permissions),
   });
 
+  /**
+   * F28 (D-163): one turn of a saved global conversation. Without `threadId` the thread is
+   * created (auto title from the prompt). The user message is stored first (`thread_saved` with
+   * the thread id and title before any text), the model transcript is rebuilt from the stored
+   * thread (last 30 turns) and the reply is stored on every end (D-155 outcomes) before the
+   * final `thread_saved`. One turn at a time per thread (409 `chat_busy`).
+   */
   app.post('/api/chat', async (req, reply) => {
     const { user, permissions } = authorize(ctx, req, 'chat.use');
     const body = parse(chatRequestSchema, req.body);
     const sid = req.cookies[SESSION_COOKIE]!;
+    const threads = ctx.chatThreads;
+    if (body.threadId) {
+      threads.summary(user.id, body.threadId);
+      if (threads.running.has(body.threadId))
+        throw new HttpError(409, 'chat_busy', 'Another reply is in progress in this conversation');
+    }
+    // D-155: 409 `not_retryable` unless it is the thread's latest reply and it did not end `done`.
+    const retry =
+      body.threadId && body.retryOf
+        ? threads.retryTurn(user.id, body.threadId, body.retryOf)
+        : undefined;
     const env = envFor(user.id);
 
     const started = Date.now();
@@ -242,25 +278,94 @@ export async function assistantRoutes(app: FastifyInstance) {
       return;
     }
 
+    const thread = body.threadId
+      ? threads.summary(user.id, body.threadId)
+      : threads.create(user.id, titleFromPrompt(body.message, 'New chat'));
+    const threadId = thread.id;
+    const userMessage =
+      retry?.user ?? threads.appendMessage(user.id, threadId, { role: 'user', text: body.message });
+    const question = userMessage.text;
     const run = runSetup(env, res, ASSISTANT_TIMEOUT_MS);
-    const question = body.messages.at(-1)!.content;
+    let finished = () => {};
+    threads.running.set(threadId, {
+      userId: user.id,
+      stop: run.stop,
+      done: new Promise<void>((r) => (finished = r)),
+    });
+    emit({
+      type: 'thread_saved',
+      messages: [],
+      chat: { threadId, title: thread.title, messages: [userMessage] },
+    });
+
+    // What the reply showed besides text, stored with it.
+    const shown = {
+      reports: [] as ReportDescriptor[],
+      dashboards: [] as DashboardLink[],
+      entities: [] as EntityRef[],
+      previews: [] as WidgetPreview[],
+    } satisfies ChatThreadExtras;
+    const collect = (e: ChatEvent) => {
+      if (e.type === 'report') shown.reports.push(e.report);
+      else if (e.type === 'entities') shown.entities.push(...e.items);
+      else if (e.type === 'dashboard_created')
+        shown.dashboards.push({ summary: e.dashboard, url: e.url });
+      else if (e.type === 'widget_preview') shown.previews.push(e.preview);
+      emit(e);
+    };
+    let saved = false;
+    const save = (outcome: RunOutcome) => {
+      if (saved) return;
+      saved = true;
+      const ended = turnOutcome(outcome, run.abortReason());
+      const msg = {
+        role: 'assistant' as const,
+        text: storedText(outcome, ended.outcome === 'interrupted' ? '(interrupted)' : '(stopped)'),
+        extras: { chips: outcome.turn.chips.slice(0, CHAT_CHIPS_MAX), ...shown },
+        ...ended,
+      };
+      try {
+        const assistant = retry
+          ? threads.replaceMessage(user.id, threadId, retry.failed.id, msg)
+          : threads.appendMessage(user.id, threadId, msg);
+        const title = threads.summary(user.id, threadId).title;
+        emit({
+          type: 'thread_saved',
+          messages: [],
+          chat: { threadId, title, messages: [userMessage, assistant] },
+        });
+      } catch (err) {
+        // e.g. the conversation was deleted mid-turn.
+        app.log.warn({ error: err instanceof Error ? err.message : String(err) }, 'chat not saved');
+      }
+    };
+
     let endReason: EndReason = 'error';
     activeRuns++;
     try {
+      // The stored thread is the transcript; a retry leaves the failed reply out.
+      const turns: ChatTurn[] = threads
+        .messages(user.id, threadId)
+        .filter((m) => m.id !== retry?.failed.id)
+        .slice(-CHAT_MAX_TURNS)
+        .map((m) => ({
+          role: m.role,
+          content: m.role === 'assistant' ? m.text.trim() || '(no answer)' : m.text,
+        }));
       const outcome = await runChat({
         provider: run.provider,
         host: hostFor(user, permissions, sid),
         context: contextFor(user, permissions),
-        turns: body.messages,
-        emit,
+        turns,
+        emit: collect,
         signal: run.signal,
         abortReason: run.abortReason,
         cacheKey: chatCacheKey(user.id, 'global'),
         onUsage,
         log: (msg, data) =>
           app.log.info({ mode: env.mode, source: env.source, ...redactLog(data, env) }, msg),
-        // F19 Q2: a dashboard created here gets the creating turn as its thread.
         onFinish: (outcome) => {
+          // F19 Q2: a dashboard created here gets the creating turn as its thread.
           for (const created of outcome.turn.created) {
             try {
               ctx.dashboards.appendMessage(user.id, created.id, { role: 'user', text: question });
@@ -273,14 +378,28 @@ export async function assistantRoutes(app: FastifyInstance) {
               app.log.error(err);
             }
           }
+          save(outcome);
         },
       });
       endReason = outcome.endReason ?? 'error';
+    } catch (err) {
+      app.log.error(err);
+      const outcome: RunOutcome = {
+        text: '',
+        status: 'error',
+        error: { code: 'failed', message: 'Something went wrong. Try again.' },
+        turn: newTurnState(),
+        endReason: 'error',
+      };
+      save(outcome);
+      emit({ type: 'error', code: 'failed', message: outcome.error!.message });
     } finally {
       activeRuns--;
+      threads.running.delete(threadId);
       run.clear();
       if (!res.writableEnded) res.end();
       streamEnded('global', endReason, started);
+      finished();
     }
   });
 

@@ -17,8 +17,12 @@ const tables = (db: ReturnType<typeof openDatabase>) =>
   ).map((r) => r.name);
 
 const ALL_TABLES = [
+  'ai_usage',
   'assignments',
+  'assistant_actions',
   'audit_log',
+  'chat_messages',
+  'chat_threads',
   'dashboard_activity',
   'dashboard_changes',
   'dashboard_messages',

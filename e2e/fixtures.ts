@@ -78,6 +78,17 @@ export const test = base.extend<{ blockExternal: void }, { ensureSignedIn: void 
   ],
   blockExternal: [
     async ({ context }, use) => {
+      // F28 (D-164): Ask FMS opens on a new chat in every test tab (as after New chat), not on
+      // another (parallel) test's recent conversation. Kept across reloads of the same tab.
+      await context.addInitScript(() => {
+        const key = 'fms.ask-fms.thread';
+        try {
+          if (!sessionStorage.getItem(key))
+            sessionStorage.setItem(key, JSON.stringify({ 'u-superadmin': null, 'u-ops': null }));
+        } catch {
+          // No storage (about:blank): nothing to do.
+        }
+      });
       await context.route(
         (url) => !local.has(url.hostname),
         (route) => {
