@@ -90,9 +90,11 @@ describe('F18-T3: CRUD as ops', () => {
       expect(d.layout[bp].map((i) => i.i).sort()).toEqual(d.widgets.map((w) => w.id).sort());
     }
     expect(d.layout.sm.every((i) => i.w === 1 && i.x === 0)).toBe(true);
-    expect(d.layout.lg.slice(0, 2).map((i) => [i.x, i.y, i.w, i.h])).toEqual([
-      [0, 0, 3, 2],
-      [3, 0, 6, 5],
+    // D-162: created in one go → organised: small tiles share the top row (stretched), then the list.
+    expect(d.layout.lg.map((i) => [i.x, i.y, i.w, i.h])).toEqual([
+      [0, 0, 6, 2],
+      [6, 0, 6, 2],
+      [0, 2, 12, 5],
     ]);
 
     const list = await timed('GET /dashboards', () =>
@@ -111,7 +113,7 @@ describe('F18-T3: CRUD as ops', () => {
     // An explicit layout must only reference the new widgets; missing ones are appended.
     const lg = d.layout.lg
       .filter((i) => i.i !== d.widgets[1]!.id)
-      .map((i) => (i.i === d.widgets[2]!.id ? { ...i, x: 8, y: 9 } : i));
+      .map((i) => (i.i === d.widgets[2]!.id ? { ...i, x: 6, y: 9 } : i));
     const keep = (items: typeof lg) => items.filter((i) => i.i !== d.widgets[1]!.id);
     const patched = await timed('PATCH /dashboards/:id', () =>
       api('PATCH', `/api/dashboards/${d.id}`, {
@@ -129,7 +131,7 @@ describe('F18-T3: CRUD as ops', () => {
     expect(patched.body).toMatchObject({ version: 2, title: 'Renamed' });
     expect(patched.body.widgets).toHaveLength(3);
     expect(patched.body.layout.lg.find((i) => i.i === d.widgets[2]!.id)).toMatchObject({
-      x: 8,
+      x: 6,
       y: 9,
     });
     expect(patched.body.layout.lg.some((i) => i.i === d.widgets[1]!.id)).toBe(false);

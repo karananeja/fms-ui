@@ -5,6 +5,7 @@ import {
   Copy,
   EllipsisVertical,
   History,
+  LayoutGrid,
   Loader2,
   MessageSquare,
   RotateCw,
@@ -55,6 +56,7 @@ export function DashboardTitleBar({
   onRename,
   onRetry,
   onRefresh,
+  onOrganise,
   onShare,
   onDuplicate,
   onDelete,
@@ -78,6 +80,8 @@ export function DashboardTitleBar({
   onRename(title: string): void;
   onRetry(): void;
   onRefresh(): void;
+  /** D-162: owner or editor; omitted = no Organise action. */
+  onOrganise?: () => void;
   onShare(): void;
   onDuplicate(): void;
   onDelete(): void;
@@ -120,6 +124,8 @@ export function DashboardTitleBar({
   );
 
   const actions = [
+    // D-162: re-pack the widgets edge to edge (undoable).
+    canEdit && onOrganise && { id: 'organise', label: 'Organise', icon: LayoutGrid, run: onOrganise },
     owner && { id: 'share', label: 'Share', icon: Share2, run: onShare },
     { id: 'duplicate', label: 'Duplicate', icon: Copy, run: onDuplicate },
     owner && { id: 'delete', label: 'Delete', icon: Trash2, run: onDelete, danger: true },

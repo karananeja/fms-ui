@@ -10,6 +10,7 @@ import {
   type UpdateDashboardBody,
   type Widget,
 } from '@shared/contract/dashboards.ts';
+import { packLayout } from '@shared/domain/dashboard-pack.ts';
 import { ApiError } from '@/shared/api/api-client';
 import type { DashboardsApi } from '../api/dashboards-api';
 import { rebaseLayout, sameLayout, sanitizeItems, type LooseItem } from '../lib/layout';
@@ -241,6 +242,21 @@ export class DashboardSession {
     return new Promise<void>((resolve, reject) =>
       this.enqueue({ kind: 'add', widget, at, settle: { resolve, reject } }),
     );
+  }
+
+  /**
+   * D-162 "Organise": re-packs every breakpoint and saves it. Returns the Undo (the previous
+   * layout), or `null` when the dashboard is already organised.
+   */
+  organise(): (() => void) | null {
+    this.flush();
+    const current = this.snap.dashboard;
+    if (!current) return null;
+    const packed = packLayout(current.widgets, current.layout);
+    if (sameLayout(packed, current.layout)) return null;
+    const before = current.layout;
+    this.enqueue({ kind: 'layout', layout: packed });
+    return () => this.enqueue({ kind: 'layout', layout: before });
   }
 
   /** A drag/resize stop or keyboard drop: saved after `LAYOUT_DEBOUNCE_MS`, coalesced. */

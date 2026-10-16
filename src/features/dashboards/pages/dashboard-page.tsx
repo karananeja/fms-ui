@@ -291,7 +291,15 @@ function DashboardView({
       );
       throw err;
     }
+    // D-162: bring the new widget into view (it may land in a gap or at the bottom).
+    if (!at)
+      setTimeout(() => flash([`[data-widget-id="${CSS.escape(p.widget.id ?? '')}"]`]), 150);
     await previewStatusRef.current?.(p.id, 'added');
+  };
+  const organise = () => {
+    const undo = session.organise();
+    if (!undo) return toast('Already organised');
+    toast('Widgets organised', { duration: 6000, action: { label: 'Undo', onClick: undo } });
   };
   const adopt = useCallback((next: Dashboard) => session.adoptRemote(next), [session]);
   // D-161: Activity entry actions.
@@ -416,6 +424,7 @@ function DashboardView({
                 onRename={(t) => session.setTitle(t)}
                 onRetry={() => session.retry()}
                 onRefresh={refreshAll}
+                onOrganise={canEdit ? organise : undefined}
                 onShare={() => setDialog('share')}
                 onDuplicate={() => void duplicate()}
                 onDelete={() => setDialog('delete')}

@@ -44,6 +44,7 @@ import {
   type WidgetPreview,
   type WidgetPreviewStatus,
 } from '@shared/contract/index.ts';
+import { firstFit, packLayout } from '@shared/domain/dashboard-pack.ts';
 import { randomBytes, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
@@ -170,18 +171,12 @@ export function normaliseLayout(
       seen.add(item.i);
       items.push({ ...item });
     }
-    let y = items.reduce((m, it) => Math.max(m, it.y + it.h), 0);
-    let x = 0;
-    let rowH = 0;
+    // D-162: each new widget takes the first free gap (top-left first), not the bottom row.
     for (const w of widgets) {
       if (seen.has(w.id)) continue;
       const size = WIDGET_SIZES[w.type];
       const width = bp === 'sm' ? 1 : Math.min(size.w, cols);
-      if (x + width > cols) {
-        y += rowH;
-        x = 0;
-        rowH = 0;
-      }
+      const { x, y } = firstFit(items, width, size.h, cols);
       items.push({
         i: w.id,
         x,
@@ -191,8 +186,6 @@ export function normaliseLayout(
         minW: Math.min(size.minW, width),
         minH: size.minH,
       });
-      x += width;
-      rowH = Math.max(rowH, size.h);
     }
     out[bp] = items;
   }
@@ -431,6 +424,8 @@ export class Dashboards {
         widgets: input.widgets ?? [],
         layout: input.layout ?? { lg: [], md: [], sm: [] },
       });
+      // D-162: a dashboard created in one go (e.g. by the assistant) starts organised.
+      if (!input.layout) content.layout = packLayout(content.widgets);
       return this.insert(ownerId, content);
     });
   }
