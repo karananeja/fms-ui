@@ -466,4 +466,23 @@ ALTER TABLE audit_log ADD COLUMN after_json TEXT;
 ALTER TABLE audit_log ADD COLUMN undone_at INTEGER;
 `,
   },
+  {
+    version: 17,
+    name: 'enabled_models',
+    // F31 (D-171): a key carries the provider's model list and the models the user enabled;
+    // `model` is now the last model picked for the provider, `active` the chosen key. Existing
+    // keys keep working: their model is enabled. `user_ai_prefs.use_server` = the user picked
+    // the default assistant (server key) in the chat picker.
+    sql: `
+ALTER TABLE user_ai_keys ADD COLUMN enabled_models TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(enabled_models));
+ALTER TABLE user_ai_keys ADD COLUMN available_models TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(available_models));
+ALTER TABLE user_ai_keys ADD COLUMN models_fetched_at INTEGER;
+UPDATE user_ai_keys SET enabled_models = json_array(model), available_models = json_array(model);
+CREATE TABLE user_ai_prefs (
+  user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  use_server INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL
+);
+`,
+  },
 ];

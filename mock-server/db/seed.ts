@@ -27,6 +27,7 @@ const WIPED_TABLES = [
   'ai_usage',
   'assistant_actions',
   'user_ai_keys',
+  'user_ai_prefs',
   'org_settings',
   'audit_log',
   'dashboard_snapshots',

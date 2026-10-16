@@ -6,7 +6,7 @@ import type { WidgetPreview } from '@shared/contract/dashboards.ts';
 import { useCan } from '@/features/access/permissions/can';
 import {
   AddKeyNote,
-  AssistantModelLabel,
+  ModelPicker,
   useAssistantStatus,
 } from '@/features/settings/components/assistant-status';
 import { cn } from '@/shared/lib/utils';
@@ -108,7 +108,11 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
             <h2 className="shrink-0 text-xs font-semibold tracking-[0.06em] text-text uppercase">
               Ask FMS
             </h2>
-            <AssistantModelLabel status={assistantStatus} />
+            <ModelPicker
+              assistant={assistantStatus}
+              disabled={state.streaming}
+              onNavigate={onClose}
+            />
           </>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
@@ -166,7 +170,7 @@ export function AssistantPanel({ onClose }: { onClose(): void }) {
           {state.notConfigured ? (
             <div className="mb-auto">
               <AddKeyNote
-                status={assistantStatus}
+                status={assistantStatus.status}
                 onNavigate={onClose}
                 testId="assistant-not-configured"
               />

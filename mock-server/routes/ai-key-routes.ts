@@ -1,13 +1,12 @@
 import {
-  aiKeyTestRequestSchema,
-  aiModelsRequestSchema,
   aiProviderSchema,
+  assistantChoiceInputSchema,
+  enableAiModelsSchema,
   KEY_CHECK_LIMIT,
   KEY_CHECK_WINDOW_MS,
   saveAiKeySchema,
   updateAiSettingsSchema,
   type AiKeysState,
-  type AiKeyTestResult,
   type AiProvider,
 } from '@shared/contract/index.ts';
 import type { FastifyInstance, FastifyReply } from 'fastify';
@@ -19,25 +18,30 @@ import { authorize, parse } from '../context.ts';
 import { HttpError } from '../http-error.ts';
 
 /**
- * F25 (D-143), prefix `/api`:
- * - `GET /me/ai-keys`, `POST /me/ai-keys/models`, `POST /me/ai-keys/test`,
- *   `PUT|DELETE /me/ai-keys/:provider` (`chat.use`; models + test share a rate limit).
- * - `GET /assistant/status` (`chat.use`): the chat header label.
+ * F25 (D-143) + F31 (D-171), prefix `/api`:
+ * - `GET /me/ai-keys`, `PUT|DELETE /me/ai-keys/:provider` (Save checks the key and loads its
+ *   models), `POST /me/ai-keys/:provider/models/refresh`, `PUT /me/ai-keys/:provider/models`
+ *   (enabled models), `PUT /me/ai-model` (the chat picker's choice). All `chat.use`; Save and
+ *   Refresh share a rate limit.
+ * - `GET /assistant/status` (`chat.use`): the chat header picker.
  * - `GET|PUT /settings/ai` (`roles.manage`): the server-key fallback switch.
  * Keys are never logged or returned; provider failures map to fixed messages.
  */
 export async function aiKeyRoutes(app: FastifyInstance) {
   const ctx = app.mock;
   const fakeAvailable = () => fakeModelAvailable(ctx.config.dev);
+  const status = (userId: string) =>
+    statusOf(ctx, userId, resolveForUser(ctx, userId, fakeAvailable()));
 
-  const stateFor = (userId: string): AiKeysState => ({
+  const stateFor = (userId: string, notice?: string): AiKeysState => ({
     keys: ctx.aiKeys.list(userId),
-    status: statusOf(resolveForUser(ctx, userId, fakeAvailable())),
+    status: status(userId),
     fallback: {
       allowed: ctx.aiKeys.allowServerKeyFallback,
       serverConfigured: aiSettingsOf(ctx).serverConfigured,
     },
     storageAvailable: secretKey() !== undefined,
+    ...(notice ? { notice } : {}),
   });
 
   /** Sliding-window limit on key checks per user (memory only). */
@@ -61,61 +65,85 @@ export async function aiKeyRoutes(app: FastifyInstance) {
     return p.data;
   };
 
-  /** The key to check: the pasted one, else the stored one (`404` if none / unreadable). */
-  const keyToCheck = (userId: string, provider: AiProvider, apiKey: string | undefined) => {
-    if (apiKey !== undefined) return apiKey;
-    const stored = ctx.aiKeys.storedKey(userId, provider);
-    if (!stored) throw new HttpError(404, 'not_found', 'Paste a key first');
-    return stored;
-  };
-
   const logCheckFailure = (provider: AiProvider, err: KeyCheckError) =>
     app.log.warn({ provider, kind: err.kind, status: err.status }, 'AI key check failed');
+
+  /** The key's models; a rejected key is a 422, other failures `undefined` or a 502. */
+  const loadModels = async (provider: AiProvider, apiKey: string, soft: boolean) => {
+    try {
+      return await listModels(provider, apiKey, { fakeAvailable: fakeAvailable() });
+    } catch (err) {
+      if (!(err instanceof KeyCheckError)) throw err;
+      logCheckFailure(provider, err);
+      if (err.kind !== 'rejected' && soft) return undefined;
+      throw new HttpError(err.kind === 'rejected' ? 422 : 502, `key_${err.kind}`, err.message);
+    }
+  };
 
   app.get('/me/ai-keys', async (req) => {
     const { user } = authorize(ctx, req, 'chat.use');
     return stateFor(user.id);
   });
 
-  app.post('/me/ai-keys/models', async (req, reply) => {
-    const { user } = authorize(ctx, req, 'chat.use');
-    const body = parse(aiModelsRequestSchema, req.body);
-    const apiKey = keyToCheck(user.id, body.provider, body.apiKey);
-    rateLimit(user.id, reply);
-    try {
-      return { models: await listModels(body.provider, apiKey, { fakeAvailable: fakeAvailable() }) };
-    } catch (err) {
-      if (!(err instanceof KeyCheckError)) throw err;
-      logCheckFailure(body.provider, err);
-      throw new HttpError(err.kind === 'rejected' ? 422 : 502, `key_${err.kind}`, err.message);
-    }
-  });
-
-  app.post('/me/ai-keys/test', async (req, reply): Promise<AiKeyTestResult> => {
-    const { user } = authorize(ctx, req, 'chat.use');
-    const body = parse(aiKeyTestRequestSchema, req.body);
-    const apiKey = keyToCheck(user.id, body.provider, body.apiKey);
-    rateLimit(user.id, reply);
-    let models: string[];
-    try {
-      models = await listModels(body.provider, apiKey, { fakeAvailable: fakeAvailable() });
-    } catch (err) {
-      if (!(err instanceof KeyCheckError)) throw err;
-      logCheckFailure(body.provider, err);
-      return { ok: false, message: err.message, models: [] };
-    }
-    if (!models.includes(body.model))
-      return { ok: false, message: `Model ${body.model} isn't available for this key.`, models };
-    return { ok: true, message: `Connected. ${body.model} is available.`, models };
-  });
-
-  app.put<{ Params: { provider: string } }>('/me/ai-keys/:provider', async (req) => {
+  app.put<{ Params: { provider: string } }>('/me/ai-keys/:provider', async (req, reply) => {
     const { user } = authorize(ctx, req, 'chat.use');
     const provider = providerParam(req.params.provider);
     const body = parse(saveAiKeySchema, req.body);
-    ctx.aiKeys.save(user.id, provider, body, user.id);
-    app.log.info({ userId: user.id, provider, model: body.model }, 'AI key saved');
+    if (!secretKey())
+      throw new HttpError(
+        409,
+        'secret_missing',
+        'The server has no FMS_SECRET_KEY, so API keys cannot be stored. Ask an administrator.',
+      );
+    rateLimit(user.id, reply);
+    const models = await loadModels(provider, body.apiKey, true);
+    ctx.aiKeys.save(user.id, provider, { apiKey: body.apiKey, models }, user.id);
+    app.log.info({ userId: user.id, provider, models: models?.length ?? null }, 'AI key saved');
+    return stateFor(user.id, models ? undefined : "Saved. Couldn't load models: try Refresh.");
+  });
+
+  app.post<{ Params: { provider: string } }>(
+    '/me/ai-keys/:provider/models/refresh',
+    async (req, reply) => {
+      const { user } = authorize(ctx, req, 'chat.use');
+      const provider = providerParam(req.params.provider);
+      const apiKey = ctx.aiKeys.storedKey(user.id, provider);
+      if (!apiKey)
+        throw new HttpError(
+          404,
+          'not_found',
+          ctx.aiKeys.has(user.id, provider)
+            ? 'The saved key cannot be read. Paste it again.'
+            : 'No saved key for this provider',
+        );
+      rateLimit(user.id, reply);
+      const models = (await loadModels(provider, apiKey, false))!;
+      ctx.aiKeys.refreshModels(user.id, provider, models);
+      return stateFor(user.id);
+    },
+  );
+
+  app.put<{ Params: { provider: string } }>('/me/ai-keys/:provider/models', async (req) => {
+    const { user } = authorize(ctx, req, 'chat.use');
+    const provider = providerParam(req.params.provider);
+    const body = parse(enableAiModelsSchema, req.body);
+    ctx.aiKeys.setEnabled(user.id, provider, body.enabled, user.id);
     return stateFor(user.id);
+  });
+
+  app.put('/me/ai-model', async (req) => {
+    const { user } = authorize(ctx, req, 'chat.use');
+    const body = parse(assistantChoiceInputSchema, req.body);
+    if ('source' in body) {
+      if (!status(user.id).serverOption)
+        throw new HttpError(
+          409,
+          'fallback_disabled',
+          'The default assistant is not available. Choose one of your models.',
+        );
+      ctx.aiKeys.choose(user.id, 'server');
+    } else ctx.aiKeys.choose(user.id, body);
+    return status(user.id);
   });
 
   app.delete<{ Params: { provider: string } }>('/me/ai-keys/:provider', async (req) => {
@@ -128,7 +156,7 @@ export async function aiKeyRoutes(app: FastifyInstance) {
 
   app.get('/assistant/status', async (req) => {
     const { user } = authorize(ctx, req, 'chat.use');
-    return statusOf(resolveForUser(ctx, user.id, fakeAvailable()));
+    return status(user.id);
   });
 
   app.get('/settings/ai', async (req) => {

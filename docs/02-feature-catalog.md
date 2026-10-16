@@ -44,7 +44,7 @@ A feature is **Done** only when all four are in place: Implemented → Tested �
 | F28 | Saved Ask FMS conversations (server-side threads per user, history list, reopen and continue) | F17, F23, D-155 | Signed off 2026-10-16 | Draft (built on the user's go-ahead) | Done | Passed (full check 2026-10-16; F28–F30 e2e) | Accepted 2026-10-16 |
 | F29 | Assistant actions with Confirm, audit log (Activity page, `audit.view`) and Undo | F28, F03 | Signed off 2026-10-16 | Draft (built on the user's go-ahead) | Done | Passed (full check 2026-10-16; F28–F30 e2e) | Accepted 2026-10-16 |
 | F30 | AI token usage monitor (per run in SQLite, My usage + admin view, estimated cost) | F25 | Signed off 2026-10-16 | Draft (built on the user's go-ahead) | Done | Passed (full check 2026-10-16; F28–F30 e2e) | Accepted 2026-10-16 |
-| F31 | Enabled models per key (checklist in Settings) and a chat model picker; save a key without a model | F25, F30 | Draft (awaiting sign-off) | Draft (awaiting sign-off) | — | — | — |
+| F31 | Enabled models per key (checklist in Settings) and a chat model picker; save a key without a model | F25, F30 | Signed off 2026-10-16 | Signed off 2026-10-16 | Done | Passed (check + targeted e2e 2026-10-16) | UAT pending |
 | D-142 | Dashboard snapshots on list cards (per viewer, theme-aware) | F23 | Approved in chat | Addendum to F20 | Done | Passed (full check + e2e 2026-10-16) | Accepted 2026-10-16 |
 | Fix | Vehicle details sheet scrolls to its end at the top snap point (F07) | F07 | User bug report | — | Done | Passed | Accepted 2026-10-16 |
 

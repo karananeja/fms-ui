@@ -620,3 +620,11 @@ Results: check 716/716, build clean, clock 4/4, all budgets met. Chromium was 54
 **Assistant:** Wrote `docs/features/f31-enabled-models/intent.md` and `spec.md`: migration v17 (`enabled_models`, `available_models`), Save without a model, Refresh and enable endpoints, `PUT /api/me/ai-model`, `assistantStatus.options`, `ModelPicker` in both chat headers, and 8 acceptance tests. D-171 Proposed (amends D-143).
 
 **Status/Next:** F31 intent + spec await sign-off; then build on `feature/f31-enabled-models`.
+
+## 2026-10-16: F31 built
+
+**User:** "yes, go ahead" → F31 intent + spec signed off. Built on `feature/f31-enabled-models` (client agent ∥ server): migration v17 + `user_ai_prefs`, Save without a model (loads the model list), per-key model checklist, `PUT /api/me/ai-model`, `ModelPicker` in Ask FMS and the dashboard dock; `/me/ai-keys/models` and `/test` removed.
+
+**Tests:** `pnpm check` 1312/1313 (`widget-query.perf` under load, passes alone), build clean; targeted e2e (f25/F31, f23, dashboard-builder, assistant, d158, f28) all passed. D-171 Proposed.
+
+**Status/Next:** UAT of F31 on `feature/f31-enabled-models`; then merge `--no-ff` into `main`.

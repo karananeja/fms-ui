@@ -1,12 +1,13 @@
 # F31 — Enabled models & chat model picker · Spec
 
-**Status:** Draft, awaiting sign-off (2026-10-16), written with the intent. Decision: D-171 (Proposed). Amends D-143 (F25).
+**Status:** Signed off: 2026-10-16 (user: "yes, go ahead"). Decision: D-171 (Proposed). Amends D-143 (F25).
 
 ## 1. Data (migration v17, append-only)
 - `user_ai_keys` gains `enabled_models TEXT NOT NULL DEFAULT '[]'` (JSON ids, in the order ticked), `available_models TEXT NOT NULL DEFAULT '[]'` (JSON ids from the provider) and `models_fetched_at INTEGER`.
 - Existing columns get new meanings: `model` = the last model picked for this provider; `active = 1` = the user's chosen key (at most one per user, as before).
 - Backfill: `enabled_models = available_models = [model]`; `active` stays as it is, so existing users keep their key and model.
 - Limits: at most 20 enabled models per key; the stored available list is capped at 500 ids.
+- New `user_ai_prefs(user_id PK → users ON DELETE CASCADE, use_server, updated_at)`: the user picked **Default assistant** in the chat picker. Dev reset wipes it.
 
 ## 2. Resolution (every chat turn, both chats)
 1. The chosen key (`active`) when it is readable and its `model` is still in `enabled_models` → that provider and model.
@@ -18,7 +19,7 @@
 - `aiKeySummary`: **removes** `model` and `active`, and **adds** `enabledModels: string[]`, `availableModels: string[]`, `modelsFetchedAt: epochMs | null`.
 - New `aiModelChoice = { provider: AiProvider, model }`, and `assistantChoiceInput = aiModelChoice | { source: 'server' }`.
 - `assistantStatus` adds `options: { provider, model }[]` (enabled models of all readable keys, in provider order) and `serverOption: { provider, model } | null` (set when the default assistant may be used). `reason` adds `no_models_enabled`.
-- `aiKeysState` is unchanged in shape (its `keys` carry the new summary).
+- `aiKeysState` carries the new summary in `keys`, plus an optional `notice` (Save could not load models: "Saved. Couldn't load models: try Refresh.").
 - `saveAiKeySchema` becomes `{ apiKey }` (required); `MAX_ENABLED_MODELS = 20`.
 
 ## 4. Endpoints (session cookie, `chat.use`)
