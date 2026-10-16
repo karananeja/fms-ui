@@ -24,6 +24,7 @@ import { inputClass } from '@/features/auth/components/text-field';
 import { TintPill } from '@/features/live-tracking/components/status-pill';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
+import { DateRangePicker } from '@/shared/ui/date-range-picker';
 import { auditCsvUrl, listAudit, undoAction } from '../api/activity-api';
 import { AREA_ICON, AREA_LABEL, AUDIT_STATUS, istDayMs, targetHref } from '../lib/activity-format';
 
@@ -130,26 +131,16 @@ export function ActivityPage() {
             ...ACTION_KINDS.map((k) => ({ value: k, label: k })),
           ]}
         />
-        <label className="flex items-center gap-1.5 text-xs text-text-muted">
-          From
-          <input
-            type="date"
-            aria-label="From date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className={cn(inputClass, 'h-10 w-auto')}
-          />
-        </label>
-        <label className="flex items-center gap-1.5 text-xs text-text-muted">
-          To
-          <input
-            type="date"
-            aria-label="To date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className={cn(inputClass, 'h-10 w-auto')}
-          />
-        </label>
+        {/* D-170: shadcn date-range picker; days are IST (istDayMs). */}
+        <DateRangePicker
+          label="Filter by date"
+          from={from}
+          to={to}
+          onChange={(f, t) => {
+            setFrom(f);
+            setTo(t);
+          }}
+        />
         <label className="relative w-full sm:ml-auto sm:w-64">
           <span className="sr-only">Search activity</span>
           <Search

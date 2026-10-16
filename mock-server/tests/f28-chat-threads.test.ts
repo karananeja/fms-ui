@@ -89,6 +89,15 @@ describe('F28-T1 first message, stored reply, transcript', () => {
       ['assistant', 'done'],
     ]);
     expect(d.messages[1]!.extras.chips?.length ?? 0).toBeGreaterThanOrEqual(0);
+
+    // F30-T4: the turn wrote exactly one usage row (fake model: hidden unless includeFake).
+    const me = (await (
+      await fetch(`${server.base}/api/me/usage?range=7d&includeFake=1`, {
+        headers: { cookie: cookies.ops },
+      })
+    ).json()) as { totals: { turns: number }; topTurns: { threadId: string | null }[] };
+    expect(me.totals.turns).toBe(1);
+    expect(me.topTurns[0]!.threadId).toBe(threadId);
   });
 
   it('the next turn sends the stored thread as the transcript', async () => {
